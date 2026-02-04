@@ -1,0 +1,72 @@
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 60px;
+  background-color: #1a1a2e;
+  color: #ffffff;
+  border-bottom: 1px solid #2d2d44;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: #e94560;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.agent-label {
+  color: #8b8b9e;
+}
+
+.agent-name {
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.status-toggle {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &.available {
+    background-color: #10b981;
+    color: #ffffff;
+
+    &:hover {
+      background-color: #059669;
+    }
+  }
+
+  &.busy {
+    background-color: #ef4444;
+    color: #ffffff;
+
+    &:hover {
+      background-color: #dc2626;
+    }
+  }
+}
