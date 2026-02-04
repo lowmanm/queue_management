@@ -7,12 +7,25 @@
     <div class="workspace-main">
       <app-main-stage></app-main-stage>
 
-      <!-- Get Next Task button overlay - shown in IDLE state -->
-      @if (showGetNextButton) {
-        <div class="idle-overlay">
-          <button class="get-next-btn" (click)="onGetNextTask()">
-            Get Next Task
-          </button>
+      <!-- Connecting overlay -->
+      @if (isConnecting) {
+        <div class="status-overlay connecting">
+          <div class="status-content">
+            <div class="spinner"></div>
+            <h2>Connecting...</h2>
+            <p>Establishing connection to queue server</p>
+          </div>
+        </div>
+      }
+
+      <!-- Waiting for task overlay (Force Mode) -->
+      @if (isWaitingForTask) {
+        <div class="status-overlay waiting">
+          <div class="status-content">
+            <div class="pulse-ring"></div>
+            <h2>Ready for Work</h2>
+            <p>Waiting for next task assignment...</p>
+          </div>
         </div>
       }
 

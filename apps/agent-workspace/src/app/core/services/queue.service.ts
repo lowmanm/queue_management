@@ -1,6 +1,14 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, interval, Subscription } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  tap,
+  interval,
+  Subscription,
+  Subject,
+  takeUntil,
+} from 'rxjs';
 import {
   Task,
   TaskStatus,
@@ -9,9 +17,11 @@ import {
 } from '@nexus-queue/shared-models';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
+import { SocketService } from './socket.service';
 
 /**
  * Manages the task queue and agent state machine.
+ * Supports both Force Mode (WebSocket push) and Pull Mode (HTTP request).
  *
  * State Flow:
  * IDLE → RESERVED → ACTIVE → WRAP_UP → IDLE
@@ -19,10 +29,12 @@ import { AuthService } from './auth.service';
 @Injectable({
   providedIn: 'root',
 })
-export class QueueService {
+export class QueueService implements OnDestroy {
+  private destroy$ = new Subject<void>();
+
   // === State Subjects ===
   private currentTaskSubject = new BehaviorSubject<Task | null>(null);
-  private agentStateSubject = new BehaviorSubject<AgentState>('IDLE');
+  private agentStateSubject = new BehaviorSubject<AgentState>('OFFLINE');
 
   // === Public Observables ===
   public currentTask$: Observable<Task | null> =
@@ -45,8 +57,17 @@ export class QueueService {
 
   constructor(
     private http: HttpClient,
-    private authService: AuthService
-  ) {}
+    private authService: AuthService,
+    private socketService: SocketService
+  ) {
+    this.setupSocketListeners();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.stopReservationTimer();
+  }
 
   // === Getters ===
 
@@ -69,10 +90,58 @@ export class QueueService {
     };
   }
 
+  // === Connection Management ===
+
+  /**
+   * Initialize the queue service and connect to WebSocket.
+   * Called after authentication is complete.
+   */
+  initialize(): void {
+    const agent = this.authService.currentAgent;
+    if (!agent) {
+      console.error('Cannot initialize queue: No authenticated agent');
+      return;
+    }
+
+    console.log('Initializing queue service for agent:', agent.id);
+    this.socketService.connect(agent.id, agent.name);
+  }
+
+  /**
+   * Disconnect from the queue
+   */
+  disconnect(): void {
+    this.socketService.disconnect();
+    this.transitionTo('OFFLINE');
+  }
+
   // === State Machine Transitions ===
 
   /**
-   * Fetches the next available task from the backend.
+   * Handle task assigned via WebSocket (Force Mode)
+   */
+  handleTaskAssigned(task: Task): void {
+    console.log('Task assigned via WebSocket:', task.id);
+    this.currentTaskSubject.next(task);
+    this.transitionTo('RESERVED');
+    this.startReservationTimer(task.reservationTimeout || 30);
+  }
+
+  /**
+   * Handle task timeout via WebSocket
+   */
+  handleTaskTimeout(taskId: string): void {
+    if (this.currentTask?.id === taskId) {
+      console.log('Task timeout received:', taskId);
+      this.stopReservationTimer();
+      this.currentTaskSubject.next(null);
+      this.transitionTo('IDLE');
+    }
+  }
+
+  /**
+   * Fetches the next available task from the backend (Pull Mode).
+   * Only used when Pull Mode is enabled for a queue.
    * Transitions: IDLE → RESERVED
    */
   getNextTask(): Observable<Task> {
@@ -115,6 +184,12 @@ export class QueueService {
 
     this.stopReservationTimer();
 
+    // Notify server
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId) {
+      this.socketService.sendTaskAction(agentId, task.id, 'accept');
+    }
+
     // Update task timestamps
     const now = new Date().toISOString();
     const updatedTask: Task = {
@@ -139,7 +214,15 @@ export class QueueService {
       );
     }
 
+    const task = this.currentTask;
     this.stopReservationTimer();
+
+    // Notify server
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId && task) {
+      this.socketService.sendTaskAction(agentId, task.id, 'reject');
+    }
+
     this.currentTaskSubject.next(null);
     this.transitionTo('IDLE');
   }
@@ -160,6 +243,12 @@ export class QueueService {
       throw new Error('No task to complete');
     }
 
+    // Notify server
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId) {
+      this.socketService.sendTaskAction(agentId, task.id, 'complete');
+    }
+
     const now = new Date().toISOString();
     const handleTime = this.calculateHandleTime(task.startedAt, now);
 
@@ -178,7 +267,9 @@ export class QueueService {
    * Agent submits disposition and finishes wrap-up.
    * Transitions: WRAP_UP → IDLE
    */
-  submitDisposition(disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'>): void {
+  submitDisposition(
+    disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'>
+  ): void {
     if (this.agentState !== 'WRAP_UP') {
       throw new Error(
         `Cannot submit disposition: Agent is in ${this.agentState} state`
@@ -194,6 +285,13 @@ export class QueueService {
     const agentId = this.authService.currentAgent?.id || 'unknown';
     const wrapUpTime = this.calculateHandleTime(task.completedAt, now);
     const totalTime = this.calculateHandleTime(task.reservedAt, now);
+
+    // Notify server
+    this.socketService.sendDispositionComplete(
+      agentId,
+      task.id,
+      disposition.code
+    );
 
     const updatedTask: Task = {
       ...task,
@@ -237,6 +335,12 @@ export class QueueService {
       throw new Error('No task to transfer');
     }
 
+    // Notify server
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId) {
+      this.socketService.sendTaskAction(agentId, task.id, 'transfer');
+    }
+
     const now = new Date().toISOString();
     const updatedTask: Task = {
       ...task,
@@ -262,6 +366,12 @@ export class QueueService {
       throw new Error('Cannot set ready while task is assigned');
     }
     this.transitionTo('IDLE');
+
+    // Notify server agent is ready
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId) {
+      this.socketService.sendAgentReady(agentId);
+    }
   }
 
   /**
@@ -277,10 +387,47 @@ export class QueueService {
 
   // === Private Helpers ===
 
+  private setupSocketListeners(): void {
+    // Handle WebSocket connection status
+    this.socketService.connectionStatus$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((status) => {
+        if (status.connected) {
+          console.log('Socket connected, transitioning to IDLE');
+          this.transitionTo('IDLE');
+        } else if (this.agentState !== 'OFFLINE') {
+          console.log('Socket disconnected');
+          // Don't transition to offline on temporary disconnects
+        }
+      });
+
+    // Handle task assignments (Force Mode)
+    this.socketService.taskAssigned$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((task) => {
+        this.handleTaskAssigned(task);
+      });
+
+    // Handle task timeouts
+    this.socketService.taskTimeout$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ taskId }) => {
+        this.handleTaskTimeout(taskId);
+      });
+  }
+
   private transitionTo(newState: AgentState): void {
     const oldState = this.agentState;
+    if (oldState === newState) return;
+
     console.log(`Agent state transition: ${oldState} → ${newState}`);
     this.agentStateSubject.next(newState);
+
+    // Notify server of state change (except for IDLE which is handled separately)
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId && newState !== 'IDLE') {
+      this.socketService.sendStateChange(agentId, newState);
+    }
   }
 
   private startReservationTimer(timeoutSeconds: number): void {
@@ -310,6 +457,14 @@ export class QueueService {
   private handleReservationTimeout(): void {
     console.log('Reservation timeout - releasing task');
     this.stopReservationTimer();
+
+    // Notify server of rejection due to timeout
+    const task = this.currentTask;
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId && task) {
+      this.socketService.sendTaskAction(agentId, task.id, 'reject');
+    }
+
     this.currentTaskSubject.next(null);
     this.transitionTo('IDLE');
   }
