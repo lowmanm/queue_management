@@ -97,42 +97,74 @@ To provide a seamless experience where it feels like the agent is working direct
 
 ---
 
-## 5. Phase 1: The Foundation (Current)
+## 5. Development Phases
 
-The initial build focuses on the **"Heartbeat"**—the connection between the Agent and the Server.
+### Phase 1: The Foundation ✅ Complete
 
-### Deliverables
+The initial build focused on the **"Heartbeat"**—the connection between the Agent and the Server.
 
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
 | 1 | Mock Authentication | Local development bypasses SSO for speed | ✅ Complete |
-| 2 | The State Machine | Implementing the flow: `Idle → Reserved → Working → Disposition` | 🔄 In Progress |
-| 3 | Basic Distribution | A "Next Task" API that serves work based on a simple priority integer | ✅ Complete |
+| 2 | The State Machine | Agent state flow: `OFFLINE → IDLE → RESERVED → ACTIVE → WRAP_UP` | ✅ Complete |
+| 3 | Basic Distribution | Task API with priority-based assignment | ✅ Complete |
+
+### Phase 2: Real-time Push ✅ Complete
+
+WebSocket-based Force Mode for server-initiated task delivery.
+
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 1 | WebSocket Gateway | Socket.io integration on NestJS backend | ✅ Complete |
+| 2 | Agent Connection | Real-time agent registration and state tracking | ✅ Complete |
+| 3 | Force Mode | Server pushes tasks to agents automatically | ✅ Complete |
+| 4 | Task Actions | Accept, Reject, Complete, Transfer via WebSocket | ✅ Complete |
 
 ### Agent State Machine
 
 ```
-┌─────────┐     Task      ┌──────────┐    Accept    ┌─────────┐
-│  Idle   │──────────────▶│ Reserved │─────────────▶│ Working │
-│(Available)              └──────────┘              └─────────┘
-└─────────┘                    │                         │
-     ▲                         │ Timeout                 │ Complete
-     │                         ▼                         ▼
-     │                    ┌──────────┐             ┌───────────┐
-     └────────────────────│ Released │◀────────────│Disposition│
-                          └──────────┘   Wrap-up   │ (Wrap-up) │
-                                                   └───────────┘
+┌──────────┐    Connected    ┌──────────┐   Task Pushed   ┌──────────┐
+│ OFFLINE  │────────────────▶│   IDLE   │────────────────▶│ RESERVED │
+└──────────┘                 └──────────┘                 └──────────┘
+     ▲                            ▲                            │
+     │                            │                            │ Accept
+     │ Disconnect                 │ Timeout/Reject             ▼
+     │                            │                       ┌──────────┐
+     │                            └───────────────────────│  ACTIVE  │
+     │                                                    └──────────┘
+     │                            ┌──────────┐                 │
+     │                            │   IDLE   │◀────Transfer────┤
+     │                            └──────────┘                 │
+     │                                 ▲                       │ Complete
+     │                                 │                       ▼
+     │                                 │ Disposition      ┌──────────┐
+     │                                 └──────────────────│ WRAP_UP  │
+     │                                                    └──────────┘
+     │
+     └─────────────────── (From any state on disconnect)
 ```
+
+**Valid State Transitions:**
+
+| From | To | Trigger |
+|------|----|---------|
+| OFFLINE | IDLE | WebSocket connected & acknowledged |
+| IDLE | RESERVED | Task assigned (Force Mode push) |
+| RESERVED | ACTIVE | Agent accepts task |
+| RESERVED | IDLE | Agent rejects or timeout expires |
+| ACTIVE | WRAP_UP | Agent completes work |
+| ACTIVE | IDLE | Agent transfers task |
+| WRAP_UP | IDLE | Disposition submitted |
+| ANY | OFFLINE | WebSocket disconnect or logout |
 
 ---
 
 ## 6. Future Roadmap
 
-| Phase | Name | Description | Key Features |
-|-------|------|-------------|--------------|
-| **Phase 2** | Real-time Push | Implement WebSockets to eliminate the need for agents to click "Get Next" | Socket.io integration, Server-push notifications |
-| **Phase 3** | Logic Builder | A drag-and-drop UI for "Power Users" to modify queue criteria without code changes | Filters, weights, scoring configuration |
-| **Phase 4** | GCS Integration | Automated listeners for Google Cloud Storage buckets to replace manual file transfers | Event-driven ingestion, file processing pipelines |
+| Phase | Name | Description | Key Features | Status |
+|-------|------|-------------|--------------|--------|
+| **Phase 3** | Logic Builder | A drag-and-drop UI for "Power Users" to modify queue criteria without code changes | Filters, weights, scoring configuration | 🔲 Planned |
+| **Phase 4** | GCS Integration | Automated listeners for Google Cloud Storage buckets to replace manual file transfers | Event-driven ingestion, file processing pipelines | 🔲 Planned |
 
 ---
 
@@ -141,20 +173,36 @@ The initial build focuses on the **"Heartbeat"**—the connection between the Ag
 ```
 nexus-queue/
 ├── apps/
-│   ├── agent-workspace/          # Angular frontend
+│   ├── agent-workspace/              # Angular 17+ frontend
 │   │   └── src/
 │   │       ├── app/
-│   │       │   ├── core/         # Guards, services
-│   │       │   └── features/     # Workspace, login
+│   │       │   ├── core/
+│   │       │   │   ├── guards/       # Auth guard
+│   │       │   │   └── services/     # Auth, Queue, Socket services
+│   │       │   └── features/
+│   │       │       ├── login/        # Login component
+│   │       │       └── workspace/    # Main workspace
+│   │       │           └── components/
+│   │       │               ├── header/
+│   │       │               ├── sidebar/
+│   │       │               ├── main-stage/   # iFrame container
+│   │       │               └── action-bar/   # Dynamic actions
 │   │       └── environments/
-│   └── api-server/               # NestJS backend
+│   └── api-server/                   # NestJS backend
 │       └── src/
 │           └── app/
-│               └── tasks/        # Task management
-└── libs/
-    └── shared-models/            # Shared TypeScript interfaces
-        └── src/lib/
-            └── task.interface.ts
+│               ├── gateway/          # WebSocket gateway
+│               │   └── agent.gateway.ts
+│               ├── services/         # Agent manager, task distributor
+│               └── tasks/            # REST API endpoints
+├── libs/
+│   └── shared-models/                # Shared TypeScript interfaces
+│       └── src/lib/
+│           ├── task.interface.ts
+│           └── agent.interface.ts
+├── ARCHITECTURE.md                   # This document
+├── BRANCH_STRATEGY.md                # Git workflow
+└── AGENT.md                          # AI agent guidelines
 ```
 
 ---
@@ -166,17 +214,57 @@ nexus-queue/
 ```typescript
 interface Task {
   id: string;
+  externalId?: string;
+  workType: string;              // "ORDERS", "RETURNS", "CLAIMS"
   title: string;
-  payloadUrl: string;
-  priority: number;
-  status: 'PENDING' | 'ASSIGNED' | 'COMPLETED';
+  description?: string;
+  payloadUrl: string;            // URL loaded in iFrame
+  metadata?: Record<string, string>;
+  priority: number;              // 0-10, lower = higher priority
+  skills?: string[];
+  queue?: string;
+  status: TaskStatus;
+
+  // Timestamps (ISO 8601)
+  createdAt: string;
+  reservedAt?: string;
+  acceptedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  dispositionedAt?: string;
+
+  // Performance metrics (seconds)
+  handleTime?: number;           // startedAt → completedAt
+  wrapUpTime?: number;           // completedAt → dispositionedAt
+  totalTime?: number;            // reservedAt → dispositionedAt
+
+  // Configuration
+  reservationTimeout?: number;   // Max seconds in RESERVED state
+  actions?: TaskAction[];        // Dynamic action buttons
+  disposition?: TaskDisposition;
 }
+
+type TaskStatus = 'PENDING' | 'RESERVED' | 'ACTIVE' | 'WRAP_UP' | 'COMPLETED' | 'TRANSFERRED' | 'EXPIRED';
 ```
 
-### Agent Status
+### Agent State
 
 ```typescript
-type AgentStatus = 'Available' | 'Busy';
+type AgentState = 'OFFLINE' | 'IDLE' | 'RESERVED' | 'ACTIVE' | 'WRAP_UP';
+```
+
+### Task Action
+
+```typescript
+interface TaskAction {
+  id: string;
+  label: string;
+  type: 'COMPLETE' | 'TRANSFER' | 'LINK' | 'CUSTOM';
+  icon?: string;
+  url?: string;                  // For LINK type
+  dispositionCode?: string;      // For COMPLETE type
+  primary?: boolean;
+}
 ```
 
 ---
