@@ -1,0 +1,40 @@
+<aside class="workspace-sidebar">
+  <div class="sidebar-header">
+    <h2>Task Info</h2>
+  </div>
+
+  <div class="sidebar-content">
+    @if (currentTask$ | async; as task) {
+      <div class="task-details">
+        <div class="task-field">
+          <span class="field-label">Task ID</span>
+          <span class="field-value">{{ task.id }}</span>
+        </div>
+
+        <div class="task-field">
+          <span class="field-label">Title</span>
+          <span class="field-value">{{ task.title }}</span>
+        </div>
+
+        <div class="task-field">
+          <span class="field-label">Priority</span>
+          <span class="field-value priority-badge" [attr.data-priority]="task.priority">
+            {{ task.priority }}
+          </span>
+        </div>
+
+        <div class="task-field">
+          <span class="field-label">Status</span>
+          <span class="field-value status-badge" [attr.data-status]="task.status">
+            {{ task.status }}
+          </span>
+        </div>
+      </div>
+    } @else {
+      <div class="no-task">
+        <p>No active task</p>
+        <span class="no-task-hint">Set status to "Available" to receive tasks</span>
+      </div>
+    }
+  </div>
+</aside>

@@ -1,0 +1,25 @@
+<header class="workspace-header">
+  <div class="header-left">
+    <h1 class="app-title">Nexus Queue</h1>
+  </div>
+
+  <div class="header-right">
+    @if (agent$ | async; as agent) {
+      <div class="agent-info">
+        <span class="agent-label">Agent:</span>
+        <span class="agent-name">{{ agent.name }}</span>
+      </div>
+    }
+
+    @if (status$ | async; as status) {
+      <button
+        class="status-toggle"
+        [class.available]="status === 'Available'"
+        [class.busy]="status === 'Busy'"
+        (click)="toggleStatus()"
+      >
+        {{ status }}
+      </button>
+    }
+  </div>
+</header>
