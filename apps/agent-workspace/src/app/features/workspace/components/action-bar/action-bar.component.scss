@@ -1,0 +1,114 @@
+.action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background-color: #1a1a2e;
+  border-top: 1px solid #2d2d44;
+  min-height: 60px;
+}
+
+// Common button styles
+.action-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #3b3b5c;
+  color: #ffffff;
+
+  &:hover {
+    background-color: #4a4a6a;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &.primary {
+    background-color: #3b82f6;
+
+    &:hover {
+      background-color: #2563eb;
+    }
+  }
+
+  &.complete {
+    background-color: #10b981;
+
+    &:hover {
+      background-color: #059669;
+    }
+  }
+
+  &.transfer {
+    background-color: #f59e0b;
+    color: #1a1a2e;
+
+    &:hover {
+      background-color: #d97706;
+    }
+  }
+
+  &.accept {
+    background-color: #10b981;
+
+    &:hover {
+      background-color: #059669;
+    }
+  }
+
+  &.reject {
+    background-color: #ef4444;
+
+    &:hover {
+      background-color: #dc2626;
+    }
+  }
+}
+
+// Reservation state styles
+.reservation-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.reservation-prompt {
+  font-size: 0.875rem;
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.reservation-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+// Active task actions
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// Disposition state styles
+.disposition-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.disposition-prompt {
+  font-size: 0.875rem;
+  color: #8b5cf6;
+  font-weight: 500;
+}
+
+.disposition-buttons {
+  display: flex;
+  gap: 12px;
+}

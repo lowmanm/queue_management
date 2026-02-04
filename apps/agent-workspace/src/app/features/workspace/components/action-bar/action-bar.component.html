@@ -1,0 +1,53 @@
+@if (showBar$ | async) {
+  <div class="action-bar">
+    @if (agentState$ | async; as state) {
+      <!-- Reserved State: Accept/Reject buttons -->
+      @if (state === 'RESERVED') {
+        <div class="reservation-actions">
+          <span class="reservation-prompt">New task assigned. Accept?</span>
+          <div class="reservation-buttons">
+            <button class="action-btn accept" (click)="onAccept()">
+              Accept
+            </button>
+            <button class="action-btn reject" (click)="onReject()">
+              Reject
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Active State: Dynamic action buttons -->
+      @if (state === 'ACTIVE') {
+        <div class="task-actions">
+          @for (action of actions$ | async; track action.id) {
+            <button
+              [class]="getButtonClass(action)"
+              (click)="onActionClick(action)"
+            >
+              {{ action.label }}
+            </button>
+          }
+        </div>
+      }
+
+      <!-- Wrap-up State: Disposition buttons -->
+      @if (state === 'WRAP_UP') {
+        <div class="disposition-actions">
+          <span class="disposition-prompt">Select disposition:</span>
+          <div class="disposition-buttons">
+            @for (action of actions$ | async; track action.id) {
+              @if (action.type === 'COMPLETE') {
+                <button
+                  [class]="getButtonClass(action)"
+                  (click)="onActionClick(action)"
+                >
+                  {{ action.label }}
+                </button>
+              }
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+}

@@ -6,34 +6,105 @@
   <div class="sidebar-content">
     @if (currentTask$ | async; as task) {
       <div class="task-details">
-        <div class="task-field">
-          <span class="field-label">Task ID</span>
-          <span class="field-value">{{ task.id }}</span>
+        <!-- Identity Section -->
+        <div class="section">
+          <div class="task-field">
+            <span class="field-label">Task ID</span>
+            <span class="field-value monospace">{{ task.id }}</span>
+          </div>
+
+          @if (task.externalId) {
+            <div class="task-field">
+              <span class="field-label">External ID</span>
+              <span class="field-value monospace">{{ task.externalId }}</span>
+            </div>
+          }
+
+          <div class="task-field">
+            <span class="field-label">Work Type</span>
+            <span class="field-value work-type-badge">{{ task.workType }}</span>
+          </div>
         </div>
 
-        <div class="task-field">
-          <span class="field-label">Title</span>
-          <span class="field-value">{{ task.title }}</span>
+        <!-- Details Section -->
+        <div class="section">
+          <div class="task-field">
+            <span class="field-label">Title</span>
+            <span class="field-value">{{ task.title }}</span>
+          </div>
+
+          @if (task.description) {
+            <div class="task-field">
+              <span class="field-label">Description</span>
+              <span class="field-value description">{{ task.description }}</span>
+            </div>
+          }
         </div>
 
-        <div class="task-field">
-          <span class="field-label">Priority</span>
-          <span class="field-value priority-badge" [attr.data-priority]="task.priority">
-            {{ task.priority }}
-          </span>
+        <!-- Priority & Status Section -->
+        <div class="section">
+          <div class="task-field-row">
+            <div class="task-field half">
+              <span class="field-label">Priority</span>
+              <span class="field-value priority-badge" [attr.data-priority]="task.priority">
+                {{ task.priority }}
+              </span>
+            </div>
+
+            <div class="task-field half">
+              <span class="field-label">Status</span>
+              <span class="field-value status-badge" [attr.data-status]="task.status">
+                {{ task.status }}
+              </span>
+            </div>
+          </div>
+
+          @if (task.queue) {
+            <div class="task-field">
+              <span class="field-label">Queue</span>
+              <span class="field-value">{{ task.queue }}</span>
+            </div>
+          }
         </div>
 
-        <div class="task-field">
-          <span class="field-label">Status</span>
-          <span class="field-value status-badge" [attr.data-status]="task.status">
-            {{ task.status }}
-          </span>
-        </div>
+        <!-- Timing Section -->
+        @if (task.handleTime || task.createdAt) {
+          <div class="section">
+            <div class="section-title">Timing</div>
+
+            @if (task.handleTime) {
+              <div class="task-field">
+                <span class="field-label">Handle Time</span>
+                <span class="field-value time">{{ task.handleTime }}s</span>
+              </div>
+            }
+
+            @if (task.createdAt) {
+              <div class="task-field">
+                <span class="field-label">Created</span>
+                <span class="field-value time">{{ task.createdAt | date:'short' }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Metadata Section -->
+        @if (task.metadata && hasMetadata(task.metadata)) {
+          <div class="section">
+            <div class="section-title">Metadata</div>
+            @for (item of getMetadataEntries(task.metadata); track item.key) {
+              <div class="task-field">
+                <span class="field-label">{{ item.key }}</span>
+                <span class="field-value monospace">{{ item.value }}</span>
+              </div>
+            }
+          </div>
+        }
       </div>
     } @else {
       <div class="no-task">
         <p>No active task</p>
-        <span class="no-task-hint">Set status to "Available" to receive tasks</span>
+        <span class="no-task-hint">Click "Get Next Task" to receive work</span>
       </div>
     }
   </div>

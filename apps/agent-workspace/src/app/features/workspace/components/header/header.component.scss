@@ -12,6 +12,7 @@
 .header-left {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .app-title {
@@ -21,10 +22,43 @@
   color: #e94560;
 }
 
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.session-metrics {
+  display: flex;
+  gap: 32px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.metric-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.metric-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b8b9e;
+}
+
 .header-right {
   display: flex;
   align-items: center;
   gap: 24px;
+  flex: 0 0 auto;
 }
 
 .agent-info {
@@ -43,30 +77,99 @@
   color: #ffffff;
 }
 
-.status-toggle {
+// State Badge Styles
+.state-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 16px;
-  border: none;
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+}
 
-  &.available {
-    background-color: #10b981;
-    color: #ffffff;
+.state-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
 
-    &:hover {
-      background-color: #059669;
-    }
+.state-label {
+  color: #ffffff;
+}
+
+.countdown {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+}
+
+// State-specific colors
+.state-idle {
+  background-color: #10b981;
+
+  .state-indicator {
+    background-color: #34d399;
+    box-shadow: 0 0 8px #34d399;
   }
+}
 
-  &.busy {
-    background-color: #ef4444;
-    color: #ffffff;
+.state-reserved {
+  background-color: #f59e0b;
 
-    &:hover {
-      background-color: #dc2626;
-    }
+  .state-indicator {
+    background-color: #fbbf24;
+    box-shadow: 0 0 8px #fbbf24;
+    animation: pulse-fast 0.5s infinite;
+  }
+}
+
+.state-active {
+  background-color: #3b82f6;
+
+  .state-indicator {
+    background-color: #60a5fa;
+    box-shadow: 0 0 8px #60a5fa;
+  }
+}
+
+.state-wrap_up {
+  background-color: #8b5cf6;
+
+  .state-indicator {
+    background-color: #a78bfa;
+    box-shadow: 0 0 8px #a78bfa;
+  }
+}
+
+.state-offline {
+  background-color: #6b7280;
+
+  .state-indicator {
+    background-color: #9ca3af;
+    box-shadow: none;
+    animation: none;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse-fast {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
   }
 }

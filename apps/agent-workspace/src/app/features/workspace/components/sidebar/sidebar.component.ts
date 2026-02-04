@@ -19,4 +19,20 @@ export class SidebarComponent implements OnInit {
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;
   }
+
+  /**
+   * Check if metadata object has any entries
+   */
+  hasMetadata(metadata: Record<string, string> | undefined): boolean {
+    return !!metadata && Object.keys(metadata).length > 0;
+  }
+
+  /**
+   * Convert metadata object to array for iteration
+   */
+  getMetadataEntries(
+    metadata: Record<string, string>
+  ): { key: string; value: string }[] {
+    return Object.entries(metadata).map(([key, value]) => ({ key, value }));
+  }
 }
