@@ -1,6 +1,6 @@
 .workspace-sidebar {
-  width: 280px;
-  min-width: 280px;
+  width: 300px;
+  min-width: 300px;
   background-color: #16162a;
   border-right: 1px solid #2d2d44;
   display: flex;
@@ -20,7 +20,7 @@
 }
 
 .sidebar-content {
-  padding: 20px;
+  padding: 16px;
   flex: 1;
   overflow-y: auto;
 }
@@ -28,26 +28,93 @@
 .task-details {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
 }
 
+// Section styling
+.section {
+  padding: 12px 0;
+  border-bottom: 1px solid #2d2d44;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.section-title {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #5c5c7a;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+// Field styling
 .task-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  margin-bottom: 10px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &.half {
+    flex: 1;
+  }
+}
+
+.task-field-row {
+  display: flex;
+  gap: 16px;
 }
 
 .field-label {
-  font-size: 0.75rem;
+  font-size: 0.625rem;
   color: #8b8b9e;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .field-value {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #ffffff;
   word-break: break-word;
+
+  &.monospace {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.75rem;
+    background-color: #1a1a2e;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  &.description {
+    color: #a0a0b5;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  &.time {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.75rem;
+  }
+}
+
+// Badges
+.work-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background-color: #3b82f6;
+  color: #ffffff;
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .priority-badge {
@@ -55,6 +122,7 @@
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
+  font-size: 0.75rem;
   background-color: #3b3b5c;
   width: fit-content;
 
@@ -70,6 +138,11 @@
     background-color: #eab308;
     color: #1a1a2e;
   }
+
+  &[data-priority="4"],
+  &[data-priority="5"] {
+    background-color: #3b3b5c;
+  }
 }
 
 .status-badge {
@@ -77,21 +150,41 @@
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
+  font-size: 0.75rem;
   width: fit-content;
+  text-transform: uppercase;
 
   &[data-status="PENDING"] {
-    background-color: #6366f1;
+    background-color: #6b7280;
+  }
+
+  &[data-status="RESERVED"] {
+    background-color: #f59e0b;
+    color: #1a1a2e;
+  }
+
+  &[data-status="ACTIVE"] {
+    background-color: #3b82f6;
+  }
+
+  &[data-status="WRAP_UP"] {
+    background-color: #8b5cf6;
+  }
+
+  &[data-status="COMPLETED"] {
+    background-color: #10b981;
+  }
+
+  &[data-status="TRANSFERRED"] {
+    background-color: #f97316;
   }
 
   &[data-status="ASSIGNED"] {
     background-color: #10b981;
   }
-
-  &[data-status="COMPLETED"] {
-    background-color: #8b8b9e;
-  }
 }
 
+// Empty state
 .no-task {
   display: flex;
   flex-direction: column;

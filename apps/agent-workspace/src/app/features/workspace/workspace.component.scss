@@ -12,3 +12,48 @@
   flex: 1;
   overflow: hidden;
 }
+
+.workspace-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+// Idle state overlay with "Get Next Task" button
+.idle-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(15, 15, 26, 0.9);
+  z-index: 10;
+}
+
+.get-next-btn {
+  padding: 16px 48px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #10b981;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+
+  &:hover {
+    background-color: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}

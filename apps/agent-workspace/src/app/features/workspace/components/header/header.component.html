@@ -3,6 +3,19 @@
     <h1 class="app-title">Nexus Queue</h1>
   </div>
 
+  <div class="header-center">
+    <div class="session-metrics">
+      <div class="metric">
+        <span class="metric-value">{{ metrics.tasksCompleted }}</span>
+        <span class="metric-label">Completed</span>
+      </div>
+      <div class="metric">
+        <span class="metric-value">{{ metrics.avgHandleTime | number:'1.0-0' }}s</span>
+        <span class="metric-label">Avg Handle</span>
+      </div>
+    </div>
+  </div>
+
   <div class="header-right">
     @if (agent$ | async; as agent) {
       <div class="agent-info">
@@ -11,15 +24,14 @@
       </div>
     }
 
-    @if (status$ | async; as status) {
-      <button
-        class="status-toggle"
-        [class.available]="status === 'Available'"
-        [class.busy]="status === 'Busy'"
-        (click)="toggleStatus()"
-      >
-        {{ status }}
-      </button>
+    @if (agentState$ | async; as state) {
+      <div class="state-badge" [ngClass]="getStateClass(state)">
+        <span class="state-indicator"></span>
+        <span class="state-label">{{ getStateLabel(state) }}</span>
+        @if (state === 'RESERVED' && (reservationCountdown$ | async); as countdown) {
+          <span class="countdown">({{ countdown }}s)</span>
+        }
+      </div>
     }
   </div>
 </header>

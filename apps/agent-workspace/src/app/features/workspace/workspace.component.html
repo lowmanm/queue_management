@@ -3,6 +3,20 @@
 
   <div class="workspace-body">
     <app-sidebar></app-sidebar>
-    <app-main-stage></app-main-stage>
+
+    <div class="workspace-main">
+      <app-main-stage></app-main-stage>
+
+      <!-- Get Next Task button overlay - shown in IDLE state -->
+      @if (showGetNextButton) {
+        <div class="idle-overlay">
+          <button class="get-next-btn" (click)="onGetNextTask()">
+            Get Next Task
+          </button>
+        </div>
+      }
+
+      <app-action-bar></app-action-bar>
+    </div>
   </div>
 </div>

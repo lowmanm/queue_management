@@ -1,65 +1,326 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
-import { Task } from '@nexus-queue/shared-models';
+import { BehaviorSubject, Observable, tap, interval, Subscription } from 'rxjs';
+import {
+  Task,
+  TaskStatus,
+  AgentState,
+  TaskDisposition,
+} from '@nexus-queue/shared-models';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 
-export type AgentStatus = 'Available' | 'Busy';
-
+/**
+ * Manages the task queue and agent state machine.
+ *
+ * State Flow:
+ * IDLE → RESERVED → ACTIVE → WRAP_UP → IDLE
+ */
 @Injectable({
   providedIn: 'root',
 })
 export class QueueService {
+  // === State Subjects ===
   private currentTaskSubject = new BehaviorSubject<Task | null>(null);
-  private agentStatusSubject = new BehaviorSubject<AgentStatus>('Available');
+  private agentStateSubject = new BehaviorSubject<AgentState>('IDLE');
 
+  // === Public Observables ===
   public currentTask$: Observable<Task | null> =
     this.currentTaskSubject.asObservable();
-  public agentStatus$: Observable<AgentStatus> =
-    this.agentStatusSubject.asObservable();
+  public agentState$: Observable<AgentState> =
+    this.agentStateSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  // === Reservation Timer ===
+  private reservationTimer$: Subscription | null = null;
+  private reservationCountdownSubject = new BehaviorSubject<number>(0);
+  public reservationCountdown$: Observable<number> =
+    this.reservationCountdownSubject.asObservable();
+
+  // === Session Metrics ===
+  private sessionMetrics = {
+    tasksCompleted: 0,
+    totalHandleTime: 0,
+    tasksTransferred: 0,
+  };
+
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
+
+  // === Getters ===
 
   get currentTask(): Task | null {
     return this.currentTaskSubject.value;
   }
 
-  get agentStatus(): AgentStatus {
-    return this.agentStatusSubject.value;
+  get agentState(): AgentState {
+    return this.agentStateSubject.value;
   }
+
+  get metrics() {
+    return {
+      ...this.sessionMetrics,
+      avgHandleTime:
+        this.sessionMetrics.tasksCompleted > 0
+          ? this.sessionMetrics.totalHandleTime /
+            this.sessionMetrics.tasksCompleted
+          : 0,
+    };
+  }
+
+  // === State Machine Transitions ===
 
   /**
    * Fetches the next available task from the backend.
-   * Updates the currentTask BehaviorSubject with the result.
+   * Transitions: IDLE → RESERVED
    */
   getNextTask(): Observable<Task> {
-    return this.http.get<Task>(`${environment.apiUrl}/tasks/next`).pipe(
-      tap((task) => {
-        this.currentTaskSubject.next(task);
+    if (this.agentState !== 'IDLE') {
+      throw new Error(
+        `Cannot get next task: Agent is in ${this.agentState} state`
+      );
+    }
+
+    const agentId = this.authService.currentAgent?.id;
+
+    return this.http
+      .get<Task>(`${environment.apiUrl}/tasks/next`, {
+        params: agentId ? { agentId } : {},
       })
-    );
+      .pipe(
+        tap((task) => {
+          this.currentTaskSubject.next(task);
+          this.transitionTo('RESERVED');
+          this.startReservationTimer(task.reservationTimeout || 30);
+        })
+      );
   }
 
   /**
-   * Toggles the agent's availability status.
+   * Agent accepts the reserved task.
+   * Transitions: RESERVED → ACTIVE
    */
-  toggleStatus(): void {
-    const newStatus: AgentStatus =
-      this.agentStatusSubject.value === 'Available' ? 'Busy' : 'Available';
-    this.agentStatusSubject.next(newStatus);
+  acceptTask(): void {
+    if (this.agentState !== 'RESERVED') {
+      throw new Error(
+        `Cannot accept task: Agent is in ${this.agentState} state`
+      );
+    }
+
+    const task = this.currentTask;
+    if (!task) {
+      throw new Error('No task to accept');
+    }
+
+    this.stopReservationTimer();
+
+    // Update task timestamps
+    const now = new Date().toISOString();
+    const updatedTask: Task = {
+      ...task,
+      status: 'ACTIVE' as TaskStatus,
+      acceptedAt: now,
+      startedAt: now,
+    };
+
+    this.currentTaskSubject.next(updatedTask);
+    this.transitionTo('ACTIVE');
   }
 
   /**
-   * Sets the agent's status explicitly.
+   * Agent rejects the reserved task.
+   * Transitions: RESERVED → IDLE
    */
-  setStatus(status: AgentStatus): void {
-    this.agentStatusSubject.next(status);
-  }
+  rejectTask(): void {
+    if (this.agentState !== 'RESERVED') {
+      throw new Error(
+        `Cannot reject task: Agent is in ${this.agentState} state`
+      );
+    }
 
-  /**
-   * Clears the current task.
-   */
-  clearCurrentTask(): void {
+    this.stopReservationTimer();
     this.currentTaskSubject.next(null);
+    this.transitionTo('IDLE');
+  }
+
+  /**
+   * Agent completes the active task.
+   * Transitions: ACTIVE → WRAP_UP
+   */
+  completeTask(): void {
+    if (this.agentState !== 'ACTIVE') {
+      throw new Error(
+        `Cannot complete task: Agent is in ${this.agentState} state`
+      );
+    }
+
+    const task = this.currentTask;
+    if (!task) {
+      throw new Error('No task to complete');
+    }
+
+    const now = new Date().toISOString();
+    const handleTime = this.calculateHandleTime(task.startedAt, now);
+
+    const updatedTask: Task = {
+      ...task,
+      status: 'WRAP_UP' as TaskStatus,
+      completedAt: now,
+      handleTime,
+    };
+
+    this.currentTaskSubject.next(updatedTask);
+    this.transitionTo('WRAP_UP');
+  }
+
+  /**
+   * Agent submits disposition and finishes wrap-up.
+   * Transitions: WRAP_UP → IDLE
+   */
+  submitDisposition(disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'>): void {
+    if (this.agentState !== 'WRAP_UP') {
+      throw new Error(
+        `Cannot submit disposition: Agent is in ${this.agentState} state`
+      );
+    }
+
+    const task = this.currentTask;
+    if (!task) {
+      throw new Error('No task to disposition');
+    }
+
+    const now = new Date().toISOString();
+    const agentId = this.authService.currentAgent?.id || 'unknown';
+    const wrapUpTime = this.calculateHandleTime(task.completedAt, now);
+    const totalTime = this.calculateHandleTime(task.reservedAt, now);
+
+    const updatedTask: Task = {
+      ...task,
+      status: 'COMPLETED' as TaskStatus,
+      dispositionedAt: now,
+      wrapUpTime,
+      totalTime,
+      disposition: {
+        ...disposition,
+        selectedAt: now,
+        selectedBy: agentId,
+      },
+    };
+
+    // Update session metrics
+    this.sessionMetrics.tasksCompleted++;
+    this.sessionMetrics.totalHandleTime += task.handleTime || 0;
+
+    this.currentTaskSubject.next(updatedTask);
+
+    // Clear task and return to IDLE after a brief delay
+    setTimeout(() => {
+      this.currentTaskSubject.next(null);
+      this.transitionTo('IDLE');
+    }, 500);
+  }
+
+  /**
+   * Agent transfers the task to another queue/agent.
+   * Transitions: ACTIVE → IDLE
+   */
+  transferTask(): void {
+    if (this.agentState !== 'ACTIVE') {
+      throw new Error(
+        `Cannot transfer task: Agent is in ${this.agentState} state`
+      );
+    }
+
+    const task = this.currentTask;
+    if (!task) {
+      throw new Error('No task to transfer');
+    }
+
+    const now = new Date().toISOString();
+    const updatedTask: Task = {
+      ...task,
+      status: 'TRANSFERRED' as TaskStatus,
+      completedAt: now,
+    };
+
+    this.sessionMetrics.tasksTransferred++;
+    this.currentTaskSubject.next(updatedTask);
+
+    // Clear task and return to IDLE
+    setTimeout(() => {
+      this.currentTaskSubject.next(null);
+      this.transitionTo('IDLE');
+    }, 500);
+  }
+
+  /**
+   * Manually set agent to IDLE (e.g., after break)
+   */
+  setReady(): void {
+    if (this.currentTask) {
+      throw new Error('Cannot set ready while task is assigned');
+    }
+    this.transitionTo('IDLE');
+  }
+
+  /**
+   * Set agent offline
+   */
+  setOffline(): void {
+    this.stopReservationTimer();
+    if (this.currentTask && this.agentState === 'RESERVED') {
+      this.currentTaskSubject.next(null);
+    }
+    this.transitionTo('OFFLINE');
+  }
+
+  // === Private Helpers ===
+
+  private transitionTo(newState: AgentState): void {
+    const oldState = this.agentState;
+    console.log(`Agent state transition: ${oldState} → ${newState}`);
+    this.agentStateSubject.next(newState);
+  }
+
+  private startReservationTimer(timeoutSeconds: number): void {
+    this.stopReservationTimer();
+
+    let remaining = timeoutSeconds;
+    this.reservationCountdownSubject.next(remaining);
+
+    this.reservationTimer$ = interval(1000).subscribe(() => {
+      remaining--;
+      this.reservationCountdownSubject.next(remaining);
+
+      if (remaining <= 0) {
+        this.handleReservationTimeout();
+      }
+    });
+  }
+
+  private stopReservationTimer(): void {
+    if (this.reservationTimer$) {
+      this.reservationTimer$.unsubscribe();
+      this.reservationTimer$ = null;
+    }
+    this.reservationCountdownSubject.next(0);
+  }
+
+  private handleReservationTimeout(): void {
+    console.log('Reservation timeout - releasing task');
+    this.stopReservationTimer();
+    this.currentTaskSubject.next(null);
+    this.transitionTo('IDLE');
+  }
+
+  private calculateHandleTime(
+    startTime: string | undefined,
+    endTime: string
+  ): number {
+    if (!startTime) return 0;
+    const start = new Date(startTime).getTime();
+    const end = new Date(endTime).getTime();
+    return Math.round((end - start) / 1000);
   }
 }

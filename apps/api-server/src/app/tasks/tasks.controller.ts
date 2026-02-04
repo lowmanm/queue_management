@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { Task } from '@nexus-queue/shared-models';
 
@@ -9,9 +9,11 @@ export class TasksController {
   /**
    * GET /tasks/next
    * Returns the next available task from the queue.
+   *
+   * @param agentId - Optional agent ID requesting the task
    */
   @Get('next')
-  getNextTask(): Task {
-    return this.tasksService.getNextTask();
+  getNextTask(@Query('agentId') agentId?: string): Task {
+    return this.tasksService.getNextTask(agentId);
   }
 }
