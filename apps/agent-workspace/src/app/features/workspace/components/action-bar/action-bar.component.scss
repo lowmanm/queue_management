@@ -2,10 +2,56 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 24px;
   padding: 12px 24px;
   background-color: #1a1a2e;
   border-top: 1px solid #2d2d44;
   min-height: 60px;
+}
+
+// Work type badge
+.work-type-badge {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #3b3b5c;
+  color: #ffffff;
+
+  &[data-type="ORDERS"] {
+    background-color: #3b82f6;
+  }
+
+  &[data-type="RETURNS"] {
+    background-color: #f59e0b;
+    color: #1a1a2e;
+  }
+
+  &[data-type="CLAIMS"] {
+    background-color: #8b5cf6;
+  }
+}
+
+// Countdown timer
+.countdown {
+  font-weight: 600;
+  margin-left: 4px;
+
+  &.urgent {
+    color: #ef4444;
+    animation: pulse 1s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 // Common button styles
@@ -50,6 +96,22 @@
 
     &:hover {
       background-color: #d97706;
+    }
+  }
+
+  &.deny {
+    background-color: #ef4444;
+
+    &:hover {
+      background-color: #dc2626;
+    }
+  }
+
+  &.link {
+    background-color: #6366f1;
+
+    &:hover {
+      background-color: #4f46e5;
     }
   }
 

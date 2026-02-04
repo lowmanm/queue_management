@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, combineLatest, map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { Task, TaskAction, AgentState } from '@nexus-queue/shared-models';
 import { QueueService } from '../../../../core/services/queue.service';
 
@@ -16,16 +16,24 @@ export class ActionBarComponent implements OnInit {
   agentState$!: Observable<AgentState>;
   actions$!: Observable<TaskAction[]>;
   showBar$!: Observable<boolean>;
+  countdown$!: Observable<number>;
+  workType$!: Observable<string>;
 
   constructor(private queueService: QueueService) {}
 
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;
     this.agentState$ = this.queueService.agentState$;
+    this.countdown$ = this.queueService.reservationCountdown$;
 
     // Extract actions from current task
     this.actions$ = this.currentTask$.pipe(
       map((task) => task?.actions || [])
+    );
+
+    // Extract work type for display
+    this.workType$ = this.currentTask$.pipe(
+      map((task) => task?.workType || '')
     );
 
     // Show bar when in RESERVED, ACTIVE, or WRAP_UP state
@@ -79,9 +87,21 @@ export class ActionBarComponent implements OnInit {
     }
 
     if (action.type === 'COMPLETE') {
-      classes.push('complete');
+      // Check if this is a deny/reject action
+      const isDeny =
+        action.dispositionCode?.toLowerCase().includes('denied') ||
+        action.dispositionCode?.toLowerCase().includes('reject') ||
+        action.label.toLowerCase().includes('deny');
+
+      if (isDeny) {
+        classes.push('deny');
+      } else {
+        classes.push('complete');
+      }
     } else if (action.type === 'TRANSFER') {
       classes.push('transfer');
+    } else if (action.type === 'LINK') {
+      classes.push('link');
     }
 
     return classes.join(' ');
