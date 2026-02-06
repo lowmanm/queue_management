@@ -20,7 +20,10 @@
             "input": "apps/agent-workspace/public"
           }
         ],
-        "styles": ["apps/agent-workspace/src/styles.scss"]
+        "styles": ["apps/agent-workspace/src/styles.scss"],
+        "stylePreprocessorOptions": {
+          "includePaths": ["apps/agent-workspace/src"]
+        }
       },
       "configurations": {
         "production": {

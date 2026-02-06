@@ -1,7 +1,9 @@
+@use 'styles/variables' as *;
+
 .main-stage {
   flex: 1;
   display: flex;
-  background-color: #0f0f1a;
+  background-color: $color-gray-100;
   overflow: hidden;
 }
 
@@ -30,19 +32,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  background-color: #0f0f1a;
-  color: #8b8b9e;
+  gap: $spacing-4;
+  background-color: $color-gray-100;
+  color: $color-gray-500;
   z-index: 1;
-  transition: opacity 0.3s ease;
+  transition: opacity $transition-slow;
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #2a2a4a;
-  border-top-color: #6366f1;
-  border-radius: 50%;
+  border: 3px solid $color-gray-300;
+  border-top-color: $color-primary;
+  border-radius: $border-radius-full;
   animation: spin 1s linear infinite;
 }
 
@@ -56,9 +58,9 @@
   width: 100%;
   height: 100%;
   border: none;
-  background-color: #ffffff;
+  background-color: $color-white;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity $transition-slow;
 }
 
 .empty-state {
@@ -70,23 +72,23 @@
 
 .empty-state-content {
   text-align: center;
-  color: #5c5c7a;
+  color: $color-gray-500;
 }
 
 .empty-icon {
-  margin-bottom: 24px;
-  color: #3b3b5c;
+  margin-bottom: $spacing-6;
+  color: $color-gray-400;
 }
 
 .empty-state-content h2 {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #8b8b9e;
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-700;
 }
 
 .empty-state-content p {
   margin: 0;
-  font-size: 0.875rem;
-  color: #5c5c7a;
+  font-size: $font-size-sm;
+  color: $color-gray-500;
 }
