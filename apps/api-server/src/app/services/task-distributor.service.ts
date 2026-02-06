@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { Task, TaskAction } from '@nexus-queue/shared-models';
+import { RuleEngineService } from './rule-engine.service';
 
 interface MockTaskTemplate {
   workType: string;
@@ -20,6 +21,11 @@ export class TaskDistributorService {
 
   // Task counter for unique IDs
   private taskCounter = 1000;
+
+  constructor(
+    @Inject(forwardRef(() => RuleEngineService))
+    private readonly ruleEngine: RuleEngineService
+  ) {}
 
   // Mock task templates
   private readonly taskTemplates: MockTaskTemplate[] = [
@@ -98,7 +104,20 @@ export class TaskDistributorService {
    */
   getNextTaskForAgent(agentId: string): Task | null {
     // For POC, always return a task (simulating work always available)
-    return this.generateTask(agentId);
+    const task = this.generateTask(agentId);
+
+    // Apply rules to the task
+    const { task: processedTask, results } = this.ruleEngine.evaluateTask(task);
+
+    // Log rule evaluation results
+    const matchedRules = results.reduce((sum, r) => sum + r.matchedCount, 0);
+    if (matchedRules > 0) {
+      this.logger.debug(
+        `Applied ${matchedRules} rule(s) to task ${task.id}: priority ${task.priority} → ${processedTask.priority}, queue: ${processedTask.queue}`
+      );
+    }
+
+    return processedTask;
   }
 
   /**

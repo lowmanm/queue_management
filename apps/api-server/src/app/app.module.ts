@@ -4,9 +4,10 @@ import { AppService } from './app.service';
 import { TasksModule } from './tasks';
 import { GatewayModule } from './gateway';
 import { ServicesModule } from './services';
+import { RulesModule } from './rules';
 
 @Module({
-  imports: [TasksModule, GatewayModule, ServicesModule],
+  imports: [TasksModule, GatewayModule, ServicesModule, RulesModule],
   controllers: [AppController],
   providers: [AppService],
 })
