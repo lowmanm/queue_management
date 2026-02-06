@@ -1,6 +1,7 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { Task, TaskAction } from '@nexus-queue/shared-models';
+import { Task, TaskAction, PendingOrder } from '@nexus-queue/shared-models';
 import { RuleEngineService } from './rule-engine.service';
+import { TaskSourceService } from './task-source.service';
 
 interface MockTaskTemplate {
   workType: string;
@@ -24,7 +25,9 @@ export class TaskDistributorService {
 
   constructor(
     @Inject(forwardRef(() => RuleEngineService))
-    private readonly ruleEngine: RuleEngineService
+    private readonly ruleEngine: RuleEngineService,
+    @Inject(forwardRef(() => TaskSourceService))
+    private readonly taskSource: TaskSourceService
   ) {}
 
   // Mock task templates
@@ -97,13 +100,33 @@ export class TaskDistributorService {
 
   /**
    * Get the next task for a specific agent.
-   * In a real implementation, this would:
-   * - Query pending tasks from database
-   * - Match agent skills to task requirements
-   * - Apply priority and routing rules
+   * Priority:
+   * 1. Check for pending orders from CSV upload
+   * 2. Fall back to generated mock tasks
    */
   getNextTaskForAgent(agentId: string): Task | null {
-    // For POC, always return a task (simulating work always available)
+    // Check for pending orders from CSV first
+    if (this.taskSource.hasPendingOrders()) {
+      const order = this.taskSource.getNextPendingOrder(agentId);
+      if (order && order.taskData) {
+        const task = this.createTaskFromOrder(order, agentId);
+
+        // Apply rules to the task
+        const { task: processedTask, results } = this.ruleEngine.evaluateTask(task);
+
+        const matchedRules = results.reduce((sum, r) => sum + r.matchedCount, 0);
+        if (matchedRules > 0) {
+          this.logger.debug(
+            `Applied ${matchedRules} rule(s) to CSV task ${task.id}: priority ${task.priority} → ${processedTask.priority}`
+          );
+        }
+
+        this.logger.log(`Assigned CSV order ${order.rowIndex} as task ${task.id} to agent ${agentId}`);
+        return processedTask;
+      }
+    }
+
+    // Fall back to generated task
     const task = this.generateTask(agentId);
 
     // Apply rules to the task
@@ -118,6 +141,57 @@ export class TaskDistributorService {
     }
 
     return processedTask;
+  }
+
+  /**
+   * Create a Task from a PendingOrder
+   */
+  private createTaskFromOrder(order: PendingOrder, agentId: string): Task {
+    const taskData = order.taskData!;
+    const now = new Date().toISOString();
+    const taskId = `TASK-${++this.taskCounter}`;
+
+    const task: Task = {
+      id: taskId,
+      externalId: taskData.externalId,
+      workType: taskData.workType,
+      title: taskData.title,
+      description: taskData.description,
+      payloadUrl: taskData.payloadUrl,
+      metadata: {
+        ...taskData.metadata,
+        csvRowIndex: String(order.rowIndex),
+      },
+      priority: taskData.priority,
+      skills: taskData.skills,
+      queue: taskData.queue,
+      status: 'RESERVED',
+      createdAt: order.importedAt,
+      availableAt: order.importedAt,
+      reservedAt: now,
+      assignedAgentId: agentId,
+      assignmentHistory: [
+        {
+          agentId,
+          assignedAt: now,
+        },
+      ],
+      reservationTimeout: 60,
+      actions: this.getDefaultActions(taskData.workType),
+    };
+
+    return task;
+  }
+
+  /**
+   * Get default actions based on work type
+   */
+  private getDefaultActions(workType: string): TaskAction[] {
+    return [
+      { id: 'complete', label: 'Complete', type: 'COMPLETE', icon: 'check', dispositionCode: 'RESOLVED', primary: true },
+      { id: 'transfer', label: 'Transfer', type: 'TRANSFER', icon: 'arrow-right' },
+      { id: 'skip', label: 'Skip', type: 'COMPLETE', icon: 'forward', dispositionCode: 'SKIPPED' },
+    ];
   }
 
   /**

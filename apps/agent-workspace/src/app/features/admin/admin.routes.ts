@@ -3,8 +3,15 @@ import { Routes } from '@angular/router';
 export const ADMIN_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'logic-builder',
+    redirectTo: 'task-sources',
     pathMatch: 'full',
+  },
+  {
+    path: 'task-sources',
+    loadComponent: () =>
+      import('./components/task-sources/task-sources.component').then(
+        (m) => m.TaskSourcesComponent
+      ),
   },
   {
     path: 'logic-builder',

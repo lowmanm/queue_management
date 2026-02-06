@@ -1,0 +1,287 @@
+<div class="task-sources-container">
+  <!-- Header -->
+  <header class="page-header">
+    <h1>Task Sources</h1>
+    <p class="subtitle">Upload CSV files and configure task routing</p>
+  </header>
+
+  <!-- Stats Cards -->
+  <div class="stats-row">
+    <div class="stat-card pending">
+      <div class="stat-value">{{ pendingCount() }}</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card assigned">
+      <div class="stat-value">{{ assignedCount() }}</div>
+      <div class="stat-label">Assigned</div>
+    </div>
+    <div class="stat-card completed">
+      <div class="stat-value">{{ completedCount() }}</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card error" *ngIf="errorCount() > 0">
+      <div class="stat-value">{{ errorCount() }}</div>
+      <div class="stat-label">Errors</div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="message success" *ngIf="successMessage()">
+    {{ successMessage() }}
+    <button class="close-btn" (click)="clearMessages()">&times;</button>
+  </div>
+  <div class="message error" *ngIf="errorMessage()">
+    {{ errorMessage() }}
+    <button class="close-btn" (click)="clearMessages()">&times;</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button
+      class="tab"
+      [class.active]="activeTab() === 'upload'"
+      (click)="setActiveTab('upload')"
+    >
+      CSV Upload
+    </button>
+    <button
+      class="tab"
+      [class.active]="activeTab() === 'queue'"
+      (click)="setActiveTab('queue')"
+    >
+      Order Queue
+    </button>
+    <button
+      class="tab"
+      [class.active]="activeTab() === 'config'"
+      (click)="setActiveTab('config')"
+    >
+      Configuration
+    </button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="tab-content">
+    <!-- Upload Tab -->
+    <div class="upload-tab" *ngIf="activeTab() === 'upload'">
+      <div class="upload-section">
+        <div class="upload-area">
+          <input
+            type="file"
+            id="csvFile"
+            accept=".csv"
+            (change)="onFileSelected($event)"
+            class="file-input"
+          />
+          <label for="csvFile" class="file-label">
+            <span class="upload-icon">📁</span>
+            <span class="upload-text">
+              {{ csvContent() ? 'File loaded - Click to change' : 'Click to select CSV file' }}
+            </span>
+          </label>
+        </div>
+
+        <div class="csv-preview" *ngIf="csvContent()">
+          <h3>CSV Preview</h3>
+          <pre>{{ csvContent().substring(0, 1000) }}{{ csvContent().length > 1000 ? '...' : '' }}</pre>
+        </div>
+
+        <div class="upload-actions">
+          <button
+            class="btn btn-primary"
+            (click)="uploadCsv()"
+            [disabled]="!csvContent() || isLoading()"
+          >
+            {{ isLoading() ? 'Uploading...' : 'Upload & Process' }}
+          </button>
+          <button
+            class="btn btn-secondary"
+            (click)="clearCsv()"
+            [disabled]="!csvContent()"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Parse Results -->
+      <div class="parse-results" *ngIf="parseResult()">
+        <h3>Parse Results</h3>
+        <div class="results-grid">
+          <div class="result-item">
+            <span class="label">Total Rows:</span>
+            <span class="value">{{ parseResult()!.totalRows }}</span>
+          </div>
+          <div class="result-item success">
+            <span class="label">Success:</span>
+            <span class="value">{{ parseResult()!.successRows }}</span>
+          </div>
+          <div class="result-item error" *ngIf="parseResult()!.errorRows > 0">
+            <span class="label">Errors:</span>
+            <span class="value">{{ parseResult()!.errorRows }}</span>
+          </div>
+        </div>
+
+        <div class="headers" *ngIf="parseResult()!.headers.length">
+          <h4>Detected Columns:</h4>
+          <div class="header-tags">
+            <span class="tag" *ngFor="let header of parseResult()!.headers">{{ header }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sample CSV Format -->
+      <div class="sample-format">
+        <h3>Expected CSV Format</h3>
+        <pre>OrderId,City,State,WorkType,Priority
+123456,Phoenix,Arizona,ORDER_REVIEW,5
+789012,Denver,Colorado,RETURN_REQUEST,3</pre>
+        <p class="hint">
+          The first row should contain column headers. The system will map these to task fields based on your configuration.
+        </p>
+      </div>
+    </div>
+
+    <!-- Queue Tab -->
+    <div class="queue-tab" *ngIf="activeTab() === 'queue'">
+      <div class="queue-header">
+        <h3>Order Queue</h3>
+        <button
+          class="btn btn-danger"
+          (click)="clearQueue()"
+          [disabled]="orders().length === 0 || isLoading()"
+        >
+          Clear Queue
+        </button>
+      </div>
+
+      <div class="empty-state" *ngIf="orders().length === 0">
+        <p>No orders in queue. Upload a CSV to add orders.</p>
+      </div>
+
+      <div class="orders-table" *ngIf="orders().length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Row</th>
+              <th>External ID</th>
+              <th>Status</th>
+              <th>Data</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of orders()" [class]="getOrderStatusClass(order.status)">
+              <td>{{ order.rowIndex }}</td>
+              <td>{{ order.taskData?.externalId || order.rawData['OrderId'] || '-' }}</td>
+              <td>
+                <span class="status-badge" [class]="getOrderStatusClass(order.status)">
+                  {{ order.status }}
+                </span>
+              </td>
+              <td class="data-cell">
+                <code>{{ order.rawData | json }}</code>
+              </td>
+              <td>
+                <button
+                  class="btn btn-sm"
+                  *ngIf="order.status === 'ASSIGNED'"
+                  (click)="releaseOrder(order.rowIndex)"
+                >
+                  Release
+                </button>
+                <button
+                  class="btn btn-sm btn-link"
+                  *ngIf="order.taskData?.payloadUrl"
+                  (click)="openUrl(order.taskData?.payloadUrl || '')"
+                >
+                  Open URL
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Config Tab -->
+    <div class="config-tab" *ngIf="activeTab() === 'config'">
+      <div class="config-section">
+        <h3>URL Template</h3>
+        <p class="hint">
+          Define the URL pattern for opening tasks. Use &#123;fieldName&#125; placeholders.
+        </p>
+
+        <div class="form-group">
+          <label for="urlTemplate">URL Template</label>
+          <input
+            type="text"
+            id="urlTemplate"
+            [ngModel]="urlTemplate()"
+            (ngModelChange)="urlTemplate.set($event); updateUrlTemplate()"
+            class="form-control"
+            placeholder="https://example.com/orders/{orderId}"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Preview URL</label>
+          <div class="url-preview">
+            <code>{{ previewUrl() || 'Enter a template to see preview' }}</code>
+            <button
+              class="btn btn-sm btn-link"
+              *ngIf="previewUrl()"
+              (click)="openUrl(previewUrl())"
+            >
+              Test
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <h3>Field Mappings</h3>
+        <p class="hint">
+          Map CSV columns to task fields. Fields mapped to 'metadata' will be available as URL placeholders.
+        </p>
+
+        <div class="mappings-list">
+          <div class="mapping-row header">
+            <span>CSV Column</span>
+            <span>Target Field</span>
+            <span>Required</span>
+            <span></span>
+          </div>
+
+          <div class="mapping-row" *ngFor="let mapping of fieldMappings(); let i = index">
+            <input
+              type="text"
+              [(ngModel)]="mapping.sourceField"
+              placeholder="Column name"
+              class="form-control"
+            />
+            <select [(ngModel)]="mapping.targetField" class="form-control">
+              <option *ngFor="let field of targetFields" [value]="field">{{ field }}</option>
+            </select>
+            <input type="checkbox" [(ngModel)]="mapping.required" />
+            <button class="btn btn-sm btn-danger" (click)="removeFieldMapping(i)">Remove</button>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary" (click)="addFieldMapping()">
+          + Add Mapping
+        </button>
+      </div>
+
+      <div class="config-actions">
+        <button
+          class="btn btn-primary"
+          (click)="saveConfiguration()"
+          [disabled]="isLoading()"
+        >
+          {{ isLoading() ? 'Saving...' : 'Save Configuration' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
