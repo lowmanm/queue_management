@@ -1,8 +1,11 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { Task, AgentState } from '@nexus-queue/shared-models';
 import { environment } from '../../../environments/environment';
+import { LoggerService } from './logger.service';
+
+const LOG_CONTEXT = 'SocketService';
 
 export interface ConnectionStatus {
   connected: boolean;
@@ -30,6 +33,7 @@ const DEFAULT_RECONNECTION_CONFIG: ReconnectionConfig = {
   providedIn: 'root',
 })
 export class SocketService implements OnDestroy {
+  private logger = inject(LoggerService);
   private socket: Socket | null = null;
   private reconnectionConfig = DEFAULT_RECONNECTION_CONFIG;
   private reconnectAttempts = 0;
@@ -75,7 +79,7 @@ export class SocketService implements OnDestroy {
    */
   connect(agentId: string, agentName: string): void {
     if (this.socket?.connected) {
-      console.log('Socket already connected');
+      this.logger.debug(LOG_CONTEXT, 'Socket already connected');
       return;
     }
 
@@ -101,7 +105,7 @@ export class SocketService implements OnDestroy {
     // Extract base URL (remove /api suffix)
     const wsUrl = environment.apiUrl.replace('/api', '');
 
-    console.log(`Connecting to WebSocket: ${wsUrl}/queue`);
+    this.logger.info(LOG_CONTEXT, `Connecting to WebSocket: ${wsUrl}/queue`);
 
     this.socket = io(`${wsUrl}/queue`, {
       transports: ['websocket', 'polling'],
@@ -150,12 +154,12 @@ export class SocketService implements OnDestroy {
     }
 
     if (!this.storedAgentId || !this.storedAgentName) {
-      console.error('Cannot reconnect: No stored credentials');
+      this.logger.error(LOG_CONTEXT, 'Cannot reconnect: No stored credentials');
       return;
     }
 
     if (this.reconnectAttempts >= this.reconnectionConfig.maxAttempts) {
-      console.error('Max reconnection attempts reached');
+      this.logger.error(LOG_CONTEXT, 'Max reconnection attempts reached');
       this.connectionStatusSubject.next({
         connected: false,
         reconnecting: false,
@@ -173,9 +177,7 @@ export class SocketService implements OnDestroy {
       this.reconnectionConfig.maxDelayMs
     );
 
-    console.log(
-      `Reconnection attempt ${this.reconnectAttempts}/${this.reconnectionConfig.maxAttempts} in ${delay}ms`
-    );
+    this.logger.info(LOG_CONTEXT, `Reconnection attempt ${this.reconnectAttempts}/${this.reconnectionConfig.maxAttempts} in ${delay}ms`);
 
     this.connectionStatusSubject.next({
       connected: false,
@@ -197,7 +199,7 @@ export class SocketService implements OnDestroy {
    */
   retryConnection(): void {
     if (!this.storedAgentId || !this.storedAgentName) {
-      console.error('Cannot retry: No stored credentials');
+      this.logger.error(LOG_CONTEXT, 'Cannot retry: No stored credentials');
       return;
     }
 
@@ -211,7 +213,7 @@ export class SocketService implements OnDestroy {
    */
   sendAgentReady(agentId: string): void {
     if (this.socket?.connected) {
-      console.log('Sending agent:ready');
+      this.logger.debug(LOG_CONTEXT, 'Sending agent:ready', { agentId });
       this.socket.emit('agent:ready', { agentId });
     }
   }
@@ -221,7 +223,7 @@ export class SocketService implements OnDestroy {
    */
   sendStateChange(agentId: string, state: AgentState): void {
     if (this.socket?.connected) {
-      console.log(`Sending state change: ${state}`);
+      this.logger.info(LOG_CONTEXT, `Sending state change: ${state}`, { agentId, state });
       this.socket.emit('agent:state-change', { agentId, state });
     }
   }
@@ -235,7 +237,7 @@ export class SocketService implements OnDestroy {
     action: 'accept' | 'reject' | 'complete' | 'transfer'
   ): void {
     if (this.socket?.connected) {
-      console.log(`Sending task action: ${action} for task ${taskId}`);
+      this.logger.info(LOG_CONTEXT, `Sending task action: ${action}`, { agentId, taskId, action });
       this.socket.emit('agent:task-action', { agentId, taskId, action });
     }
   }
@@ -249,7 +251,7 @@ export class SocketService implements OnDestroy {
     dispositionCode: string
   ): void {
     if (this.socket?.connected) {
-      console.log(`Sending disposition complete: ${dispositionCode}`);
+      this.logger.info(LOG_CONTEXT, `Sending disposition complete: ${dispositionCode}`, { agentId, taskId, dispositionCode });
       this.socket.emit('agent:disposition-complete', {
         agentId,
         taskId,
@@ -267,13 +269,13 @@ export class SocketService implements OnDestroy {
 
     // Connection established
     this.socket.on('connect', () => {
-      console.log('Socket connected, registering agent...');
+      this.logger.info(LOG_CONTEXT, 'Socket connected, registering agent...', { agentId, agentName });
       this.socket?.emit('agent:connect', { agentId, name: agentName });
     });
 
     // Connection acknowledged
     this.socket.on('connection:ack', (data: { agentId: string; status: string }) => {
-      console.log('Connection acknowledged:', data);
+      this.logger.info(LOG_CONTEXT, 'Connection acknowledged', data);
 
       // Reset reconnection state on successful connection
       this.reconnectAttempts = 0;
@@ -288,19 +290,19 @@ export class SocketService implements OnDestroy {
 
     // Task assigned (Force Mode push)
     this.socket.on('task:assigned', (task: Task) => {
-      console.log('Task assigned:', task.id);
+      this.logger.info(LOG_CONTEXT, 'Task assigned', { taskId: task.id, workType: task.workType, priority: task.priority });
       this.taskAssignedSubject.next(task);
     });
 
     // Task timeout
     this.socket.on('task:timeout', (data: { taskId: string }) => {
-      console.log('Task timeout:', data.taskId);
+      this.logger.warn(LOG_CONTEXT, 'Task timeout', data);
       this.taskTimeoutSubject.next(data);
     });
 
     // Disconnection
     this.socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+      this.logger.warn(LOG_CONTEXT, 'Socket disconnected', { reason });
 
       this.connectionStatusSubject.next({
         connected: false,
@@ -313,14 +315,14 @@ export class SocketService implements OnDestroy {
         if (reason !== 'io server disconnect') {
           this.attemptReconnect();
         } else {
-          console.log('Server initiated disconnect, not reconnecting automatically');
+          this.logger.info(LOG_CONTEXT, 'Server initiated disconnect, not reconnecting automatically');
         }
       }
     });
 
     // Connection error
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+      this.logger.error(LOG_CONTEXT, 'Socket connection error', { message: error.message });
 
       this.connectionStatusSubject.next({
         connected: false,

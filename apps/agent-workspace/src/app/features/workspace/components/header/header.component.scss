@@ -152,6 +152,28 @@
   }
 }
 
+// Debug Button
+.debug-btn {
+  padding: $spacing-2 $spacing-3;
+  background-color: rgba($color-white, 0.15);
+  color: $color-white;
+  border: $border-width-thin solid rgba($color-white, 0.3);
+  border-radius: $border-radius-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background-color: rgba($color-white, 0.25);
+    border-color: rgba($color-white, 0.5);
+  }
+
+  &:active {
+    background-color: rgba($color-white, 0.3);
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {

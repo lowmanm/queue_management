@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, map } from 'rxjs';
 import { Task, TaskAction, AgentState } from '@nexus-queue/shared-models';
-import { QueueService } from '../../../../core/services/queue.service';
+import { QueueService, LoggerService } from '../../../../core/services';
+
+const LOG_CONTEXT = 'ActionBar';
 
 @Component({
   selector: 'app-action-bar',
@@ -18,6 +20,8 @@ export class ActionBarComponent implements OnInit {
   showBar$!: Observable<boolean>;
   countdown$!: Observable<number>;
   workType$!: Observable<string>;
+
+  private logger = inject(LoggerService);
 
   constructor(private queueService: QueueService) {}
 
@@ -135,7 +139,7 @@ export class ActionBarComponent implements OnInit {
   }
 
   private handleCustom(action: TaskAction): void {
-    console.log('Custom action triggered:', action.id);
+    this.logger.info(LOG_CONTEXT, 'Custom action triggered', { actionId: action.id, label: action.label });
     // Custom actions would be handled via configuration
   }
 }

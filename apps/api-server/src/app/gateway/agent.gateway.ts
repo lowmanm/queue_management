@@ -49,11 +49,13 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   handleConnection(client: Socket): void {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id} | Transport: ${client.conn.transport.name} | IP: ${client.handshake.address}`);
   }
 
   handleDisconnect(client: Socket): void {
-    this.logger.log(`Client disconnected: ${client.id}`);
+    const agent = this.agentManager.getAgentBySocketId(client.id);
+    const agentInfo = agent ? ` (Agent: ${agent.agentId})` : '';
+    this.logger.log(`Client disconnected: ${client.id}${agentInfo} | Reason: socket closed`);
     this.agentManager.removeAgentBySocketId(client.id);
   }
 

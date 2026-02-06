@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {
   BehaviorSubject,
@@ -17,7 +17,10 @@ import {
 } from '@nexus-queue/shared-models';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
+import { LoggerService } from './logger.service';
 import { SocketService } from './socket.service';
+
+const LOG_CONTEXT = 'QueueService';
 
 /**
  * Manages the task queue and agent state machine.
@@ -30,6 +33,7 @@ import { SocketService } from './socket.service';
   providedIn: 'root',
 })
 export class QueueService implements OnDestroy {
+  private logger = inject(LoggerService);
   private destroy$ = new Subject<void>();
 
   // === State Subjects ===
@@ -99,11 +103,11 @@ export class QueueService implements OnDestroy {
   initialize(): void {
     const agent = this.authService.currentAgent;
     if (!agent) {
-      console.error('Cannot initialize queue: No authenticated agent');
+      this.logger.error(LOG_CONTEXT, 'Cannot initialize queue: No authenticated agent');
       return;
     }
 
-    console.log('Initializing queue service for agent:', agent.id);
+    this.logger.info(LOG_CONTEXT, 'Initializing queue service', { agentId: agent.id, agentName: agent.name });
     this.socketService.connect(agent.id, agent.name);
   }
 
@@ -121,7 +125,7 @@ export class QueueService implements OnDestroy {
    * Handle task assigned via WebSocket (Force Mode)
    */
   handleTaskAssigned(task: Task): void {
-    console.log('Task assigned via WebSocket:', task.id);
+    this.logger.info(LOG_CONTEXT, 'Task assigned via WebSocket', { taskId: task.id, workType: task.workType });
     this.currentTaskSubject.next(task);
     this.transitionTo('RESERVED');
     this.startReservationTimer(task.reservationTimeout || 30);
@@ -132,7 +136,7 @@ export class QueueService implements OnDestroy {
    */
   handleTaskTimeout(taskId: string): void {
     if (this.currentTask?.id === taskId) {
-      console.log('Task timeout received:', taskId);
+      this.logger.warn(LOG_CONTEXT, 'Task timeout received', { taskId });
       this.stopReservationTimer();
       this.currentTaskSubject.next(null);
       this.transitionTo('IDLE');
@@ -393,10 +397,10 @@ export class QueueService implements OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((status) => {
         if (status.connected) {
-          console.log('Socket connected, transitioning to IDLE');
+          this.logger.info(LOG_CONTEXT, 'Socket connected, transitioning to IDLE');
           this.transitionTo('IDLE');
         } else if (this.agentState !== 'OFFLINE') {
-          console.log('Socket disconnected');
+          this.logger.debug(LOG_CONTEXT, 'Socket disconnected (temporary)');
           // Don't transition to offline on temporary disconnects
         }
       });
@@ -420,7 +424,7 @@ export class QueueService implements OnDestroy {
     const oldState = this.agentState;
     if (oldState === newState) return;
 
-    console.log(`Agent state transition: ${oldState} → ${newState}`);
+    this.logger.info(LOG_CONTEXT, `Agent state transition: ${oldState} → ${newState}`, { oldState, newState });
     this.agentStateSubject.next(newState);
 
     // Notify server of state change (except for IDLE which is handled separately)
@@ -455,7 +459,7 @@ export class QueueService implements OnDestroy {
   }
 
   private handleReservationTimeout(): void {
-    console.log('Reservation timeout - releasing task');
+    this.logger.warn(LOG_CONTEXT, 'Reservation timeout - releasing task', { taskId: this.currentTask?.id });
     this.stopReservationTimer();
 
     // Notify server of rejection due to timeout
