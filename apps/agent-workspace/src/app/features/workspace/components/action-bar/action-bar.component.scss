@@ -1,71 +1,151 @@
+@use 'styles/variables' as *;
+
 .action-bar {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
-  background-color: #1a1a2e;
-  border-top: 1px solid #2d2d44;
-  min-height: 60px;
+  gap: $spacing-6;
+  padding: $spacing-3 $spacing-6;
+  background-color: $color-white;
+  border-top: $border-width-thin solid $color-gray-200;
+  min-height: $action-bar-height;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+// Work type badge
+.work-type-badge {
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: $letter-spacing-wide;
+  background-color: $color-gray-200;
+  color: $color-gray-700;
+
+  &[data-type="ORDERS"] {
+    background-color: $color-info-bg;
+    color: $color-info;
+  }
+
+  &[data-type="RETURNS"] {
+    background-color: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &[data-type="CLAIMS"] {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+  }
+}
+
+// Countdown timer
+.countdown {
+  font-weight: $font-weight-semibold;
+  margin-left: $spacing-1;
+  color: $color-gray-700;
+
+  &.urgent {
+    color: $color-error;
+    animation: pulse 1s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 // Common button styles
 .action-btn {
-  padding: 10px 20px;
+  padding: $spacing-2 $spacing-5;
   border: none;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
   cursor: pointer;
-  transition: all 0.2s ease;
-  background-color: #3b3b5c;
-  color: #ffffff;
+  transition: all $transition-fast;
+  background-color: $color-gray-200;
+  color: $color-gray-700;
 
   &:hover {
-    background-color: #4a4a6a;
+    background-color: $color-gray-300;
   }
 
   &:active {
     transform: scale(0.98);
   }
 
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
   &.primary {
-    background-color: #3b82f6;
+    background-color: $color-primary;
+    color: $color-white;
 
     &:hover {
-      background-color: #2563eb;
+      background-color: $color-primary-dark;
     }
   }
 
   &.complete {
-    background-color: #10b981;
+    background-color: $color-success;
+    color: $color-white;
 
     &:hover {
-      background-color: #059669;
+      background-color: $color-success-dark;
     }
   }
 
   &.transfer {
-    background-color: #f59e0b;
-    color: #1a1a2e;
+    background-color: $color-warning;
+    color: $color-white;
 
     &:hover {
-      background-color: #d97706;
+      background-color: $color-warning-dark;
+    }
+  }
+
+  &.deny {
+    background-color: $color-error;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-error-dark;
+    }
+  }
+
+  &.link {
+    background-color: $color-info;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-info-dark;
     }
   }
 
   &.accept {
-    background-color: #10b981;
+    background-color: $color-success;
+    color: $color-white;
 
     &:hover {
-      background-color: #059669;
+      background-color: $color-success-dark;
     }
   }
 
   &.reject {
-    background-color: #ef4444;
+    background-color: $color-white;
+    color: $color-error;
+    border: $border-width-thin solid $color-error;
 
     &:hover {
-      background-color: #dc2626;
+      background-color: $color-error-bg;
     }
   }
 }
@@ -74,41 +154,41 @@
 .reservation-actions {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: $spacing-6;
 }
 
 .reservation-prompt {
-  font-size: 0.875rem;
-  color: #f59e0b;
-  font-weight: 500;
+  font-size: $font-size-sm;
+  color: $color-gray-700;
+  font-weight: $font-weight-medium;
 }
 
 .reservation-buttons {
   display: flex;
-  gap: 12px;
+  gap: $spacing-3;
 }
 
 // Active task actions
 .task-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: $spacing-3;
 }
 
 // Disposition state styles
 .disposition-actions {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: $spacing-6;
 }
 
 .disposition-prompt {
-  font-size: 0.875rem;
-  color: #8b5cf6;
-  font-weight: 500;
+  font-size: $font-size-sm;
+  color: $color-gray-700;
+  font-weight: $font-weight-medium;
 }
 
 .disposition-buttons {
   display: flex;
-  gap: 12px;
+  gap: $spacing-3;
 }

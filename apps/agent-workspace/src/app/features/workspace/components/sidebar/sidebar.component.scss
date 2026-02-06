@@ -1,26 +1,29 @@
+@use 'styles/variables' as *;
+
 .workspace-sidebar {
-  width: 300px;
-  min-width: 300px;
-  background-color: #16162a;
-  border-right: 1px solid #2d2d44;
+  width: $sidebar-width;
+  min-width: $sidebar-width;
+  background-color: $color-white;
+  border-right: $border-width-thin solid $color-gray-200;
   display: flex;
   flex-direction: column;
 }
 
 .sidebar-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #2d2d44;
+  padding: $spacing-4 $spacing-5;
+  border-bottom: $border-width-thin solid $color-gray-200;
+  background-color: $color-gray-50;
 
   h2 {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #ffffff;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
   }
 }
 
 .sidebar-content {
-  padding: 16px;
+  padding: $spacing-4;
   flex: 1;
   overflow-y: auto;
 }
@@ -33,8 +36,8 @@
 
 // Section styling
 .section {
-  padding: 12px 0;
-  border-bottom: 1px solid #2d2d44;
+  padding: $spacing-3 0;
+  border-bottom: $border-width-thin solid $color-gray-200;
 
   &:last-child {
     border-bottom: none;
@@ -42,12 +45,12 @@
 }
 
 .section-title {
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: #5c5c7a;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-500;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 12px;
+  letter-spacing: $letter-spacing-wider;
+  margin-bottom: $spacing-3;
 }
 
 // Field styling
@@ -55,7 +58,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 10px;
+  margin-bottom: $spacing-2;
 
   &:last-child {
     margin-bottom: 0;
@@ -68,119 +71,142 @@
 
 .task-field-row {
   display: flex;
-  gap: 16px;
+  gap: $spacing-4;
 }
 
 .field-label {
-  font-size: 0.625rem;
-  color: #8b8b9e;
+  font-size: $font-size-xs;
+  color: $color-gray-500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: $letter-spacing-wide;
 }
 
 .field-value {
-  font-size: 0.8125rem;
-  color: #ffffff;
+  font-size: $font-size-sm;
+  color: $color-gray-900;
   word-break: break-word;
 
   &.monospace {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.75rem;
-    background-color: #1a1a2e;
-    padding: 2px 6px;
-    border-radius: 3px;
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    background-color: $color-gray-100;
+    padding: 2px $spacing-2;
+    border-radius: $border-radius-sm;
   }
 
   &.description {
-    color: #a0a0b5;
-    font-size: 0.75rem;
-    line-height: 1.4;
+    color: $color-gray-600;
+    font-size: $font-size-xs;
+    line-height: $line-height-relaxed;
   }
 
   &.time {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.75rem;
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
   }
 }
 
 // Badges
 .work-type-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  background-color: #3b82f6;
-  color: #ffffff;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
   width: fit-content;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: $letter-spacing-wide;
+
+  // Default
+  background-color: $color-gray-200;
+  color: $color-gray-700;
+
+  &[data-type="ORDERS"] {
+    background-color: $color-info-bg;
+    color: $color-info;
+  }
+
+  &[data-type="RETURNS"] {
+    background-color: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &[data-type="CLAIMS"] {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+  }
 }
 
 .priority-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-  font-size: 0.75rem;
-  background-color: #3b3b5c;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-sm;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-xs;
   width: fit-content;
 
+  // Default
+  background-color: $color-gray-200;
+  color: $color-gray-700;
+
   &[data-priority="1"] {
-    background-color: #ef4444;
+    background-color: $color-error-bg;
+    color: $color-error;
   }
 
   &[data-priority="2"] {
-    background-color: #f97316;
+    background-color: $color-warning-bg;
+    color: $color-warning;
   }
 
   &[data-priority="3"] {
-    background-color: #eab308;
-    color: #1a1a2e;
-  }
-
-  &[data-priority="4"],
-  &[data-priority="5"] {
-    background-color: #3b3b5c;
+    background-color: #fffde7;
+    color: #f9a825;
   }
 }
 
 .status-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-  font-size: 0.75rem;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-sm;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-xs;
   width: fit-content;
   text-transform: uppercase;
 
   &[data-status="PENDING"] {
-    background-color: #6b7280;
+    background-color: $color-gray-200;
+    color: $color-gray-600;
   }
 
   &[data-status="RESERVED"] {
-    background-color: #f59e0b;
-    color: #1a1a2e;
+    background-color: $color-warning-bg;
+    color: $color-warning;
   }
 
   &[data-status="ACTIVE"] {
-    background-color: #3b82f6;
+    background-color: $color-info-bg;
+    color: $color-info;
   }
 
   &[data-status="WRAP_UP"] {
-    background-color: #8b5cf6;
+    background-color: #f3e5f5;
+    color: #7b1fa2;
   }
 
   &[data-status="COMPLETED"] {
-    background-color: #10b981;
+    background-color: $color-success-bg;
+    color: $color-success;
   }
 
   &[data-status="TRANSFERRED"] {
-    background-color: #f97316;
+    background-color: $color-warning-bg;
+    color: $color-warning;
   }
 
   &[data-status="ASSIGNED"] {
-    background-color: #10b981;
+    background-color: $color-success-bg;
+    color: $color-success;
   }
 }
 
@@ -195,13 +221,13 @@
 
   p {
     margin: 0;
-    color: #8b8b9e;
-    font-size: 0.875rem;
+    color: $color-gray-500;
+    font-size: $font-size-sm;
   }
 
   .no-task-hint {
-    margin-top: 8px;
-    font-size: 0.75rem;
-    color: #5c5c7a;
+    margin-top: $spacing-2;
+    font-size: $font-size-xs;
+    color: $color-gray-400;
   }
 }

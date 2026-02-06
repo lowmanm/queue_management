@@ -1,11 +1,22 @@
 <main class="main-stage">
   @if (safePayloadUrl$ | async; as url) {
-    <iframe
-      class="task-iframe"
-      [src]="url"
-      title="Task Content"
-      sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-    ></iframe>
+    <div class="iframe-container" [class.loaded]="iframeLoaded">
+      @if (!iframeLoaded) {
+        <div class="iframe-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading application...</span>
+        </div>
+      }
+      <iframe
+        #taskIframe
+        class="task-iframe"
+        [src]="url"
+        title="Task Content"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+        (load)="onIframeLoad()"
+        (error)="onIframeError()"
+      ></iframe>
+    </div>
   } @else {
     <div class="empty-state">
       <div class="empty-state-content">

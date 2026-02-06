@@ -6,6 +6,7 @@ import { HeaderComponent } from './components/header/header.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { MainStageComponent } from './components/main-stage/main-stage.component';
 import { ActionBarComponent } from './components/action-bar/action-bar.component';
+import { LogViewerComponent } from './components/log-viewer/log-viewer.component';
 import { QueueService } from '../../core/services/queue.service';
 import { SocketService } from '../../core/services/socket.service';
 
@@ -18,6 +19,7 @@ import { SocketService } from '../../core/services/socket.service';
     SidebarComponent,
     MainStageComponent,
     ActionBarComponent,
+    LogViewerComponent,
   ],
   templateUrl: './workspace.component.html',
   styleUrl: './workspace.component.scss',
@@ -26,6 +28,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   agentState: AgentState = 'OFFLINE';
   isConnected = false;
+  showLogViewer = false;
 
   constructor(
     private queueService: QueueService,
@@ -70,5 +73,19 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
    */
   get isConnecting(): boolean {
     return !this.isConnected && this.agentState === 'OFFLINE';
+  }
+
+  /**
+   * Toggle the log viewer panel
+   */
+  toggleLogViewer(): void {
+    this.showLogViewer = !this.showLogViewer;
+  }
+
+  /**
+   * Close the log viewer panel
+   */
+  closeLogViewer(): void {
+    this.showLogViewer = false;
   }
 }

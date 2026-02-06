@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, combineLatest, map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { Task, TaskAction, AgentState } from '@nexus-queue/shared-models';
-import { QueueService } from '../../../../core/services/queue.service';
+import { QueueService, LoggerService } from '../../../../core/services';
+
+const LOG_CONTEXT = 'ActionBar';
 
 @Component({
   selector: 'app-action-bar',
@@ -16,16 +18,26 @@ export class ActionBarComponent implements OnInit {
   agentState$!: Observable<AgentState>;
   actions$!: Observable<TaskAction[]>;
   showBar$!: Observable<boolean>;
+  countdown$!: Observable<number>;
+  workType$!: Observable<string>;
+
+  private logger = inject(LoggerService);
 
   constructor(private queueService: QueueService) {}
 
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;
     this.agentState$ = this.queueService.agentState$;
+    this.countdown$ = this.queueService.reservationCountdown$;
 
     // Extract actions from current task
     this.actions$ = this.currentTask$.pipe(
       map((task) => task?.actions || [])
+    );
+
+    // Extract work type for display
+    this.workType$ = this.currentTask$.pipe(
+      map((task) => task?.workType || '')
     );
 
     // Show bar when in RESERVED, ACTIVE, or WRAP_UP state
@@ -79,9 +91,21 @@ export class ActionBarComponent implements OnInit {
     }
 
     if (action.type === 'COMPLETE') {
-      classes.push('complete');
+      // Check if this is a deny/reject action
+      const isDeny =
+        action.dispositionCode?.toLowerCase().includes('denied') ||
+        action.dispositionCode?.toLowerCase().includes('reject') ||
+        action.label.toLowerCase().includes('deny');
+
+      if (isDeny) {
+        classes.push('deny');
+      } else {
+        classes.push('complete');
+      }
     } else if (action.type === 'TRANSFER') {
       classes.push('transfer');
+    } else if (action.type === 'LINK') {
+      classes.push('link');
     }
 
     return classes.join(' ');
@@ -115,7 +139,7 @@ export class ActionBarComponent implements OnInit {
   }
 
   private handleCustom(action: TaskAction): void {
-    console.log('Custom action triggered:', action.id);
+    this.logger.info(LOG_CONTEXT, 'Custom action triggered', { actionId: action.id, label: action.label });
     // Custom actions would be handled via configuration
   }
 }
