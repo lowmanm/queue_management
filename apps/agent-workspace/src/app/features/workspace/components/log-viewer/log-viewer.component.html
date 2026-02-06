@@ -1,0 +1,102 @@
+<div class="log-viewer-overlay" (click)="onClose()">
+  <div class="log-viewer-panel" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="log-viewer-header">
+      <h3>Debug Logs</h3>
+      <div class="header-stats">
+        <span class="stat">Total: {{ getStats().total }}</span>
+        <span class="stat error">Errors: {{ getStats().byLevel['ERROR'] }}</span>
+        <span class="stat warn">Warns: {{ getStats().byLevel['WARN'] }}</span>
+      </div>
+      <button class="close-btn" (click)="onClose()" title="Close">
+        &times;
+      </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="log-viewer-toolbar">
+      <div class="filter-group">
+        <label>Level:</label>
+        <select [ngModel]="selectedLevel" (ngModelChange)="onLevelChange($event)">
+          <option [ngValue]="LogLevel.DEBUG">DEBUG</option>
+          <option [ngValue]="LogLevel.INFO">INFO</option>
+          <option [ngValue]="LogLevel.WARN">WARN</option>
+          <option [ngValue]="LogLevel.ERROR">ERROR</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Context:</label>
+        <input
+          type="text"
+          [(ngModel)]="filterContext"
+          (ngModelChange)="onContextFilterChange()"
+          placeholder="Filter by context..."
+        />
+      </div>
+
+      <div class="action-group">
+        <button class="btn-secondary" (click)="copyToClipboard('text')" title="Copy as text">
+          Copy Text
+        </button>
+        <button class="btn-secondary" (click)="copyToClipboard('json')" title="Copy as JSON">
+          Copy JSON
+        </button>
+        <button class="btn-secondary" (click)="downloadLogs('text')" title="Download as text">
+          Download
+        </button>
+        <button class="btn-danger" (click)="clearLogs()" title="Clear all logs">
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Log List -->
+    <div class="log-viewer-content">
+      @if (filteredLogs.length === 0) {
+        <div class="empty-state">
+          <p>No logs to display</p>
+          <small>Logs will appear here as events occur</small>
+        </div>
+      } @else {
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th class="col-time">Time</th>
+              <th class="col-level">Level</th>
+              <th class="col-context">Context</th>
+              <th class="col-message">Message</th>
+              <th class="col-data">Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (log of filteredLogs; track log.timestamp.getTime()) {
+              <tr [class]="getLevelClass(log.level)">
+                <td class="col-time">{{ formatTimestamp(log.timestamp) }}</td>
+                <td class="col-level">
+                  <span class="level-badge">{{ log.levelName }}</span>
+                </td>
+                <td class="col-context">{{ log.context }}</td>
+                <td class="col-message">{{ log.message }}</td>
+                <td class="col-data">
+                  @if (log.data) {
+                    <code>{{ formatData(log.data) }}</code>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <!-- Footer -->
+    <div class="log-viewer-footer">
+      <label class="auto-scroll-toggle">
+        <input type="checkbox" [(ngModel)]="autoScroll" />
+        Auto-scroll
+      </label>
+      <span class="log-count">Showing {{ filteredLogs.length }} of {{ logs.length }} logs</span>
+    </div>
+  </div>
+</div>
