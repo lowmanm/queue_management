@@ -5,12 +5,15 @@ import {
   ViewChild,
   ElementRef,
   NgZone,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Observable, map, Subject, takeUntil } from 'rxjs';
 import { Task } from '@nexus-queue/shared-models';
-import { QueueService } from '../../../../core/services/queue.service';
+import { QueueService, LoggerService } from '../../../../core/services';
+
+const LOG_CONTEXT = 'MainStage';
 
 /**
  * Message types that can be received from the iFrame source application.
@@ -39,6 +42,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
   safePayloadUrl$!: Observable<SafeResourceUrl | null>;
   iframeLoaded = false;
 
+  private logger = inject(LoggerService);
   private destroy$ = new Subject<void>();
   private messageHandler: ((event: MessageEvent) => void) | null = null;
 
@@ -82,14 +86,14 @@ export class MainStageComponent implements OnInit, OnDestroy {
    */
   onIframeLoad(): void {
     this.iframeLoaded = true;
-    console.log('iFrame loaded successfully');
+    this.logger.info(LOG_CONTEXT, 'iFrame loaded successfully');
   }
 
   /**
    * Handle iframe error event
    */
   onIframeError(): void {
-    console.error('iFrame failed to load');
+    this.logger.error(LOG_CONTEXT, 'iFrame failed to load');
     this.iframeLoaded = false;
   }
 
@@ -110,7 +114,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
     };
 
     window.addEventListener('message', this.messageHandler);
-    console.log('postMessage listener registered for task:', task.id);
+    this.logger.debug(LOG_CONTEXT, 'postMessage listener registered', { taskId: task.id });
   }
 
   /**
@@ -136,11 +140,11 @@ export class MainStageComponent implements OnInit, OnDestroy {
 
     // Optionally validate task ID matches
     if (message.taskId && message.taskId !== currentTask.id) {
-      console.warn('Received message for different task:', message.taskId);
+      this.logger.warn(LOG_CONTEXT, 'Received message for different task', { expectedTaskId: currentTask.id, receivedTaskId: message.taskId });
       return;
     }
 
-    console.log('Received iFrame message:', message.type, message.payload);
+    this.logger.debug(LOG_CONTEXT, 'Received iFrame message', { type: message.type, payload: message.payload });
 
     switch (message.type) {
       case 'TASK_COMPLETE':
@@ -168,7 +172,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
         break;
 
       default:
-        console.log('Unknown message type received');
+        this.logger.debug(LOG_CONTEXT, 'Unknown message type received');
     }
   }
 
@@ -193,7 +197,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
    * Handle TASK_COMPLETE message - auto-complete the task
    */
   private handleTaskComplete(payload?: Record<string, unknown>): void {
-    console.log('Source app signaled task completion', payload);
+    this.logger.info(LOG_CONTEXT, 'Source app signaled task completion', payload);
 
     // Only auto-complete if agent is in ACTIVE state
     if (this.queueService.agentState === 'ACTIVE') {
@@ -205,7 +209,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
    * Handle TASK_SAVED message - work was saved but not complete
    */
   private handleTaskSaved(payload?: Record<string, unknown>): void {
-    console.log('Source app saved work', payload);
+    this.logger.info(LOG_CONTEXT, 'Source app saved work', payload);
     // Could show a toast notification or update UI
   }
 
@@ -213,7 +217,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
    * Handle NAVIGATION message - source app navigated internally
    */
   private handleNavigation(payload?: Record<string, unknown>): void {
-    console.log('Source app navigation:', payload);
+    this.logger.debug(LOG_CONTEXT, 'Source app navigation', payload);
     // Could track for analytics or handle specific navigation events
   }
 
@@ -221,7 +225,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
    * Handle ERROR message from source app
    */
   private handleError(payload?: Record<string, unknown>): void {
-    console.error('Source app error:', payload);
+    this.logger.error(LOG_CONTEXT, 'Source app error', payload);
     // Could show error notification to agent
   }
 
@@ -229,7 +233,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
    * Handle READY message - source app finished initializing
    */
   private handleIframeReady(payload?: Record<string, unknown>): void {
-    console.log('Source app is ready', payload);
+    this.logger.info(LOG_CONTEXT, 'Source app is ready', payload);
     // Could send initial data to the iframe
     this.sendMessageToIframe({ type: 'NEXUS_CONNECTED', taskId: this.queueService.currentTask?.id });
   }
@@ -238,7 +242,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
    * Handle CUSTOM messages for extensibility
    */
   private handleCustomMessage(payload?: Record<string, unknown>): void {
-    console.log('Custom message received:', payload);
+    this.logger.debug(LOG_CONTEXT, 'Custom message received', payload);
     // Handle based on payload content
   }
 

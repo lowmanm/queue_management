@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
 import { AgentState } from '@nexus-queue/shared-models';
@@ -13,6 +13,8 @@ import { QueueService } from '../../../../core/services/queue.service';
   styleUrl: './header.component.scss',
 })
 export class HeaderComponent implements OnInit {
+  @Output() toggleLogs = new EventEmitter<void>();
+
   agent$!: Observable<Agent | null>;
   agentState$!: Observable<AgentState>;
   reservationCountdown$!: Observable<number>;
@@ -51,5 +53,12 @@ export class HeaderComponent implements OnInit {
    */
   getStateClass(state: AgentState): string {
     return `state-${state.toLowerCase()}`;
+  }
+
+  /**
+   * Open the debug logs viewer
+   */
+  onToggleLogs(): void {
+    this.toggleLogs.emit();
   }
 }

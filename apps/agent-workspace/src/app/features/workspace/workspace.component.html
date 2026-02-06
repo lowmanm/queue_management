@@ -1,5 +1,5 @@
 <div class="workspace-container">
-  <app-header></app-header>
+  <app-header (toggleLogs)="toggleLogViewer()"></app-header>
 
   <div class="workspace-body">
     <app-sidebar></app-sidebar>
@@ -33,3 +33,8 @@
     </div>
   </div>
 </div>
+
+<!-- Log Viewer Modal -->
+@if (showLogViewer) {
+  <app-log-viewer (close)="closeLogViewer()"></app-log-viewer>
+}

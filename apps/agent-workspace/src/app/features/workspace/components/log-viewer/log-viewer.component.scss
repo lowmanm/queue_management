@@ -1,0 +1,320 @@
+@use 'styles/variables' as *;
+
+.log-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: $z-modal;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: $spacing-4;
+}
+
+.log-viewer-panel {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-xl;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.log-viewer-header {
+  display: flex;
+  align-items: center;
+  padding: $spacing-4;
+  border-bottom: $border-width-thin solid $color-gray-200;
+  background: $color-gray-50;
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: $spacing-4;
+    margin-left: auto;
+    margin-right: $spacing-4;
+
+    .stat {
+      font-size: $font-size-sm;
+      color: $color-gray-600;
+
+      &.error {
+        color: $color-error;
+        font-weight: $font-weight-medium;
+      }
+
+      &.warn {
+        color: $color-warning;
+        font-weight: $font-weight-medium;
+      }
+    }
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: $font-size-2xl;
+    color: $color-gray-500;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+
+    &:hover {
+      color: $color-gray-700;
+    }
+  }
+}
+
+.log-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  padding: $spacing-3 $spacing-4;
+  border-bottom: $border-width-thin solid $color-gray-200;
+  background: $color-white;
+  flex-wrap: wrap;
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+
+    label {
+      font-size: $font-size-sm;
+      color: $color-gray-600;
+      font-weight: $font-weight-medium;
+    }
+
+    select,
+    input {
+      padding: $spacing-1 $spacing-2;
+      border: $border-width-thin solid $color-gray-300;
+      border-radius: $border-radius-sm;
+      font-size: $font-size-sm;
+
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+      }
+    }
+
+    input {
+      min-width: 150px;
+    }
+  }
+
+  .action-group {
+    display: flex;
+    gap: $spacing-2;
+    margin-left: auto;
+
+    button {
+      padding: $spacing-1 $spacing-3;
+      border-radius: $border-radius-sm;
+      font-size: $font-size-sm;
+      cursor: pointer;
+      transition: all $transition-fast;
+
+      &.btn-secondary {
+        background: $color-white;
+        border: $border-width-thin solid $color-gray-300;
+        color: $color-gray-700;
+
+        &:hover {
+          background: $color-gray-50;
+          border-color: $color-gray-400;
+        }
+      }
+
+      &.btn-danger {
+        background: $color-error-bg;
+        border: $border-width-thin solid $color-error-light;
+        color: $color-error;
+
+        &:hover {
+          background: $color-error;
+          color: $color-white;
+        }
+      }
+    }
+  }
+}
+
+.log-viewer-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 300px;
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: $color-gray-500;
+
+    p {
+      margin: 0;
+      font-size: $font-size-base;
+    }
+
+    small {
+      font-size: $font-size-sm;
+      color: $color-gray-400;
+    }
+  }
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-sm;
+  font-family: $font-family-mono;
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: $color-gray-100;
+    z-index: 1;
+
+    th {
+      padding: $spacing-2 $spacing-3;
+      text-align: left;
+      font-weight: $font-weight-semibold;
+      color: $color-gray-700;
+      border-bottom: $border-width-thin solid $color-gray-300;
+      white-space: nowrap;
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: $border-width-thin solid $color-gray-100;
+
+      &:hover {
+        background: $color-gray-50;
+      }
+
+      &.level-debug {
+        .level-badge {
+          background: $color-gray-200;
+          color: $color-gray-600;
+        }
+      }
+
+      &.level-info {
+        .level-badge {
+          background: $color-info-bg;
+          color: $color-info;
+        }
+      }
+
+      &.level-warn {
+        background: $color-warning-bg;
+
+        .level-badge {
+          background: $color-warning;
+          color: $color-white;
+        }
+      }
+
+      &.level-error {
+        background: $color-error-bg;
+
+        .level-badge {
+          background: $color-error;
+          color: $color-white;
+        }
+      }
+    }
+
+    td {
+      padding: $spacing-2 $spacing-3;
+      vertical-align: top;
+    }
+  }
+
+  .col-time {
+    width: 100px;
+    color: $color-gray-500;
+  }
+
+  .col-level {
+    width: 70px;
+
+    .level-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: $border-radius-sm;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+    }
+  }
+
+  .col-context {
+    width: 120px;
+    color: $color-primary;
+    font-weight: $font-weight-medium;
+  }
+
+  .col-message {
+    min-width: 200px;
+    color: $color-gray-800;
+  }
+
+  .col-data {
+    max-width: 300px;
+
+    code {
+      display: block;
+      background: $color-gray-100;
+      padding: $spacing-1 $spacing-2;
+      border-radius: $border-radius-sm;
+      font-size: $font-size-xs;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 100px;
+      overflow: auto;
+    }
+  }
+}
+
+.log-viewer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-2 $spacing-4;
+  border-top: $border-width-thin solid $color-gray-200;
+  background: $color-gray-50;
+
+  .auto-scroll-toggle {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    font-size: $font-size-sm;
+    color: $color-gray-600;
+    cursor: pointer;
+
+    input {
+      cursor: pointer;
+    }
+  }
+
+  .log-count {
+    font-size: $font-size-sm;
+    color: $color-gray-500;
+  }
+}
