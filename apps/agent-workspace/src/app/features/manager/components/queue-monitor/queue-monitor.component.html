@@ -81,9 +81,6 @@
             </span>
             <div class="queue-name-block">
               <h3 class="queue-name">{{ queue.name }}</h3>
-              @if (queue.description) {
-                <p class="queue-description">{{ queue.description }}</p>
-              }
             </div>
           </div>
           <div class="queue-service-level" [class]="getServiceLevelClass(queue.serviceLevelPercent)">

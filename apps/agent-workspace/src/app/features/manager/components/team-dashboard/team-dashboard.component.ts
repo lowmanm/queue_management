@@ -1,12 +1,8 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, interval, takeUntil, BehaviorSubject } from 'rxjs';
-import {
-  AgentStateType,
-  formatDuration,
-  TeamStats,
-  AgentSessionStats,
-} from '@nexus-queue/shared-models';
+import { Subject, interval, takeUntil, BehaviorSubject, switchMap, startWith, combineLatest, map } from 'rxjs';
+import { AgentStateType, formatDuration } from '@nexus-queue/shared-models';
+import { ManagerApiService, AgentWithMetrics, TeamSummary as ApiTeamSummary } from '../../../../core/services/manager-api.service';
 
 interface AgentDisplay {
   id: string;
@@ -41,6 +37,7 @@ interface TeamSummary {
 })
 export class TeamDashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private managerApi = inject(ManagerApiService);
 
   agents$ = new BehaviorSubject<AgentDisplay[]>([]);
   summary$ = new BehaviorSubject<TeamSummary>({
@@ -55,105 +52,21 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
   });
 
   selectedFilter: 'all' | 'online' | 'active' | 'idle' | 'paused' = 'all';
-
-  // Mock data for demo - in production this would come from a real-time service
-  private mockAgents: AgentDisplay[] = [
-    {
-      id: 'agent-001',
-      name: 'John Smith',
-      state: 'ACTIVE',
-      stateLabel: 'Working',
-      stateClass: 'state-active',
-      timeInState: '12:34',
-      tasksCompleted: 15,
-      avgHandleTime: '4:32',
-      tasksPerHour: 8.2,
-      currentTask: 'ORD-2024-1234',
-    },
-    {
-      id: 'agent-002',
-      name: 'Sarah Johnson',
-      state: 'IDLE',
-      stateLabel: 'Ready',
-      stateClass: 'state-idle',
-      timeInState: '2:15',
-      tasksCompleted: 12,
-      avgHandleTime: '5:15',
-      tasksPerHour: 7.1,
-    },
-    {
-      id: 'agent-003',
-      name: 'Mike Davis',
-      state: 'WRAP_UP',
-      stateLabel: 'Wrap-Up',
-      stateClass: 'state-wrap-up',
-      timeInState: '1:45',
-      tasksCompleted: 18,
-      avgHandleTime: '3:58',
-      tasksPerHour: 9.4,
-      currentTask: 'RET-2024-5678',
-    },
-    {
-      id: 'agent-004',
-      name: 'Emily Chen',
-      state: 'BREAK',
-      stateLabel: 'Break',
-      stateClass: 'state-paused',
-      timeInState: '8:30',
-      tasksCompleted: 10,
-      avgHandleTime: '4:45',
-      tasksPerHour: 6.8,
-    },
-    {
-      id: 'agent-005',
-      name: 'James Wilson',
-      state: 'ACTIVE',
-      stateLabel: 'Working',
-      stateClass: 'state-active',
-      timeInState: '5:22',
-      tasksCompleted: 14,
-      avgHandleTime: '4:12',
-      tasksPerHour: 8.8,
-      currentTask: 'CLM-2024-9012',
-    },
-    {
-      id: 'agent-006',
-      name: 'Lisa Brown',
-      state: 'RESERVED',
-      stateLabel: 'Task Pending',
-      stateClass: 'state-reserved',
-      timeInState: '0:12',
-      tasksCompleted: 11,
-      avgHandleTime: '5:30',
-      tasksPerHour: 6.5,
-    },
-    {
-      id: 'agent-007',
-      name: 'David Lee',
-      state: 'OFFLINE',
-      stateLabel: 'Offline',
-      stateClass: 'state-offline',
-      timeInState: '45:00',
-      tasksCompleted: 0,
-      avgHandleTime: '0:00',
-      tasksPerHour: 0,
-    },
-    {
-      id: 'agent-008',
-      name: 'Amanda Taylor',
-      state: 'LUNCH',
-      stateLabel: 'Lunch',
-      stateClass: 'state-paused',
-      timeInState: '25:00',
-      tasksCompleted: 8,
-      avgHandleTime: '4:55',
-      tasksPerHour: 7.2,
-    },
-  ];
+  private allAgents: AgentDisplay[] = [];
 
   ngOnInit(): void {
-    this.loadAgents();
-    this.calculateSummary();
+    // Fetch agents from API every 5 seconds
+    interval(5000)
+      .pipe(
+        startWith(0),
+        takeUntil(this.destroy$),
+        switchMap(() => this.managerApi.getAllAgents())
+      )
+      .subscribe((agents) => {
+        this.allAgents = agents.map((a) => this.transformAgent(a));
+        this.applyFilter();
+        this.calculateSummary();
+      });
 
     // Update time in state every second
     interval(1000)
@@ -168,11 +81,67 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
 
   setFilter(filter: 'all' | 'online' | 'active' | 'idle' | 'paused'): void {
     this.selectedFilter = filter;
-    this.loadAgents();
+    this.applyFilter();
   }
 
-  private loadAgents(): void {
-    let filtered = [...this.mockAgents];
+  private transformAgent(agent: AgentWithMetrics): AgentDisplay {
+    return {
+      id: agent.agentId,
+      name: agent.name,
+      state: agent.state,
+      stateLabel: this.getStateLabel(agent.state),
+      stateClass: this.getStateClass(agent.state),
+      timeInState: this.formatSeconds(agent.timeInState),
+      tasksCompleted: agent.metrics.tasksCompleted,
+      avgHandleTime: this.formatSeconds(agent.metrics.avgHandleTime),
+      tasksPerHour: agent.metrics.tasksPerHour,
+      currentTask: agent.currentTaskId,
+    };
+  }
+
+  private getStateLabel(state: AgentStateType): string {
+    const labels: Record<AgentStateType, string> = {
+      OFFLINE: 'Offline',
+      IDLE: 'Ready',
+      RESERVED: 'Task Pending',
+      ACTIVE: 'Working',
+      WRAP_UP: 'Wrap-Up',
+      PAUSED: 'Paused',
+      BREAK: 'Break',
+      LUNCH: 'Lunch',
+      TRAINING: 'Training',
+      MEETING: 'Meeting',
+    };
+    return labels[state] || state;
+  }
+
+  private getStateClass(state: AgentStateType): string {
+    const classes: Record<AgentStateType, string> = {
+      OFFLINE: 'state-offline',
+      IDLE: 'state-idle',
+      RESERVED: 'state-reserved',
+      ACTIVE: 'state-active',
+      WRAP_UP: 'state-wrap-up',
+      PAUSED: 'state-paused',
+      BREAK: 'state-paused',
+      LUNCH: 'state-paused',
+      TRAINING: 'state-paused',
+      MEETING: 'state-paused',
+    };
+    return classes[state] || 'state-offline';
+  }
+
+  private formatSeconds(seconds: number): string {
+    if (seconds < 60) {
+      return `0:${seconds.toString().padStart(2, '0')}`;
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  private applyFilter(): void {
+    let filtered = [...this.allAgents];
 
     switch (this.selectedFilter) {
       case 'online':
@@ -197,7 +166,7 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
   }
 
   private calculateSummary(): void {
-    const agents = this.mockAgents;
+    const agents = this.allAgents;
     const online = agents.filter((a) => a.state !== 'OFFLINE');
     const active = agents.filter((a) =>
       ['ACTIVE', 'WRAP_UP', 'RESERVED'].includes(a.state)
@@ -213,6 +182,13 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
         ? online.reduce((sum, a) => sum + a.tasksPerHour, 0) / online.length
         : 0;
 
+    // Calculate average handle time from all agent data
+    const totalAHT = agents.reduce((sum, a) => {
+      const parts = a.avgHandleTime.split(':');
+      return sum + parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    }, 0);
+    const avgAHT = agents.length > 0 ? Math.floor(totalAHT / agents.length) : 0;
+
     this.summary$.next({
       totalAgents: agents.length,
       onlineAgents: online.length,
@@ -220,14 +196,13 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
       idleAgents: idle.length,
       pausedAgents: paused.length,
       totalTasksCompleted: totalTasks,
-      avgHandleTime: '4:35',
+      avgHandleTime: this.formatSeconds(avgAHT),
       avgTasksPerHour: Math.round(avgTPH * 10) / 10,
     });
   }
 
   private updateTimeInState(): void {
-    // In production, this would update based on real timestamps
-    // For demo, we just increment the mock times
+    // Increment time in state locally between API refreshes
     const agents = this.agents$.value.map((agent) => ({
       ...agent,
       timeInState: this.incrementTime(agent.timeInState),
@@ -237,16 +212,8 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
 
   private incrementTime(time: string): string {
     const parts = time.split(':');
-    let seconds = 0;
-    let minutes = 0;
-
-    if (parts.length === 2) {
-      minutes = parseInt(parts[0], 10);
-      seconds = parseInt(parts[1], 10);
-    } else if (parts.length === 3) {
-      minutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-      seconds = parseInt(parts[2], 10);
-    }
+    let minutes = parseInt(parts[0], 10);
+    let seconds = parseInt(parts[1], 10);
 
     seconds++;
     if (seconds >= 60) {
@@ -254,10 +221,7 @@ export class TeamDashboardComponent implements OnInit, OnDestroy {
       minutes++;
     }
 
-    const totalMins = Math.floor(minutes);
-    const secs = seconds;
-
-    return `${totalMins}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 
   getStateIcon(state: AgentStateType): string {
