@@ -85,11 +85,16 @@
     outline-offset: 2px;
   }
 
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   &.primary {
     background-color: $color-primary;
     color: $color-white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-primary-dark;
     }
   }
@@ -150,6 +155,72 @@
   }
 }
 
+// Disposition button color variants
+.disposition-btn {
+  position: relative;
+
+  &.color-green {
+    background-color: $color-success;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-success-dark;
+    }
+  }
+
+  &.color-blue {
+    background-color: $color-info;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-info-dark;
+    }
+  }
+
+  &.color-orange {
+    background-color: $color-warning;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-warning-dark;
+    }
+  }
+
+  &.color-red {
+    background-color: $color-error;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-error-dark;
+    }
+  }
+
+  &.color-purple {
+    background-color: #7b1fa2;
+    color: $color-white;
+
+    &:hover {
+      background-color: #6a1b9a;
+    }
+  }
+
+  &.color-gray {
+    background-color: $color-gray-500;
+    color: $color-white;
+
+    &:hover {
+      background-color: $color-gray-600;
+    }
+  }
+}
+
+// Note indicator asterisk
+.note-indicator {
+  margin-right: $spacing-1;
+  color: inherit;
+  font-weight: $font-weight-bold;
+}
+
 // Reservation state styles
 .reservation-actions {
   display: flex;
@@ -191,4 +262,123 @@
 .disposition-buttons {
   display: flex;
   gap: $spacing-3;
+  flex-wrap: wrap;
+}
+
+// Note Modal Styles
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.note-modal {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: $shadow-xl;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-4 $spacing-5;
+  border-bottom: $border-width-thin solid $color-gray-200;
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: $font-size-2xl;
+    cursor: pointer;
+    color: $color-gray-500;
+    padding: 0;
+    line-height: 1;
+
+    &:hover {
+      color: $color-gray-900;
+    }
+  }
+}
+
+.modal-body {
+  padding: $spacing-5;
+
+  .disposition-info {
+    margin: 0 0 $spacing-4 0;
+    font-size: $font-size-sm;
+    color: $color-gray-600;
+
+    strong {
+      color: $color-gray-900;
+    }
+  }
+
+  label {
+    display: block;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-gray-700;
+    margin-bottom: $spacing-2;
+
+    .required {
+      color: $color-error;
+    }
+  }
+
+  .note-input {
+    width: 100%;
+    padding: $spacing-3;
+    border: $border-width-thin solid $color-gray-300;
+    border-radius: $border-radius-md;
+    font-size: $font-size-sm;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 100px;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+
+    &::placeholder {
+      color: $color-gray-400;
+    }
+  }
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-3;
+  padding: $spacing-4 $spacing-5;
+  border-top: $border-width-thin solid $color-gray-200;
 }

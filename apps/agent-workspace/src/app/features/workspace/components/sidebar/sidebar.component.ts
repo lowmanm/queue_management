@@ -35,4 +35,11 @@ export class SidebarComponent implements OnInit {
   ): { key: string; value: string }[] {
     return Object.entries(metadata).map(([key, value]) => ({ key, value }));
   }
+
+  /**
+   * Open task URL in a new browser tab
+   */
+  openTaskUrl(url: string): void {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 }

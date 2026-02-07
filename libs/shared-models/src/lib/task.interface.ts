@@ -32,7 +32,10 @@ export interface Task {
   /** Required agent skills to work this task */
   skills?: string[];
 
-  /** Queue/team assignment */
+  /** Queue ID for routing and disposition filtering */
+  queueId?: string;
+
+  /** Queue/team name assignment */
   queue?: string;
 
   // === Status ===
