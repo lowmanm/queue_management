@@ -1,0 +1,252 @@
+<div class="dispositions-container">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Disposition Designer</h1>
+      <p class="subtitle">Configure wrap-up codes for task completion</p>
+    </div>
+    <button class="btn btn-primary" (click)="openNewEditor()">
+      + New Disposition
+    </button>
+  </header>
+
+  <!-- Messages -->
+  <div class="message success" *ngIf="successMessage()">
+    {{ successMessage() }}
+    <button class="close-btn" (click)="clearMessages()">&times;</button>
+  </div>
+  <div class="message error" *ngIf="errorMessage()">
+    {{ errorMessage() }}
+    <button class="close-btn" (click)="clearMessages()">&times;</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" *ngIf="isLoading()">Loading...</div>
+
+  <!-- Dispositions List -->
+  <div class="dispositions-section" *ngIf="!isLoading()">
+    <h2>Active Dispositions</h2>
+
+    <div class="dispositions-grid">
+      <div
+        class="disposition-card"
+        *ngFor="let disposition of activeDispositions()"
+        [class]="getColorClass(disposition.color)"
+      >
+        <div class="card-header">
+          <div class="card-icon" [class]="getColorClass(disposition.color)">
+            {{ disposition.icon || 'check' }}
+          </div>
+          <div class="card-title">
+            <h3>{{ disposition.name }}</h3>
+            <span class="code">{{ disposition.code }}</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-icon" (click)="openEditEditor(disposition)" title="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button class="btn-icon danger" (click)="deleteDisposition(disposition)" title="Deactivate">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <p class="card-description" *ngIf="disposition.description">
+          {{ disposition.description }}
+        </p>
+
+        <div class="card-meta">
+          <span class="category-badge" [class]="getCategoryClass(disposition.category)">
+            {{ getCategoryLabel(disposition.category) }}
+          </span>
+          <span class="note-required" *ngIf="disposition.requiresNote">
+            Note Required
+          </span>
+        </div>
+
+        <div class="card-restrictions" *ngIf="disposition.queueIds.length > 0 || disposition.workTypeIds.length > 0">
+          <span *ngIf="disposition.queueIds.length > 0" class="restriction">
+            {{ disposition.queueIds.length }} queue(s)
+          </span>
+          <span *ngIf="disposition.workTypeIds.length > 0" class="restriction">
+            {{ disposition.workTypeIds.length }} work type(s)
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inactive Dispositions -->
+    <div class="inactive-section" *ngIf="inactiveDispositions().length > 0">
+      <h3>Inactive Dispositions</h3>
+      <div class="inactive-list">
+        <div class="inactive-item" *ngFor="let disposition of inactiveDispositions()">
+          <span class="name">{{ disposition.name }}</span>
+          <span class="code">{{ disposition.code }}</span>
+          <button class="btn btn-sm" (click)="reactivateDisposition(disposition)">
+            Reactivate
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor Modal -->
+  <div class="modal-overlay" *ngIf="showEditor()" (click)="closeEditor()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode() ? 'Edit Disposition' : 'New Disposition' }}</h2>
+        <button class="close-btn" (click)="closeEditor()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="code">Code *</label>
+            <input
+              type="text"
+              id="code"
+              [ngModel]="formData().code"
+              (ngModelChange)="updateFormField('code', $event)"
+              placeholder="REQ_RELEASE"
+              class="form-control"
+              [disabled]="isEditMode()"
+            />
+            <span class="hint">Unique identifier (auto-uppercased)</span>
+          </div>
+
+          <div class="form-group">
+            <label for="name">Name *</label>
+            <input
+              type="text"
+              id="name"
+              [ngModel]="formData().name"
+              (ngModelChange)="updateFormField('name', $event)"
+              placeholder="Request Release"
+              class="form-control"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            [ngModel]="formData().description"
+            (ngModelChange)="updateFormField('description', $event)"
+            placeholder="When to use this disposition..."
+            class="form-control"
+            rows="2"
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="category">Category *</label>
+            <select
+              id="category"
+              [ngModel]="formData().category"
+              (ngModelChange)="updateFormField('category', $event)"
+              class="form-control"
+            >
+              <option *ngFor="let cat of categories()" [value]="cat.value">
+                {{ cat.label }} - {{ cat.description }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="color">Color</label>
+            <select
+              id="color"
+              [ngModel]="formData().color"
+              (ngModelChange)="updateFormField('color', $event)"
+              class="form-control"
+            >
+              <option *ngFor="let color of colorOptions" [value]="color.value">
+                {{ color.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="icon">Icon</label>
+            <select
+              id="icon"
+              [ngModel]="formData().icon"
+              (ngModelChange)="updateFormField('icon', $event)"
+              class="form-control"
+            >
+              <option *ngFor="let icon of iconOptions" [value]="icon">
+                {{ icon }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().requiresNote"
+                (ngModelChange)="updateFormField('requiresNote', $event)"
+              />
+              Require Note
+            </label>
+            <span class="hint">Agent must enter a note when selecting this disposition</span>
+          </div>
+        </div>
+
+        <!-- Queue Restrictions -->
+        <div class="form-group">
+          <label>Queue Restrictions</label>
+          <p class="hint">Leave empty to apply to all queues</p>
+          <div class="checkbox-list">
+            <label *ngFor="let queue of queues()" class="checkbox-item">
+              <input
+                type="checkbox"
+                [checked]="isQueueSelected(queue.id)"
+                (change)="toggleQueueId(queue.id)"
+              />
+              {{ queue.name }}
+            </label>
+          </div>
+        </div>
+
+        <!-- Work Type Restrictions -->
+        <div class="form-group">
+          <label>Work Type Restrictions</label>
+          <p class="hint">Leave empty to apply to all work types</p>
+          <div class="checkbox-list">
+            <label *ngFor="let wt of workTypes()" class="checkbox-item">
+              <input
+                type="checkbox"
+                [checked]="isWorkTypeSelected(wt.id)"
+                (change)="toggleWorkTypeId(wt.id)"
+              />
+              {{ wt.name }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeEditor()">Cancel</button>
+        <button
+          class="btn btn-primary"
+          (click)="saveDisposition()"
+          [disabled]="isLoading()"
+        >
+          {{ isLoading() ? 'Saving...' : (isEditMode() ? 'Update' : 'Create') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

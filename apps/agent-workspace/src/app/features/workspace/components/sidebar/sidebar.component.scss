@@ -210,6 +210,59 @@
   }
 }
 
+// Task URL Section
+.task-url-section {
+  background-color: $color-primary-subtle;
+  margin: 0 (-$spacing-4);
+  padding: $spacing-3 $spacing-4 !important;
+  border-bottom: $border-width-thin solid $color-primary-light !important;
+}
+
+.open-url-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  width: 100%;
+  padding: $spacing-3 $spacing-4;
+  background-color: $color-primary;
+  color: $color-white;
+  border: none;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: background-color $transition-fast;
+
+  &:hover {
+    background-color: $color-primary-dark;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.url-display {
+  margin-top: $spacing-3;
+
+  .field-value.url {
+    display: block;
+    font-size: $font-size-xs;
+    word-break: break-all;
+    color: $color-gray-600;
+    background-color: $color-white;
+    padding: $spacing-2;
+    border-radius: $border-radius-sm;
+    max-height: 60px;
+    overflow-y: auto;
+  }
+}
+
 // Empty state
 .no-task {
   display: flex;
