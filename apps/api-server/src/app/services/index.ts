@@ -4,3 +4,4 @@ export * from './task-distributor.service';
 export * from './rule-engine.service';
 export * from './task-source.service';
 export * from './disposition.service';
+export * from './rbac.service';

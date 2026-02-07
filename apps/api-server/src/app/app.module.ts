@@ -7,6 +7,7 @@ import { ServicesModule } from './services';
 import { RulesModule } from './rules';
 import { TaskSourcesModule } from './task-sources';
 import { DispositionsModule } from './dispositions';
+import { RbacModule } from './rbac';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DispositionsModule } from './dispositions';
     RulesModule,
     TaskSourcesModule,
     DispositionsModule,
+    RbacModule,
   ],
   controllers: [AppController],
   providers: [AppService],
