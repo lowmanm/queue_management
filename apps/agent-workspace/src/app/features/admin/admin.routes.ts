@@ -14,6 +14,13 @@ export const ADMIN_ROUTES: Routes = [
       ),
   },
   {
+    path: 'dispositions',
+    loadComponent: () =>
+      import('./components/dispositions/dispositions.component').then(
+        (m) => m.DispositionsComponent
+      ),
+  },
+  {
     path: 'logic-builder',
     loadComponent: () =>
       import('./components/logic-builder/logic-builder.component').then(

@@ -272,7 +272,7 @@ export class QueueService implements OnDestroy {
    * Transitions: WRAP_UP → IDLE
    */
   submitDisposition(
-    disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'>
+    disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'> & { note?: string }
   ): void {
     if (this.agentState !== 'WRAP_UP') {
       throw new Error(
@@ -304,7 +304,9 @@ export class QueueService implements OnDestroy {
       wrapUpTime,
       totalTime,
       disposition: {
-        ...disposition,
+        code: disposition.code,
+        label: disposition.label,
+        notes: disposition.note || disposition.notes,
         selectedAt: now,
         selectedBy: agentId,
       },
