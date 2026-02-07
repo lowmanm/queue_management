@@ -13,6 +13,7 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0; // Critical for nested flex to work properly
 }
 
 .workspace-main {
@@ -21,6 +22,18 @@
   flex: 1;
   position: relative;
   overflow: hidden;
+
+  // Main stage (iframe) should fill available space
+  app-main-stage {
+    flex: 1;
+    display: flex;
+    min-height: 0; // Important for flex children to shrink
+  }
+
+  // Action bar at the bottom
+  app-action-bar {
+    flex-shrink: 0;
+  }
 }
 
 // Status overlay (base)

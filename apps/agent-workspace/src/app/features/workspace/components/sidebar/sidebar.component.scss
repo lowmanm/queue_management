@@ -7,6 +7,16 @@
   border-right: $border-width-thin solid $color-gray-200;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+}
+
+// Stats section at top
+.sidebar-section {
+  &.stats-section {
+    padding: $spacing-3;
+    border-bottom: $border-width-thin solid $color-gray-200;
+    flex-shrink: 0;
+  }
 }
 
 .sidebar-header {

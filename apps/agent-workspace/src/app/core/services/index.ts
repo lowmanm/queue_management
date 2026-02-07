@@ -1,3 +1,4 @@
+export * from './agent-stats.service';
 export * from './auth.service';
 export * from './disposition.service';
 export * from './logger.service';

@@ -14,11 +14,13 @@ import {
   TaskStatus,
   AgentState,
   TaskDisposition,
+  AgentStateType,
 } from '@nexus-queue/shared-models';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 import { LoggerService } from './logger.service';
 import { SocketService } from './socket.service';
+import { AgentStatsService } from './agent-stats.service';
 
 const LOG_CONTEXT = 'QueueService';
 
@@ -62,7 +64,8 @@ export class QueueService implements OnDestroy {
   constructor(
     private http: HttpClient,
     private authService: AuthService,
-    private socketService: SocketService
+    private socketService: SocketService,
+    private agentStatsService: AgentStatsService
   ) {
     this.setupSocketListeners();
   }
@@ -108,6 +111,10 @@ export class QueueService implements OnDestroy {
     }
 
     this.logger.info(LOG_CONTEXT, 'Initializing queue service', { agentId: agent.id, agentName: agent.name });
+
+    // Start stats tracking session
+    this.agentStatsService.startSession(agent.id);
+
     this.socketService.connect(agent.id, agent.name);
   }
 
@@ -116,6 +123,7 @@ export class QueueService implements OnDestroy {
    */
   disconnect(): void {
     this.socketService.disconnect();
+    this.agentStatsService.endSession();
     this.transitionTo('OFFLINE');
   }
 
@@ -227,6 +235,11 @@ export class QueueService implements OnDestroy {
       this.socketService.sendTaskAction(agentId, task.id, 'reject');
     }
 
+    // Record rejection in stats
+    if (task) {
+      this.agentStatsService.recordTaskRejection(task.id);
+    }
+
     this.currentTaskSubject.next(null);
     this.transitionTo('IDLE');
   }
@@ -315,6 +328,15 @@ export class QueueService implements OnDestroy {
     // Update session metrics
     this.sessionMetrics.tasksCompleted++;
     this.sessionMetrics.totalHandleTime += task.handleTime || 0;
+
+    // Record task completion in stats service
+    this.agentStatsService.recordTaskCompletion(
+      task.id,
+      task.workType,
+      disposition.code,
+      'COMPLETED', // Category - could be enhanced to pass actual category
+      task.queue
+    );
 
     this.currentTaskSubject.next(updatedTask);
 
@@ -429,6 +451,9 @@ export class QueueService implements OnDestroy {
     this.logger.info(LOG_CONTEXT, `Agent state transition: ${oldState} → ${newState}`, { oldState, newState });
     this.agentStateSubject.next(newState);
 
+    // Track state change in stats service
+    this.agentStatsService.onStateChange(newState as AgentStateType);
+
     // Notify server of state change (except for IDLE which is handled separately)
     const agentId = this.authService.currentAgent?.id;
     if (agentId && newState !== 'IDLE') {
@@ -469,6 +494,8 @@ export class QueueService implements OnDestroy {
     const agentId = this.authService.currentAgent?.id;
     if (agentId && task) {
       this.socketService.sendTaskAction(agentId, task.id, 'reject');
+      // Record timeout as rejection in stats
+      this.agentStatsService.recordTaskRejection(task.id);
     }
 
     this.currentTaskSubject.next(null);

@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
 import { Task } from '@nexus-queue/shared-models';
 import { QueueService } from '../../../../core/services/queue.service';
+import { AgentStatsComponent } from '../agent-stats/agent-stats.component';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, AgentStatsComponent],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss',
 })
