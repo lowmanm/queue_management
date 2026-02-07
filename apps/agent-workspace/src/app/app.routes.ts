@@ -20,6 +20,12 @@ export const appRoutes: Route[] = [
       import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
   {
+    path: 'manager',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./features/manager/manager.routes').then((m) => m.MANAGER_ROUTES),
+  },
+  {
     path: '**',
     redirectTo: '',
   },

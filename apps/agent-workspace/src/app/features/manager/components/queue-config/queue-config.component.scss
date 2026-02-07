@@ -1,0 +1,376 @@
+@use 'styles/variables' as *;
+
+.queue-config {
+  padding: $spacing-6;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-6;
+
+  .header-content {
+    h1 {
+      margin: 0;
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
+      color: $color-gray-900;
+    }
+
+    .subtitle {
+      margin: $spacing-1 0 0;
+      color: $color-gray-500;
+      font-size: $font-size-sm;
+    }
+  }
+}
+
+.btn-primary {
+  padding: $spacing-3 $spacing-5;
+  background: $color-primary;
+  color: $color-white;
+  border: none;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: $color-primary-dark;
+  }
+
+  &:disabled {
+    background: $color-gray-300;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  padding: $spacing-3 $spacing-5;
+  background: $color-white;
+  color: $color-gray-700;
+  border: 1px solid $color-gray-300;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $color-gray-50;
+    border-color: $color-gray-400;
+  }
+}
+
+// Queue Table
+.queue-table-container {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+}
+
+.queue-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: $spacing-4;
+    text-align: left;
+    border-bottom: 1px solid $color-gray-200;
+  }
+
+  th {
+    background: $color-gray-50;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  td {
+    font-size: $font-size-sm;
+    color: $color-gray-700;
+  }
+
+  tr.inactive {
+    opacity: 0.6;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.status-toggle {
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &.active {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+
+  &:not(.active) {
+    background: $color-gray-200;
+    color: $color-gray-600;
+  }
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.queue-name-cell {
+  .queue-name {
+    display: block;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .queue-description {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    margin-top: 2px;
+  }
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  &[data-priority="1"] {
+    background: $color-error-bg;
+    color: $color-error;
+  }
+
+  &[data-priority="2"] {
+    background: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &[data-priority="3"] {
+    background: $color-gray-200;
+    color: $color-gray-700;
+  }
+
+  &[data-priority="4"],
+  &[data-priority="5"] {
+    background: $color-gray-100;
+    color: $color-gray-500;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-2;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $color-gray-100;
+  border: none;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $color-gray-200;
+  }
+
+  &.delete:hover {
+    background: $color-error-bg;
+    color: $color-error;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  color: $color-gray-500;
+  padding: $spacing-8 !important;
+}
+
+// Modal
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: $shadow-lg;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-5;
+  border-bottom: 1px solid $color-gray-200;
+
+  h2 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    font-size: $font-size-xl;
+    color: $color-gray-500;
+    cursor: pointer;
+    border-radius: $border-radius-sm;
+
+    &:hover {
+      background: $color-gray-100;
+      color: $color-gray-700;
+    }
+  }
+}
+
+.modal-body {
+  padding: $spacing-5;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  border-top: 1px solid $color-gray-200;
+}
+
+.form-group {
+  margin-bottom: $spacing-4;
+
+  label {
+    display: block;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-gray-700;
+    margin-bottom: $spacing-2;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    padding: $spacing-3;
+    border: 1px solid $color-gray-300;
+    border-radius: $border-radius-md;
+    font-size: $font-size-sm;
+    color: $color-gray-900;
+    transition: border-color 0.15s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
+
+  .input-hint {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    margin-top: $spacing-1;
+  }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-4;
+}
+
+.chip-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+}
+
+.chip {
+  padding: $spacing-2 $spacing-3;
+  background: $color-gray-100;
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-gray-700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $color-gray-200;
+  }
+
+  &.selected {
+    background: $color-primary;
+    border-color: $color-primary;
+    color: $color-white;
+  }
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: $color-primary;
+  }
+
+  span {
+    font-size: $font-size-sm;
+    color: $color-gray-700;
+  }
+}
