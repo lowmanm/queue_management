@@ -6,6 +6,7 @@ import { TaskSourceService } from './task-source.service';
 import { DispositionService } from './disposition.service';
 import { RbacService } from './rbac.service';
 import { QueuesService } from '../queues/queues.service';
+import { RoutingService } from '../routing/routing.service';
 
 @Module({
   providers: [
@@ -16,6 +17,7 @@ import { QueuesService } from '../queues/queues.service';
     DispositionService,
     RbacService,
     QueuesService,
+    RoutingService,
   ],
   exports: [
     AgentManagerService,
@@ -25,6 +27,7 @@ import { QueuesService } from '../queues/queues.service';
     DispositionService,
     RbacService,
     QueuesService,
+    RoutingService,
   ],
 })
 export class ServicesModule {}

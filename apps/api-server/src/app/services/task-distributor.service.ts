@@ -1,7 +1,8 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { Task, TaskAction, PendingOrder } from '@nexus-queue/shared-models';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
+import { Task, TaskAction, PendingOrder, RoutingDecision } from '@nexus-queue/shared-models';
 import { RuleEngineService } from './rule-engine.service';
 import { TaskSourceService } from './task-source.service';
+import { RoutingService } from '../routing/routing.service';
 
 interface MockTaskTemplate {
   workType: string;
@@ -23,11 +24,17 @@ export class TaskDistributorService {
   // Task counter for unique IDs
   private taskCounter = 1000;
 
+  // Last routing decision for debugging/monitoring
+  private lastRoutingDecision: RoutingDecision | null = null;
+
   constructor(
     @Inject(forwardRef(() => RuleEngineService))
     private readonly ruleEngine: RuleEngineService,
     @Inject(forwardRef(() => TaskSourceService))
-    private readonly taskSource: TaskSourceService
+    private readonly taskSource: TaskSourceService,
+    @Optional()
+    @Inject(forwardRef(() => RoutingService))
+    private readonly routingService?: RoutingService
   ) {}
 
   // Mock task templates
@@ -254,5 +261,92 @@ export class TaskDistributorService {
         CLAIMS: Math.floor(Math.random() * 10) + 2,
       },
     };
+  }
+
+  /**
+   * Check if an agent is eligible for a task based on skill-based routing
+   * Returns true if the agent has the required skills, or if routing is disabled
+   */
+  isAgentEligibleForTask(agentId: string, task: Task): boolean {
+    if (!this.routingService) {
+      return true; // Routing disabled, allow all
+    }
+
+    const decision = this.routingService.routeTask(task);
+    this.lastRoutingDecision = decision;
+
+    // Check if the agent is in the eligible list
+    const agentScore = decision.agentScores.find((s) => s.agentId === agentId);
+    return agentScore?.eligible ?? false;
+  }
+
+  /**
+   * Get the best agent for a task using skill-based routing
+   * Returns the agent ID or null if no suitable agent found
+   */
+  findBestAgentForTask(task: Task): string | null {
+    if (!this.routingService) {
+      return null; // Routing disabled
+    }
+
+    const decision = this.routingService.routeTask(task);
+    this.lastRoutingDecision = decision;
+
+    if (decision.selectedAgentId) {
+      this.logger.log(
+        `Routing: Best agent for task ${task.id} is ${decision.selectedAgentId} ` +
+          `(${decision.metadata.eligibleAgents}/${decision.metadata.totalAgentsEvaluated} eligible)`
+      );
+    } else {
+      this.logger.warn(
+        `Routing: No eligible agent found for task ${task.id} ` +
+          `(required skills: ${decision.metadata.requiredSkills.join(', ') || 'none'})`
+      );
+    }
+
+    return decision.selectedAgentId;
+  }
+
+  /**
+   * Get the last routing decision for debugging/monitoring
+   */
+  getLastRoutingDecision(): RoutingDecision | null {
+    return this.lastRoutingDecision;
+  }
+
+  /**
+   * Generate a task for skill-based routing (doesn't assign to specific agent)
+   */
+  generateUnassignedTask(): Task {
+    const templateIndex = this.taskCounter % this.taskTemplates.length;
+    const template = this.taskTemplates[templateIndex];
+
+    const now = new Date().toISOString();
+    const createdAt = new Date(Date.now() - Math.random() * 10 * 60 * 1000).toISOString();
+
+    const taskId = `TASK-${++this.taskCounter}`;
+    const externalId = `EXT-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+
+    const task: Task = {
+      id: taskId,
+      externalId,
+      workType: template.workType,
+      title: `${template.titlePrefix} #${Math.floor(Math.random() * 90000) + 10000}`,
+      description: template.description,
+      payloadUrl: template.payloadUrl,
+      metadata: template.metadataGenerator(),
+      priority: template.priority,
+      skills: template.skills,
+      queue: template.queue,
+      status: 'PENDING',
+      createdAt,
+      availableAt: createdAt,
+      reservationTimeout: template.reservationTimeout,
+      actions: template.actions,
+    };
+
+    // Apply rules
+    const { task: processedTask } = this.ruleEngine.evaluateTask(task);
+    return processedTask;
   }
 }
