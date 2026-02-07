@@ -8,16 +8,22 @@ import { RulesModule } from './rules';
 import { TaskSourcesModule } from './task-sources';
 import { DispositionsModule } from './dispositions';
 import { RbacModule } from './rbac';
+import { AgentsModule } from './agents/agents.module';
+import { QueuesModule } from './queues/queues.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
+    ServicesModule,
     TasksModule,
     GatewayModule,
-    ServicesModule,
     RulesModule,
     TaskSourcesModule,
     DispositionsModule,
     RbacModule,
+    AgentsModule,
+    QueuesModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

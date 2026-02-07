@@ -283,9 +283,12 @@ export class QueueService implements OnDestroy {
   /**
    * Agent submits disposition and finishes wrap-up.
    * Transitions: WRAP_UP → IDLE
+   * @param disposition - The disposition data
+   * @param skipSocketNotify - If true, skip WebSocket notification (used when already sent via REST API)
    */
   submitDisposition(
-    disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'> & { note?: string }
+    disposition: Omit<TaskDisposition, 'selectedAt' | 'selectedBy'> & { note?: string },
+    skipSocketNotify = false
   ): void {
     if (this.agentState !== 'WRAP_UP') {
       throw new Error(
@@ -303,12 +306,14 @@ export class QueueService implements OnDestroy {
     const wrapUpTime = this.calculateHandleTime(task.completedAt, now);
     const totalTime = this.calculateHandleTime(task.reservedAt, now);
 
-    // Notify server
-    this.socketService.sendDispositionComplete(
-      agentId,
-      task.id,
-      disposition.code
-    );
+    // Notify server via WebSocket (skip if already notified via REST API)
+    if (!skipSocketNotify) {
+      this.socketService.sendDispositionComplete(
+        agentId,
+        task.id,
+        disposition.code
+      );
+    }
 
     const updatedTask: Task = {
       ...task,

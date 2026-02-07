@@ -242,7 +242,7 @@ export class ActionBarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Complete task via API
+    // Complete task via REST API
     this.dispositionService
       .completeTaskWithDisposition({
         taskId: task.id,
@@ -252,16 +252,19 @@ export class ActionBarComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          // Also update local state via QueueService
-          this.queueService.submitDisposition({
-            code: disposition.code,
-            label: disposition.name,
-            note: note,
-          });
+          // Update local state via QueueService (skip socket notify since REST API already notified backend)
+          this.queueService.submitDisposition(
+            {
+              code: disposition.code,
+              label: disposition.name,
+              note: note,
+            },
+            true // skipSocketNotify - already sent via REST API
+          );
         },
         error: (error) => {
           this.logger.error(LOG_CONTEXT, 'Failed to complete task', error);
-          // Still submit locally to maintain state consistency
+          // Still submit locally but notify via socket since REST failed
           this.queueService.submitDisposition({
             code: disposition.code,
             label: disposition.name,
