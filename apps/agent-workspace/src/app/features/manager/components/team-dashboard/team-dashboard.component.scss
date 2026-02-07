@@ -1,0 +1,313 @@
+@use 'styles/variables' as *;
+
+.team-dashboard {
+  padding: $spacing-6;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: $spacing-6;
+
+  h1 {
+    margin: 0;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-gray-900;
+  }
+
+  .subtitle {
+    margin: $spacing-1 0 0;
+    color: $color-gray-500;
+    font-size: $font-size-sm;
+  }
+}
+
+// Summary Cards
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: $spacing-4;
+  margin-bottom: $spacing-6;
+}
+
+.summary-card {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-4;
+  text-align: center;
+  box-shadow: $shadow-sm;
+  border: 1px solid $color-gray-200;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    transform: translateY(-2px);
+  }
+
+  .card-value {
+    display: block;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-gray-900;
+  }
+
+  .card-label {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    margin-top: $spacing-1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &.total {
+    border-left: 3px solid $color-gray-500;
+  }
+
+  &.online {
+    border-left: 3px solid $color-primary;
+
+    .card-value {
+      color: $color-primary;
+    }
+  }
+
+  &.active {
+    border-left: 3px solid $color-success;
+
+    .card-value {
+      color: $color-success;
+    }
+  }
+
+  &.idle {
+    border-left: 3px solid $color-warning;
+
+    .card-value {
+      color: $color-warning;
+    }
+  }
+
+  &.paused {
+    border-left: 3px solid $color-gray-400;
+
+    .card-value {
+      color: $color-gray-600;
+    }
+  }
+
+  &.tasks {
+    border-left: 3px solid $color-info;
+  }
+
+  &.aht,
+  &.tph {
+    cursor: default;
+
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+// Filter Tabs
+.filter-tabs {
+  display: flex;
+  gap: $spacing-2;
+  margin-bottom: $spacing-5;
+  border-bottom: 1px solid $color-gray-200;
+  padding-bottom: $spacing-3;
+}
+
+.filter-tab {
+  padding: $spacing-2 $spacing-4;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-gray-600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $color-gray-100;
+    color: $color-gray-900;
+  }
+
+  &.active {
+    background: $color-primary;
+    color: $color-white;
+    border-color: $color-primary;
+  }
+}
+
+// Agent Grid
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $spacing-4;
+}
+
+.agent-card {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-4;
+  box-shadow: $shadow-sm;
+  border: 1px solid $color-gray-200;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  // State-based styling
+  &.state-active {
+    border-left: 4px solid $color-success;
+
+    .state-icon {
+      color: $color-success;
+    }
+  }
+
+  &.state-idle {
+    border-left: 4px solid $color-warning;
+
+    .state-icon {
+      color: $color-warning;
+    }
+  }
+
+  &.state-reserved {
+    border-left: 4px solid $color-info;
+
+    .state-icon {
+      color: $color-info;
+    }
+  }
+
+  &.state-wrap-up {
+    border-left: 4px solid #7b1fa2;
+
+    .state-icon {
+      color: #7b1fa2;
+    }
+  }
+
+  &.state-paused {
+    border-left: 4px solid $color-gray-400;
+    opacity: 0.85;
+
+    .state-icon {
+      color: $color-gray-500;
+    }
+  }
+
+  &.state-offline {
+    border-left: 4px solid $color-gray-300;
+    opacity: 0.6;
+
+    .state-icon {
+      color: $color-gray-400;
+    }
+  }
+}
+
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-3;
+}
+
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+
+  .state-icon {
+    font-size: $font-size-lg;
+  }
+
+  .agent-name {
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+}
+
+.agent-state {
+  text-align: right;
+
+  .state-label {
+    display: block;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $color-gray-600;
+    text-transform: uppercase;
+  }
+
+  .time-in-state {
+    display: block;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.current-task {
+  background: $color-gray-50;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-sm;
+  margin-bottom: $spacing-3;
+  font-size: $font-size-xs;
+
+  .task-label {
+    color: $color-gray-500;
+  }
+
+  .task-id {
+    font-weight: $font-weight-medium;
+    color: $color-gray-700;
+    font-family: $font-family-mono;
+    margin-left: $spacing-1;
+  }
+}
+
+.agent-metrics {
+  display: flex;
+  justify-content: space-between;
+  padding-top: $spacing-3;
+  border-top: 1px solid $color-gray-100;
+
+  .metric {
+    text-align: center;
+    flex: 1;
+
+    .metric-value {
+      display: block;
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-gray-900;
+    }
+
+    .metric-label {
+      display: block;
+      font-size: $font-size-xs;
+      color: $color-gray-500;
+    }
+  }
+}
+
+.no-agents {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: $spacing-8;
+  color: $color-gray-500;
+
+  p {
+    margin: 0;
+  }
+}

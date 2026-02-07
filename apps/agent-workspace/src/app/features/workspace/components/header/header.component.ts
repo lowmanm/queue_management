@@ -67,6 +67,13 @@ export class HeaderComponent implements OnInit {
   }
 
   /**
+   * Check if user can access manager features
+   */
+  get canAccessManager(): boolean {
+    return this.authService.hasAnyRole(['MANAGER', 'ADMIN']);
+  }
+
+  /**
    * Check if user can access designer features
    */
   get canAccessDesigner(): boolean {

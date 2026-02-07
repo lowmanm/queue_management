@@ -7,6 +7,17 @@
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
         Workspace
       </a>
+      @if (canAccessManager) {
+        <a routerLink="/manager/team" routerLinkActive="active" class="nav-link">
+          Team
+        </a>
+        <a routerLink="/manager/queues" routerLinkActive="active" class="nav-link">
+          Queues
+        </a>
+        <a routerLink="/manager/queue-config" routerLinkActive="active" class="nav-link">
+          Queue Config
+        </a>
+      }
       @if (canAccessDesigner) {
         <a routerLink="/admin/task-sources" routerLinkActive="active" class="nav-link">
           Task Sources

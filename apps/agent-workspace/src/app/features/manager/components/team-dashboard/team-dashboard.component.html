@@ -1,0 +1,127 @@
+<div class="team-dashboard">
+  <header class="dashboard-header">
+    <h1>Team Dashboard</h1>
+    <p class="subtitle">Real-time agent monitoring</p>
+  </header>
+
+  <!-- Summary Cards -->
+  @if (summary$ | async; as summary) {
+    <div class="summary-cards">
+      <div class="summary-card total">
+        <span class="card-value">{{ summary.totalAgents }}</span>
+        <span class="card-label">Total Agents</span>
+      </div>
+      <div class="summary-card online" (click)="setFilter('online')">
+        <span class="card-value">{{ summary.onlineAgents }}</span>
+        <span class="card-label">Online</span>
+      </div>
+      <div class="summary-card active" (click)="setFilter('active')">
+        <span class="card-value">{{ summary.activeAgents }}</span>
+        <span class="card-label">Active</span>
+      </div>
+      <div class="summary-card idle" (click)="setFilter('idle')">
+        <span class="card-value">{{ summary.idleAgents }}</span>
+        <span class="card-label">Idle</span>
+      </div>
+      <div class="summary-card paused" (click)="setFilter('paused')">
+        <span class="card-value">{{ summary.pausedAgents }}</span>
+        <span class="card-label">Paused</span>
+      </div>
+      <div class="summary-card tasks">
+        <span class="card-value">{{ summary.totalTasksCompleted }}</span>
+        <span class="card-label">Tasks Today</span>
+      </div>
+      <div class="summary-card aht">
+        <span class="card-value">{{ summary.avgHandleTime }}</span>
+        <span class="card-label">Avg Handle</span>
+      </div>
+      <div class="summary-card tph">
+        <span class="card-value">{{ summary.avgTasksPerHour }}</span>
+        <span class="card-label">Tasks/Hr</span>
+      </div>
+    </div>
+  }
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs">
+    <button
+      class="filter-tab"
+      [class.active]="selectedFilter === 'all'"
+      (click)="setFilter('all')"
+    >
+      All Agents
+    </button>
+    <button
+      class="filter-tab"
+      [class.active]="selectedFilter === 'online'"
+      (click)="setFilter('online')"
+    >
+      Online
+    </button>
+    <button
+      class="filter-tab"
+      [class.active]="selectedFilter === 'active'"
+      (click)="setFilter('active')"
+    >
+      Active
+    </button>
+    <button
+      class="filter-tab"
+      [class.active]="selectedFilter === 'idle'"
+      (click)="setFilter('idle')"
+    >
+      Idle
+    </button>
+    <button
+      class="filter-tab"
+      [class.active]="selectedFilter === 'paused'"
+      (click)="setFilter('paused')"
+    >
+      On Break
+    </button>
+  </div>
+
+  <!-- Agent Grid -->
+  <div class="agent-grid">
+    @for (agent of agents$ | async; track agent.id) {
+      <div class="agent-card" [class]="agent.stateClass">
+        <div class="agent-header">
+          <div class="agent-info">
+            <span class="state-icon">{{ getStateIcon(agent.state) }}</span>
+            <span class="agent-name">{{ agent.name }}</span>
+          </div>
+          <div class="agent-state">
+            <span class="state-label">{{ agent.stateLabel }}</span>
+            <span class="time-in-state">{{ agent.timeInState }}</span>
+          </div>
+        </div>
+
+        @if (agent.currentTask) {
+          <div class="current-task">
+            <span class="task-label">Working on:</span>
+            <span class="task-id">{{ agent.currentTask }}</span>
+          </div>
+        }
+
+        <div class="agent-metrics">
+          <div class="metric">
+            <span class="metric-value">{{ agent.tasksCompleted }}</span>
+            <span class="metric-label">Tasks</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">{{ agent.avgHandleTime }}</span>
+            <span class="metric-label">AHT</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">{{ agent.tasksPerHour }}</span>
+            <span class="metric-label">TPH</span>
+          </div>
+        </div>
+      </div>
+    } @empty {
+      <div class="no-agents">
+        <p>No agents match the selected filter</p>
+      </div>
+    }
+  </div>
+</div>
