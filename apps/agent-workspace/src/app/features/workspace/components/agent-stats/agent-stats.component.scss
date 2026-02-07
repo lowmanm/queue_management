@@ -1,0 +1,238 @@
+@use 'styles/variables' as *;
+
+.agent-stats-panel {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+  transition: all 0.2s ease;
+
+  &.collapsed {
+    .panel-content {
+      display: none;
+    }
+  }
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-3 $spacing-4;
+  background: $color-gray-50;
+  border-bottom: 1px solid $color-gray-200;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .toggle-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-lg;
+    color: $color-gray-500;
+    cursor: pointer;
+
+    &:hover {
+      background: $color-gray-200;
+    }
+  }
+}
+
+.panel-content {
+  padding: $spacing-4;
+}
+
+// Primary stats grid
+.stats-grid {
+  display: grid;
+  gap: $spacing-3;
+
+  &.primary {
+    grid-template-columns: repeat(2, 1fr);
+    margin-bottom: $spacing-4;
+  }
+}
+
+.stat-card {
+  background: $color-gray-50;
+  border-radius: $border-radius-md;
+  padding: $spacing-3;
+  text-align: center;
+
+  &.highlight {
+    background: $color-primary-subtle;
+  }
+
+  .stat-value {
+    display: block;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-gray-900;
+  }
+
+  .stat-label {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    margin-top: $spacing-1;
+  }
+}
+
+// Stats sections
+.stats-section {
+  margin-bottom: $spacing-4;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h4 {
+    margin: 0 0 $spacing-2 0;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $color-gray-500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.stats-row {
+  display: flex;
+  gap: $spacing-4;
+}
+
+.stat-item {
+  flex: 1;
+
+  .stat-value {
+    display: block;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .stat-label {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+  }
+}
+
+// Time breakdown
+.time-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.time-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2;
+  background: $color-gray-50;
+  border-radius: $border-radius-sm;
+
+  .time-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: $border-radius-full;
+
+    &.logged-in {
+      background-color: $color-primary;
+    }
+
+    &.active {
+      background-color: $color-success;
+    }
+
+    &.idle {
+      background-color: $color-warning;
+    }
+
+    &.paused {
+      background-color: $color-gray-400;
+    }
+  }
+
+  .time-label {
+    flex: 1;
+    font-size: $font-size-sm;
+    color: $color-gray-700;
+  }
+
+  .time-value {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Progress bar
+.progress-bar {
+  position: relative;
+  height: 24px;
+  background: $color-gray-200;
+  border-radius: $border-radius-full;
+  overflow: hidden;
+
+  .progress-fill {
+    height: 100%;
+    border-radius: $border-radius-full;
+    transition: width 0.3s ease;
+
+    &.low {
+      background: $color-warning;
+    }
+
+    &.medium {
+      background: $color-primary;
+    }
+
+    &.high {
+      background: $color-success;
+    }
+  }
+
+  .progress-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-800;
+  }
+}
+
+// Transfers section
+.transfers {
+  padding-top: $spacing-3;
+  border-top: 1px solid $color-gray-200;
+
+  .stat-item {
+    text-align: center;
+
+    .stat-value {
+      color: $color-warning;
+    }
+  }
+}

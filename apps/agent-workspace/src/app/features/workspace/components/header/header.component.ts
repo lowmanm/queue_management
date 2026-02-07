@@ -1,14 +1,22 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { Observable } from 'rxjs';
-import { AgentState, UserRole } from '@nexus-queue/shared-models';
+import { Observable, map } from 'rxjs';
+import { AgentState, UserRole, AgentSessionStats, formatDuration } from '@nexus-queue/shared-models';
 import {
   AuthService,
   Agent,
   AuthenticatedUser,
 } from '../../../../core/services/auth.service';
 import { QueueService } from '../../../../core/services/queue.service';
+import { AgentStatsService } from '../../../../core/services/agent-stats.service';
+
+interface HeaderStats {
+  tasksCompleted: number;
+  avgHandleTime: string;
+  loggedInTime: string;
+  tasksPerHour: number;
+}
 
 @Component({
   selector: 'app-header',
@@ -20,10 +28,13 @@ import { QueueService } from '../../../../core/services/queue.service';
 export class HeaderComponent implements OnInit {
   @Output() toggleLogs = new EventEmitter<void>();
 
+  private agentStatsService = inject(AgentStatsService);
+
   agent$!: Observable<Agent | null>;
   user$!: Observable<AuthenticatedUser | null>;
   agentState$!: Observable<AgentState>;
   reservationCountdown$!: Observable<number>;
+  headerStats$!: Observable<HeaderStats>;
 
   showRoleSwitcher = false;
   roles: UserRole[] = ['AGENT', 'MANAGER', 'DESIGNER', 'ADMIN'];
@@ -38,10 +49,21 @@ export class HeaderComponent implements OnInit {
     this.user$ = this.authService.currentUser$;
     this.agentState$ = this.queueService.agentState$;
     this.reservationCountdown$ = this.queueService.reservationCountdown$;
+
+    // Real-time stats from AgentStatsService
+    this.headerStats$ = this.agentStatsService.stats$.pipe(
+      map((stats) => ({
+        tasksCompleted: stats.tasksCompleted,
+        avgHandleTime: formatDuration(stats.averageHandleTime),
+        loggedInTime: this.formatSessionTime(stats),
+        tasksPerHour: stats.tasksPerHour,
+      }))
+    );
   }
 
-  get metrics() {
-    return this.queueService.metrics;
+  private formatSessionTime(stats: AgentSessionStats): string {
+    const totalTime = stats.totalIdleTime + stats.totalActiveTime + stats.totalPausedTime;
+    return formatDuration(totalTime);
   }
 
   /**

@@ -5,6 +5,8 @@
   display: flex;
   background-color: $color-gray-100;
   overflow: hidden;
+  min-height: 0; // Critical for nested flex to work properly
+  height: 100%;
 }
 
 .iframe-container {

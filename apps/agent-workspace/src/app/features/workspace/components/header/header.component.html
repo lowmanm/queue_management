@@ -27,16 +27,26 @@
   </div>
 
   <div class="header-center">
-    <div class="session-metrics">
-      <div class="metric">
-        <span class="metric-value">{{ metrics.tasksCompleted }}</span>
-        <span class="metric-label">Completed</span>
+    @if (headerStats$ | async; as stats) {
+      <div class="session-metrics">
+        <div class="metric">
+          <span class="metric-value">{{ stats.tasksCompleted }}</span>
+          <span class="metric-label">Completed</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">{{ stats.avgHandleTime }}</span>
+          <span class="metric-label">Avg Handle</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">{{ stats.loggedInTime }}</span>
+          <span class="metric-label">Session</span>
+        </div>
+        <div class="metric">
+          <span class="metric-value">{{ stats.tasksPerHour }}</span>
+          <span class="metric-label">Tasks/Hr</span>
+        </div>
       </div>
-      <div class="metric">
-        <span class="metric-value">{{ metrics.avgHandleTime | number:'1.0-0' }}s</span>
-        <span class="metric-label">Avg Handle</span>
-      </div>
-    </div>
+    }
   </div>
 
   <div class="header-right">
