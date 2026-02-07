@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { designerGuard, adminGuard } from '../../core/guards';
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -12,6 +13,8 @@ export const ADMIN_ROUTES: Routes = [
       import('./components/task-sources/task-sources.component').then(
         (m) => m.TaskSourcesComponent
       ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:task_sources'] },
   },
   {
     path: 'dispositions',
@@ -19,6 +22,8 @@ export const ADMIN_ROUTES: Routes = [
       import('./components/dispositions/dispositions.component').then(
         (m) => m.DispositionsComponent
       ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:dispositions'] },
   },
   {
     path: 'logic-builder',
@@ -26,5 +31,16 @@ export const ADMIN_ROUTES: Routes = [
       import('./components/logic-builder/logic-builder.component').then(
         (m) => m.LogicBuilderComponent
       ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:rules'] },
+  },
+  {
+    path: 'users',
+    loadComponent: () =>
+      import('./components/users/users.component').then(
+        (m) => m.UsersComponent
+      ),
+    canActivate: [adminGuard],
+    data: { permissions: ['admin:users'] },
   },
 ];
