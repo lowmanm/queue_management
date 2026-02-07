@@ -1,6 +1,29 @@
 <header class="workspace-header">
   <div class="header-left">
     <h1 class="app-title">Nexus Queue</h1>
+
+    <!-- Navigation Links -->
+    <nav class="main-nav">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
+        Workspace
+      </a>
+      @if (canAccessDesigner) {
+        <a routerLink="/admin/task-sources" routerLinkActive="active" class="nav-link">
+          Task Sources
+        </a>
+        <a routerLink="/admin/dispositions" routerLinkActive="active" class="nav-link">
+          Dispositions
+        </a>
+        <a routerLink="/admin/logic-builder" routerLinkActive="active" class="nav-link">
+          Logic Builder
+        </a>
+      }
+      @if (canAccessAdmin) {
+        <a routerLink="/admin/users" routerLinkActive="active" class="nav-link">
+          Users
+        </a>
+      }
+    </nav>
   </div>
 
   <div class="header-center">
@@ -17,10 +40,35 @@
   </div>
 
   <div class="header-right">
-    @if (agent$ | async; as agent) {
-      <div class="agent-info">
-        <span class="agent-label">Agent:</span>
-        <span class="agent-name">{{ agent.name }}</span>
+    @if (user$ | async; as user) {
+      <div class="user-info">
+        <span class="user-name">{{ user.displayName }}</span>
+
+        <!-- Role Badge with Switcher -->
+        <div class="role-wrapper">
+          <button
+            class="role-badge"
+            [class.active]="showRoleSwitcher"
+            (click)="toggleRoleSwitcher()"
+            title="Switch Role (Demo)"
+          >
+            {{ currentRoleLabel }}
+          </button>
+
+          @if (showRoleSwitcher) {
+            <div class="role-dropdown">
+              @for (role of roles; track role) {
+                <button
+                  class="role-option"
+                  [class.selected]="user.role === role"
+                  (click)="switchRole(role)"
+                >
+                  {{ role }}
+                </button>
+              }
+            </div>
+          }
+        </div>
       </div>
     }
 

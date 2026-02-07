@@ -4,6 +4,7 @@ import { TaskDistributorService } from './task-distributor.service';
 import { RuleEngineService } from './rule-engine.service';
 import { TaskSourceService } from './task-source.service';
 import { DispositionService } from './disposition.service';
+import { RbacService } from './rbac.service';
 
 @Module({
   providers: [
@@ -12,6 +13,7 @@ import { DispositionService } from './disposition.service';
     RuleEngineService,
     TaskSourceService,
     DispositionService,
+    RbacService,
   ],
   exports: [
     AgentManagerService,
@@ -19,6 +21,7 @@ import { DispositionService } from './disposition.service';
     RuleEngineService,
     TaskSourceService,
     DispositionService,
+    RbacService,
   ],
 })
 export class ServicesModule {}
