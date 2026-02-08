@@ -8,8 +8,11 @@ import {
   AgentSessionSummary,
   TeamSessionSummary,
   WorkStateConfig,
-  DEFAULT_WORK_STATES,
-  getWorkStateConfig,
+  CreateWorkStateRequest,
+  UpdateWorkStateRequest,
+  SYSTEM_WORK_STATES,
+  DEFAULT_CUSTOM_STATES,
+  generateWorkStateId,
   isValidStateTransition,
 } from '@nexus-queue/shared-models';
 import { RbacService } from './rbac.service';
@@ -28,7 +31,12 @@ export class AgentSessionService {
   }
 
   private initializeWorkStates(): void {
-    DEFAULT_WORK_STATES.forEach((config) => {
+    // Initialize system states (immutable)
+    SYSTEM_WORK_STATES.forEach((config) => {
+      this.workStateConfigs.set(config.id, config);
+    });
+    // Initialize default custom states
+    DEFAULT_CUSTOM_STATES.forEach((config) => {
       this.workStateConfigs.set(config.id, config);
     });
     this.logger.log(`Initialized ${this.workStateConfigs.size} work state configurations`);
@@ -442,7 +450,7 @@ export class AgentSessionService {
     );
 
     const stateBreakdown: Record<AgentWorkState, number> = {} as Record<AgentWorkState, number>;
-    DEFAULT_WORK_STATES.forEach((s) => {
+    this.getAllWorkStates().forEach((s) => {
       stateBreakdown[s.id] = 0;
     });
 
@@ -512,7 +520,7 @@ export class AgentSessionService {
   }
 
   /**
-   * Update work state config
+   * Update work state config (deprecated - use updateWorkState instead)
    */
   updateWorkStateConfig(stateId: AgentWorkState, updates: Partial<WorkStateConfig>): WorkStateConfig | null {
     const config = this.workStateConfigs.get(stateId);
@@ -521,5 +529,223 @@ export class AgentSessionService {
     const updated = { ...config, ...updates, id: stateId };
     this.workStateConfigs.set(stateId, updated);
     return updated;
+  }
+
+  // ==========================================================================
+  // CUSTOM WORK STATE CRUD
+  // ==========================================================================
+
+  /**
+   * Get system work states (immutable)
+   */
+  getSystemStates(): WorkStateConfig[] {
+    return this.getAllWorkStates().filter((s) => s.isSystemState);
+  }
+
+  /**
+   * Get custom work states (configurable)
+   */
+  getCustomStates(): WorkStateConfig[] {
+    return this.getAllWorkStates().filter((s) => !s.isSystemState);
+  }
+
+  /**
+   * Create a new custom work state
+   */
+  createWorkState(request: CreateWorkStateRequest): {
+    success: boolean;
+    state?: WorkStateConfig;
+    error?: string;
+  } {
+    // Generate unique ID
+    const stateId = generateWorkStateId(request.name);
+
+    // Check if name already exists
+    const existingByName = this.getAllWorkStates().find(
+      (s) => s.name.toLowerCase() === request.name.toLowerCase()
+    );
+    if (existingByName) {
+      return { success: false, error: `Work state with name "${request.name}" already exists` };
+    }
+
+    // Get max display order
+    const maxOrder = Math.max(
+      ...this.getAllWorkStates().map((s) => s.displayOrder),
+      0
+    );
+
+    const newState: WorkStateConfig = {
+      id: stateId,
+      name: request.name,
+      category: 'unavailable', // Custom states are always unavailable category
+      color: request.color,
+      icon: request.icon,
+      agentSelectable: request.agentSelectable,
+      isProductive: false, // Custom states are not productive
+      isBillable: request.isBillable,
+      maxDurationMinutes: request.maxDurationMinutes,
+      warnBeforeMax: request.warnBeforeMax,
+      warnMinutesBefore: request.warnMinutesBefore,
+      requiresApproval: request.requiresApproval,
+      displayOrder: request.displayOrder ?? maxOrder + 1,
+      active: true,
+      isSystemState: false,
+    };
+
+    this.workStateConfigs.set(stateId, newState);
+    this.logger.log(`Created custom work state: ${stateId} (${request.name})`);
+
+    return { success: true, state: newState };
+  }
+
+  /**
+   * Update an existing custom work state
+   */
+  updateWorkState(
+    stateId: string,
+    updates: UpdateWorkStateRequest
+  ): { success: boolean; state?: WorkStateConfig; error?: string } {
+    const config = this.workStateConfigs.get(stateId);
+    if (!config) {
+      return { success: false, error: 'Work state not found' };
+    }
+
+    // Cannot modify system states
+    if (config.isSystemState) {
+      return { success: false, error: 'Cannot modify system work states' };
+    }
+
+    // Check name uniqueness if updating name
+    if (updates.name && updates.name !== config.name) {
+      const existingByName = this.getAllWorkStates().find(
+        (s) => s.name.toLowerCase() === updates.name!.toLowerCase() && s.id !== stateId
+      );
+      if (existingByName) {
+        return { success: false, error: `Work state with name "${updates.name}" already exists` };
+      }
+    }
+
+    const updated: WorkStateConfig = {
+      ...config,
+      ...(updates.name !== undefined && { name: updates.name }),
+      ...(updates.color !== undefined && { color: updates.color }),
+      ...(updates.icon !== undefined && { icon: updates.icon }),
+      ...(updates.agentSelectable !== undefined && { agentSelectable: updates.agentSelectable }),
+      ...(updates.isBillable !== undefined && { isBillable: updates.isBillable }),
+      ...(updates.maxDurationMinutes !== undefined && { maxDurationMinutes: updates.maxDurationMinutes }),
+      ...(updates.warnBeforeMax !== undefined && { warnBeforeMax: updates.warnBeforeMax }),
+      ...(updates.warnMinutesBefore !== undefined && { warnMinutesBefore: updates.warnMinutesBefore }),
+      ...(updates.requiresApproval !== undefined && { requiresApproval: updates.requiresApproval }),
+      ...(updates.displayOrder !== undefined && { displayOrder: updates.displayOrder }),
+      ...(updates.active !== undefined && { active: updates.active }),
+    };
+
+    this.workStateConfigs.set(stateId, updated);
+    this.logger.log(`Updated work state: ${stateId}`);
+
+    return { success: true, state: updated };
+  }
+
+  /**
+   * Delete a custom work state
+   */
+  deleteWorkState(stateId: string): { success: boolean; error?: string } {
+    const config = this.workStateConfigs.get(stateId);
+    if (!config) {
+      return { success: false, error: 'Work state not found' };
+    }
+
+    // Cannot delete system states
+    if (config.isSystemState) {
+      return { success: false, error: 'Cannot delete system work states' };
+    }
+
+    // Check if any agent is currently in this state
+    const agentsInState = this.getAllActiveSessions().filter(
+      (s) => s.currentState === stateId
+    );
+    if (agentsInState.length > 0) {
+      return {
+        success: false,
+        error: `Cannot delete: ${agentsInState.length} agent(s) currently in this state`,
+      };
+    }
+
+    this.workStateConfigs.delete(stateId);
+    this.logger.log(`Deleted work state: ${stateId}`);
+
+    return { success: true };
+  }
+
+  /**
+   * Toggle work state active status
+   */
+  toggleWorkState(stateId: string): {
+    success: boolean;
+    state?: WorkStateConfig;
+    error?: string;
+  } {
+    const config = this.workStateConfigs.get(stateId);
+    if (!config) {
+      return { success: false, error: 'Work state not found' };
+    }
+
+    if (config.isSystemState) {
+      return { success: false, error: 'Cannot toggle system work states' };
+    }
+
+    // Check if any agent is in this state before disabling
+    if (config.active) {
+      const agentsInState = this.getAllActiveSessions().filter(
+        (s) => s.currentState === stateId
+      );
+      if (agentsInState.length > 0) {
+        return {
+          success: false,
+          error: `Cannot disable: ${agentsInState.length} agent(s) currently in this state`,
+        };
+      }
+    }
+
+    const updated: WorkStateConfig = {
+      ...config,
+      active: !config.active,
+    };
+
+    this.workStateConfigs.set(stateId, updated);
+    this.logger.log(`Toggled work state ${stateId}: active=${updated.active}`);
+
+    return { success: true, state: updated };
+  }
+
+  /**
+   * Reorder custom work states
+   */
+  reorderWorkStates(stateIds: string[]): { success: boolean; error?: string } {
+    // Validate all IDs exist and are custom states
+    for (const id of stateIds) {
+      const config = this.workStateConfigs.get(id);
+      if (!config) {
+        return { success: false, error: `Work state not found: ${id}` };
+      }
+      if (config.isSystemState) {
+        return { success: false, error: 'Cannot reorder system work states' };
+      }
+    }
+
+    // Get base order (after system states)
+    const baseOrder = Math.max(...this.getSystemStates().map((s) => s.displayOrder)) + 1;
+
+    // Update display orders
+    stateIds.forEach((id, index) => {
+      const config = this.workStateConfigs.get(id);
+      if (config) {
+        config.displayOrder = baseOrder + index;
+        this.workStateConfigs.set(id, config);
+      }
+    });
+
+    this.logger.log(`Reordered ${stateIds.length} custom work states`);
+    return { success: true };
   }
 }

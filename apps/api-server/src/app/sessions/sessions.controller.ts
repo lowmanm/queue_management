@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Body,
   Query,
@@ -13,9 +14,10 @@ import {
 import { AgentSessionService } from '../services/agent-session.service';
 import {
   AgentWorkState,
-  StateChangeRequest,
   StateChangeTrigger,
   WorkStateConfig,
+  CreateWorkStateRequest,
+  UpdateWorkStateRequest,
 } from '@nexus-queue/shared-models';
 
 @Controller('sessions')
@@ -216,15 +218,19 @@ export class SessionsController {
   }
 
   /**
-   * Get work state by ID
+   * Get system work states (immutable)
    */
-  @Get('work-states/:stateId')
-  getWorkState(@Param('stateId') stateId: AgentWorkState) {
-    const config = this.sessionService.getWorkStateById(stateId);
-    if (!config) {
-      throw new HttpException('Work state not found', HttpStatus.NOT_FOUND);
-    }
-    return config;
+  @Get('work-states/system')
+  getSystemStates() {
+    return this.sessionService.getSystemStates();
+  }
+
+  /**
+   * Get custom work states (configurable)
+   */
+  @Get('work-states/custom')
+  getCustomStates() {
+    return this.sessionService.getCustomStates();
   }
 
   /**
@@ -236,17 +242,77 @@ export class SessionsController {
   }
 
   /**
-   * Update work state configuration
+   * Get work state by ID
    */
-  @Put('work-states/:stateId')
-  updateWorkState(
-    @Param('stateId') stateId: AgentWorkState,
-    @Body() updates: Partial<WorkStateConfig>
-  ) {
-    const config = this.sessionService.updateWorkStateConfig(stateId, updates);
+  @Get('work-states/:stateId')
+  getWorkState(@Param('stateId') stateId: string) {
+    const config = this.sessionService.getWorkStateById(stateId);
     if (!config) {
       throw new HttpException('Work state not found', HttpStatus.NOT_FOUND);
     }
     return config;
+  }
+
+  /**
+   * Create a new custom work state
+   */
+  @Post('work-states')
+  createWorkState(@Body() request: CreateWorkStateRequest) {
+    const result = this.sessionService.createWorkState(request);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Failed to create work state', HttpStatus.BAD_REQUEST);
+    }
+    return result.state;
+  }
+
+  /**
+   * Update a custom work state
+   */
+  @Put('work-states/:stateId')
+  updateWorkState(
+    @Param('stateId') stateId: string,
+    @Body() updates: UpdateWorkStateRequest
+  ) {
+    const result = this.sessionService.updateWorkState(stateId, updates);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Failed to update work state', HttpStatus.BAD_REQUEST);
+    }
+    return result.state;
+  }
+
+  /**
+   * Delete a custom work state
+   */
+  @Delete('work-states/:stateId')
+  deleteWorkState(@Param('stateId') stateId: string) {
+    const result = this.sessionService.deleteWorkState(stateId);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Failed to delete work state', HttpStatus.BAD_REQUEST);
+    }
+    return { success: true, message: 'Work state deleted' };
+  }
+
+  /**
+   * Toggle work state active status
+   */
+  @Post('work-states/:stateId/toggle')
+  toggleWorkState(@Param('stateId') stateId: string) {
+    const result = this.sessionService.toggleWorkState(stateId);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Failed to toggle work state', HttpStatus.BAD_REQUEST);
+    }
+    return result.state;
+  }
+
+  /**
+   * Reorder custom work states
+   */
+  @Post('work-states/reorder')
+  reorderWorkStates(@Body() body: { stateIds: string[] }) {
+    const result = this.sessionService.reorderWorkStates(body.stateIds);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Failed to reorder work states', HttpStatus.BAD_REQUEST);
+    }
+    return { success: true, message: 'Work states reordered' };
   }
 }

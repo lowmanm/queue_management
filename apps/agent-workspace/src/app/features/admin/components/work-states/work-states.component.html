@@ -1,0 +1,279 @@
+<div class="work-states-container">
+  <header class="page-header">
+    <h1>Work States Configuration</h1>
+    <p class="subtitle">Configure agent work states and unavailable reasons</p>
+  </header>
+
+  <!-- Messages -->
+  @if (errorMessage()) {
+    <div class="message error">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="message success">{{ successMessage() }}</div>
+  }
+
+  <!-- System States (Read-only) -->
+  <section class="states-section">
+    <div class="section-header">
+      <h2>System States</h2>
+      <span class="badge">Read-only</span>
+    </div>
+    <p class="section-description">
+      Core system states that control the task lifecycle. These cannot be modified.
+    </p>
+
+    <div class="states-grid">
+      @for (state of systemStates(); track state.id) {
+        <div class="state-card system-state">
+          <div class="state-icon" [style.background-color]="state.color">
+            <span class="material-icons">{{ state.icon }}</span>
+          </div>
+          <div class="state-info">
+            <span class="state-name">{{ state.name }}</span>
+            <span class="state-category">{{ getCategoryLabel(state.category) }}</span>
+          </div>
+          <div class="state-meta">
+            @if (state.agentSelectable) {
+              <span class="meta-badge">Agent Selectable</span>
+            }
+            @if (state.isProductive) {
+              <span class="meta-badge productive">Productive</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Custom States (Configurable) -->
+  <section class="states-section">
+    <div class="section-header">
+      <h2>Custom Unavailable States</h2>
+      <button class="btn-primary" (click)="openNewEditor()">
+        <span class="material-icons">add</span>
+        Add State
+      </button>
+    </div>
+    <p class="section-description">
+      Configure custom unavailable states that agents can select. These represent breaks, meetings, and other non-task activities.
+    </p>
+
+    @if (isLoading()) {
+      <div class="loading">Loading...</div>
+    } @else {
+      <!-- Active Custom States -->
+      @if (activeCustomStates().length > 0) {
+        <div class="states-list">
+          @for (state of activeCustomStates(); track state.id) {
+            <div class="state-row">
+              <div class="state-icon" [style.background-color]="state.color">
+                <span class="material-icons">{{ state.icon }}</span>
+              </div>
+              <div class="state-details">
+                <span class="state-name">{{ state.name }}</span>
+                <div class="state-config">
+                  @if (state.agentSelectable) {
+                    <span class="config-item">Agent Selectable</span>
+                  }
+                  @if (state.isBillable) {
+                    <span class="config-item">Billable</span>
+                  }
+                  @if (state.requiresApproval) {
+                    <span class="config-item warning">Requires Approval</span>
+                  }
+                  <span class="config-item">{{ formatDuration(state.maxDurationMinutes) }}</span>
+                </div>
+              </div>
+              <div class="state-actions">
+                <button class="btn-icon" (click)="openEditEditor(state)" title="Edit">
+                  <span class="material-icons">edit</span>
+                </button>
+                <button class="btn-icon" (click)="toggleState(state)" title="Disable">
+                  <span class="material-icons">visibility_off</span>
+                </button>
+                <button class="btn-icon danger" (click)="deleteState(state)" title="Delete">
+                  <span class="material-icons">delete</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <span class="material-icons">inbox</span>
+          <p>No active custom states. Click "Add State" to create one.</p>
+        </div>
+      }
+
+      <!-- Inactive Custom States -->
+      @if (inactiveCustomStates().length > 0) {
+        <div class="inactive-section">
+          <h3>Disabled States</h3>
+          <div class="states-list inactive">
+            @for (state of inactiveCustomStates(); track state.id) {
+              <div class="state-row">
+                <div class="state-icon" [style.background-color]="state.color" style="opacity: 0.5;">
+                  <span class="material-icons">{{ state.icon }}</span>
+                </div>
+                <div class="state-details">
+                  <span class="state-name">{{ state.name }}</span>
+                  <span class="disabled-badge">Disabled</span>
+                </div>
+                <div class="state-actions">
+                  <button class="btn-icon" (click)="toggleState(state)" title="Enable">
+                    <span class="material-icons">visibility</span>
+                  </button>
+                  <button class="btn-icon danger" (click)="deleteState(state)" title="Delete">
+                    <span class="material-icons">delete</span>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    }
+  </section>
+
+  <!-- Editor Modal -->
+  @if (showEditor()) {
+    <div class="modal-overlay" (click)="closeEditor()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ isEditMode() ? 'Edit' : 'New' }} Unavailable State</h2>
+          <button class="btn-icon" (click)="closeEditor()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="name">Name *</label>
+            <input
+              type="text"
+              id="name"
+              [ngModel]="formData().name"
+              (ngModelChange)="updateFormField('name', $event)"
+              placeholder="e.g., Restroom, Doctor Appointment"
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Color</label>
+              <div class="color-picker">
+                <input
+                  type="color"
+                  [ngModel]="formData().color"
+                  (ngModelChange)="updateFormField('color', $event)"
+                />
+                <div class="color-presets">
+                  @for (preset of colorPresets; track preset.value) {
+                    <button
+                      class="color-preset"
+                      [style.background-color]="preset.value"
+                      [class.selected]="formData().color === preset.value"
+                      (click)="updateFormField('color', preset.value)"
+                      [title]="preset.label"
+                    ></button>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Icon</label>
+              <div class="icon-picker">
+                @for (icon of iconOptions; track icon) {
+                  <button
+                    class="icon-option"
+                    [class.selected]="formData().icon === icon"
+                    (click)="updateFormField('icon', icon)"
+                  >
+                    <span class="material-icons">{{ icon }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="maxDuration">Max Duration (minutes)</label>
+              <input
+                type="number"
+                id="maxDuration"
+                [ngModel]="formData().maxDurationMinutes"
+                (ngModelChange)="updateFormField('maxDurationMinutes', $event)"
+                min="0"
+                placeholder="0 = unlimited"
+              />
+              <span class="form-hint">Set to 0 for unlimited duration</span>
+            </div>
+
+            <div class="form-group">
+              <label for="warnBefore">Warn Before (minutes)</label>
+              <input
+                type="number"
+                id="warnBefore"
+                [ngModel]="formData().warnMinutesBefore"
+                (ngModelChange)="updateFormField('warnMinutesBefore', $event)"
+                min="0"
+                [disabled]="!formData().warnBeforeMax"
+              />
+            </div>
+          </div>
+
+          <div class="form-checkboxes">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().agentSelectable"
+                (ngModelChange)="updateFormField('agentSelectable', $event)"
+              />
+              <span>Agent Selectable</span>
+              <span class="checkbox-hint">Agents can select this state themselves</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().isBillable"
+                (ngModelChange)="updateFormField('isBillable', $event)"
+              />
+              <span>Billable</span>
+              <span class="checkbox-hint">Time in this state counts as billable</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().warnBeforeMax"
+                (ngModelChange)="updateFormField('warnBeforeMax', $event)"
+              />
+              <span>Warn Before Max</span>
+              <span class="checkbox-hint">Show warning before max duration is reached</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().requiresApproval"
+                (ngModelChange)="updateFormField('requiresApproval', $event)"
+              />
+              <span>Requires Approval</span>
+              <span class="checkbox-hint">Manager approval required to enter this state</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+          <button class="btn-primary" (click)="saveState()" [disabled]="isLoading()">
+            {{ isEditMode() ? 'Update' : 'Create' }} State
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

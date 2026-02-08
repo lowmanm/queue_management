@@ -9,6 +9,8 @@ import {
   AgentSessionSummary,
   TeamSessionSummary,
   StateChangeTrigger,
+  CreateWorkStateRequest,
+  UpdateWorkStateRequest,
 } from '@nexus-queue/shared-models';
 
 const API_BASE = 'http://localhost:3000/api/sessions';
@@ -172,9 +174,27 @@ export class SessionApiService {
   }
 
   /**
+   * Get system work states (immutable)
+   */
+  getSystemStates(): Observable<WorkStateConfig[]> {
+    return this.http.get<WorkStateConfig[]>(`${API_BASE}/work-states/system`).pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  /**
+   * Get custom work states (configurable)
+   */
+  getCustomStates(): Observable<WorkStateConfig[]> {
+    return this.http.get<WorkStateConfig[]>(`${API_BASE}/work-states/custom`).pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  /**
    * Get work state configuration by ID
    */
-  getWorkState(stateId: AgentWorkState): Observable<WorkStateConfig | null> {
+  getWorkState(stateId: string): Observable<WorkStateConfig | null> {
     return this.http.get<WorkStateConfig>(`${API_BASE}/work-states/${stateId}`).pipe(
       catchError(() => of(null))
     );
@@ -190,9 +210,37 @@ export class SessionApiService {
   }
 
   /**
-   * Update work state configuration
+   * Create a new custom work state
    */
-  updateWorkState(stateId: AgentWorkState, updates: Partial<WorkStateConfig>): Observable<WorkStateConfig> {
+  createWorkState(request: CreateWorkStateRequest): Observable<WorkStateConfig> {
+    return this.http.post<WorkStateConfig>(`${API_BASE}/work-states`, request);
+  }
+
+  /**
+   * Update a custom work state
+   */
+  updateWorkState(stateId: string, updates: UpdateWorkStateRequest): Observable<WorkStateConfig> {
     return this.http.put<WorkStateConfig>(`${API_BASE}/work-states/${stateId}`, updates);
+  }
+
+  /**
+   * Delete a custom work state
+   */
+  deleteWorkState(stateId: string): Observable<{ success: boolean; message: string }> {
+    return this.http.delete<{ success: boolean; message: string }>(`${API_BASE}/work-states/${stateId}`);
+  }
+
+  /**
+   * Toggle work state active status
+   */
+  toggleWorkState(stateId: string): Observable<WorkStateConfig> {
+    return this.http.post<WorkStateConfig>(`${API_BASE}/work-states/${stateId}/toggle`, {});
+  }
+
+  /**
+   * Reorder custom work states
+   */
+  reorderWorkStates(stateIds: string[]): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(`${API_BASE}/work-states/reorder`, { stateIds });
   }
 }
