@@ -1,48 +1,73 @@
 <header class="workspace-header">
   <div class="header-left">
-    <h1 class="app-title">Nexus Queue</h1>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-btn" (click)="toggleMobileNav()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
 
-    <!-- Navigation Links -->
-    <nav class="main-nav">
+    <a routerLink="/" class="app-title-link">
+      <h1 class="app-title">Nexus Queue</h1>
+    </a>
+
+    <!-- Desktop Navigation Links -->
+    <nav class="main-nav desktop-nav">
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
         Workspace
       </a>
       @if (canAccessManager) {
-        <a routerLink="/manager/team" routerLinkActive="active" class="nav-link">
-          Team
-        </a>
-        <a routerLink="/manager/queues" routerLinkActive="active" class="nav-link">
-          Queues
-        </a>
-        <a routerLink="/manager/queue-config" routerLinkActive="active" class="nav-link">
-          Queue Config
-        </a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-btn" [class.active]="isManagerActive">
+            Manager
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="nav-dropdown-content">
+            <a routerLink="/manager/team" routerLinkActive="active" class="dropdown-link">Team Dashboard</a>
+            <a routerLink="/manager/queues" routerLinkActive="active" class="dropdown-link">Queue Monitor</a>
+            <a routerLink="/manager/queue-config" routerLinkActive="active" class="dropdown-link">Queue Config</a>
+          </div>
+        </div>
       }
       @if (canAccessDesigner) {
-        <a routerLink="/admin/task-sources" routerLinkActive="active" class="nav-link">
-          Task Sources
-        </a>
-        <a routerLink="/admin/dispositions" routerLinkActive="active" class="nav-link">
-          Dispositions
-        </a>
-        <a routerLink="/admin/logic-builder" routerLinkActive="active" class="nav-link">
-          Logic Builder
-        </a>
-        <a routerLink="/admin/work-states" routerLinkActive="active" class="nav-link">
-          Work States
-        </a>
-        <a routerLink="/admin/volume-loaders" routerLinkActive="active" class="nav-link">
-          Volume Loaders
-        </a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-btn" [class.active]="isDesignerActive">
+            Design
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="nav-dropdown-content">
+            <a routerLink="/admin/task-sources" routerLinkActive="active" class="dropdown-link">Task Sources</a>
+            <a routerLink="/admin/dispositions" routerLinkActive="active" class="dropdown-link">Dispositions</a>
+            <a routerLink="/admin/logic-builder" routerLinkActive="active" class="dropdown-link">Logic Builder</a>
+            <a routerLink="/admin/routing" routerLinkActive="active" class="dropdown-link">Routing</a>
+            <a routerLink="/admin/work-states" routerLinkActive="active" class="dropdown-link">Work States</a>
+            <a routerLink="/admin/volume-loaders" routerLinkActive="active" class="dropdown-link">Volume Loaders</a>
+          </div>
+        </div>
       }
       @if (canAccessAdmin) {
-        <a routerLink="/admin/users" routerLinkActive="active" class="nav-link">
-          Users
-        </a>
+        <div class="nav-dropdown">
+          <button class="nav-dropdown-btn" [class.active]="isAdminActive">
+            Admin
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="nav-dropdown-content">
+            <a routerLink="/admin/users" routerLinkActive="active" class="dropdown-link">User Management</a>
+          </div>
+        </div>
       }
     </nav>
   </div>
 
+  <!-- Center Stats (hidden on mobile) -->
   <div class="header-center">
     @if (headerStats$ | async; as stats) {
       <div class="session-metrics">
@@ -107,3 +132,60 @@
     </button>
   </div>
 </header>
+
+<!-- Mobile Navigation Drawer -->
+@if (showMobileNav) {
+  <div class="mobile-nav-overlay" (click)="closeMobileNav()"></div>
+  <nav class="mobile-nav">
+    <div class="mobile-nav-header">
+      <h2>Navigation</h2>
+      <button class="close-nav-btn" (click)="closeMobileNav()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="mobile-nav-content">
+      <div class="mobile-nav-section">
+        <a routerLink="/" class="mobile-nav-link" (click)="closeMobileNav()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="9"></rect>
+            <rect x="14" y="3" width="7" height="5"></rect>
+            <rect x="14" y="12" width="7" height="9"></rect>
+            <rect x="3" y="16" width="7" height="5"></rect>
+          </svg>
+          Workspace
+        </a>
+      </div>
+
+      @if (canAccessManager) {
+        <div class="mobile-nav-section">
+          <div class="mobile-nav-section-title">Manager</div>
+          <a routerLink="/manager/team" class="mobile-nav-link" (click)="closeMobileNav()">Team Dashboard</a>
+          <a routerLink="/manager/queues" class="mobile-nav-link" (click)="closeMobileNav()">Queue Monitor</a>
+          <a routerLink="/manager/queue-config" class="mobile-nav-link" (click)="closeMobileNav()">Queue Config</a>
+        </div>
+      }
+
+      @if (canAccessDesigner) {
+        <div class="mobile-nav-section">
+          <div class="mobile-nav-section-title">Design</div>
+          <a routerLink="/admin/task-sources" class="mobile-nav-link" (click)="closeMobileNav()">Task Sources</a>
+          <a routerLink="/admin/dispositions" class="mobile-nav-link" (click)="closeMobileNav()">Dispositions</a>
+          <a routerLink="/admin/logic-builder" class="mobile-nav-link" (click)="closeMobileNav()">Logic Builder</a>
+          <a routerLink="/admin/routing" class="mobile-nav-link" (click)="closeMobileNav()">Routing</a>
+          <a routerLink="/admin/work-states" class="mobile-nav-link" (click)="closeMobileNav()">Work States</a>
+          <a routerLink="/admin/volume-loaders" class="mobile-nav-link" (click)="closeMobileNav()">Volume Loaders</a>
+        </div>
+      }
+
+      @if (canAccessAdmin) {
+        <div class="mobile-nav-section">
+          <div class="mobile-nav-section-title">Administration</div>
+          <a routerLink="/admin/users" class="mobile-nav-link" (click)="closeMobileNav()">User Management</a>
+        </div>
+      }
+    </div>
+  </nav>
+}

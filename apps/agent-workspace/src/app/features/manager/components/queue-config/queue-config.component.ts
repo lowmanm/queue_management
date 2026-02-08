@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 import { ManagerApiService, QueueConfig as ApiQueueConfig } from '../../../../core/services/manager-api.service';
+import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 
 interface QueueConfig {
   id: string;
@@ -21,7 +22,7 @@ interface QueueConfig {
 @Component({
   selector: 'app-queue-config',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PageLayoutComponent],
   templateUrl: './queue-config.component.html',
   styleUrl: './queue-config.component.scss',
 })

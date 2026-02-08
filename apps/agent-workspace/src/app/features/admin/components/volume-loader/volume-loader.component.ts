@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VolumeLoaderApiService } from '../../services/volume-loader.service';
+import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import {
   VolumeLoader,
   VolumeLoaderType,
@@ -26,7 +27,7 @@ import {
 @Component({
   selector: 'app-volume-loader',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PageLayoutComponent],
   templateUrl: './volume-loader.component.html',
   styleUrls: ['./volume-loader.component.scss'],
 })
