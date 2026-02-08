@@ -130,6 +130,13 @@
                     <circle cx="12" cy="12" r="10"></circle>
                   </svg>
                 </button>
+                <button class="btn-icon upload" (click)="openUploadPanel(loader)" title="Upload CSV">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                </button>
                 <button class="btn-icon" (click)="runLoader(loader)" title="Run Now" [disabled]="loader.status === 'RUNNING'">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -538,6 +545,153 @@
         <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
         <button class="btn-primary" (click)="saveLoader()" [disabled]="isLoading()">
           {{ isEditMode() ? 'Update' : 'Create' }} Loader
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- CSV Upload Panel -->
+@if (showUploadPanel() && uploadLoader()) {
+  <div class="modal-overlay" (click)="closeUploadPanel()">
+    <div class="modal upload-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Upload CSV - {{ uploadLoader()?.name }}</h2>
+        <button class="btn-icon" (click)="closeUploadPanel()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Help Text -->
+        <div class="upload-help">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <p>
+            Upload a CSV file to create tasks using this loader's field mappings.
+            The data will be processed according to the configured mappings and
+            dynamic URLs will be generated using placeholders like <code>{{ '{' }}externalId{{ '}' }}</code>.
+          </p>
+        </div>
+
+        <!-- File Input -->
+        <div class="upload-zone">
+          <input
+            #csvFileInput
+            type="file"
+            accept=".csv"
+            (change)="onCsvFileSelected($event)"
+            style="display: none"
+          />
+          <button class="upload-btn" (click)="triggerFileInput()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>Choose CSV File</span>
+          </button>
+          <span class="upload-or">or paste CSV content below</span>
+        </div>
+
+        <!-- CSV Content Textarea -->
+        <div class="form-group">
+          <label for="csvContent">CSV Content</label>
+          <textarea
+            id="csvContent"
+            [(ngModel)]="csvContent"
+            (paste)="onCsvPaste()"
+            rows="10"
+            placeholder="Paste CSV content here or upload a file...
+
+Example:
+order_id,customer_name,priority,work_type
+ORD-001,John Doe,5,ORDERS
+ORD-002,Jane Smith,3,RETURNS"
+          ></textarea>
+        </div>
+
+        <!-- Preview/Result -->
+        @if (uploadResult()) {
+          <div class="upload-result" [class.success]="uploadResult()?.success" [class.error]="!uploadResult()?.success">
+            <div class="result-summary">
+              <div class="result-stat">
+                <span class="stat-value">{{ uploadResult()?.recordsFound }}</span>
+                <span class="stat-label">Records Found</span>
+              </div>
+              <div class="result-stat success">
+                <span class="stat-value">{{ uploadResult()?.recordsProcessed }}</span>
+                <span class="stat-label">Valid</span>
+              </div>
+              @if (uploadResult()?.recordsFailed) {
+                <div class="result-stat error">
+                  <span class="stat-value">{{ uploadResult()?.recordsFailed }}</span>
+                  <span class="stat-label">Errors</span>
+                </div>
+              }
+              @if (uploadResult()?.recordsSkipped) {
+                <div class="result-stat warning">
+                  <span class="stat-value">{{ uploadResult()?.recordsSkipped }}</span>
+                  <span class="stat-label">Skipped</span>
+                </div>
+              }
+            </div>
+
+            <!-- Sample URLs -->
+            @if (uploadResult()?.samplePayloadUrls?.length) {
+              <div class="sample-urls">
+                <h4>Sample Generated URLs:</h4>
+                <ul>
+                  @for (url of uploadResult()?.samplePayloadUrls; track $index) {
+                    <li><a [href]="url" target="_blank">{{ url }}</a></li>
+                  }
+                </ul>
+              </div>
+            }
+
+            <!-- Errors -->
+            @if (uploadResult()?.errors?.length) {
+              <div class="upload-errors">
+                <h4>Errors:</h4>
+                <ul>
+                  @for (error of uploadResult()?.errors?.slice(0, 5); track $index) {
+                    <li>Row {{ error.row }}: {{ error.error }}</li>
+                  }
+                  @if (uploadResult()?.errors && uploadResult()!.errors.length > 5) {
+                    <li class="more">... and {{ uploadResult()!.errors.length - 5 }} more errors</li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeUploadPanel()">Cancel</button>
+        <button
+          class="btn-secondary"
+          (click)="uploadCsv(true)"
+          [disabled]="isUploading() || !csvContent()"
+        >
+          Preview
+        </button>
+        <button
+          class="btn-primary"
+          (click)="uploadCsv(false)"
+          [disabled]="isUploading() || !csvContent() || !uploadResult()?.success"
+        >
+          @if (isUploading()) {
+            <span>Processing...</span>
+          } @else {
+            <span>Create {{ uploadResult()?.recordsProcessed || 0 }} Tasks</span>
+          }
         </button>
       </div>
     </div>

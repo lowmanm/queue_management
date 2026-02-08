@@ -1,7 +1,7 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { VolumeLoaderApiService } from '../../services/volume-loader.service';
+import { VolumeLoaderApiService, CsvUploadResult } from '../../services/volume-loader.service';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import {
   VolumeLoader,
@@ -64,6 +64,16 @@ export class VolumeLoaderComponent implements OnInit {
     fieldMappings: [],
     processingOptions: DEFAULT_PROCESSING_OPTIONS,
   });
+
+  // CSV Upload state
+  showUploadPanel = signal(false);
+  uploadLoader = signal<VolumeLoader | null>(null);
+  csvContent = signal('');
+  uploadResult = signal<CsvUploadResult | null>(null);
+  isUploading = signal(false);
+  dryRunMode = signal(true); // Preview mode by default
+
+  @ViewChild('csvFileInput') csvFileInput!: ElementRef<HTMLInputElement>;
 
   // Available options
   readonly loaderTypes: { value: VolumeLoaderType; label: string; icon: string }[] = [
@@ -471,6 +481,121 @@ export class VolumeLoaderComponent implements OnInit {
     if (ms < 1000) return `${ms}ms`;
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
     return `${(ms / 60000).toFixed(1)}m`;
+  }
+
+  // ============ CSV Upload ============
+
+  /**
+   * Open the CSV upload panel for a loader
+   */
+  openUploadPanel(loader: VolumeLoader): void {
+    this.uploadLoader.set(loader);
+    this.showUploadPanel.set(true);
+    this.csvContent.set('');
+    this.uploadResult.set(null);
+    this.dryRunMode.set(true);
+    this.clearMessages();
+  }
+
+  /**
+   * Close the CSV upload panel
+   */
+  closeUploadPanel(): void {
+    this.showUploadPanel.set(false);
+    this.uploadLoader.set(null);
+    this.csvContent.set('');
+    this.uploadResult.set(null);
+  }
+
+  /**
+   * Handle file selection for CSV upload
+   */
+  onCsvFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    if (!file.name.endsWith('.csv')) {
+      this.errorMessage.set('Please select a CSV file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      this.csvContent.set(content);
+      // Auto-preview on file load
+      this.uploadCsv(true);
+    };
+    reader.onerror = () => {
+      this.errorMessage.set('Failed to read file');
+    };
+    reader.readAsText(file);
+  }
+
+  /**
+   * Handle CSV paste into textarea
+   */
+  onCsvPaste(): void {
+    // The content is already bound via ngModel
+    // Just trigger a preview after a short delay for the model to update
+    setTimeout(() => {
+      if (this.csvContent()) {
+        this.uploadCsv(true);
+      }
+    }, 100);
+  }
+
+  /**
+   * Upload/process CSV content
+   */
+  uploadCsv(dryRun = false): void {
+    const loader = this.uploadLoader();
+    if (!loader) return;
+
+    const content = this.csvContent();
+    if (!content.trim()) {
+      this.errorMessage.set('Please provide CSV content');
+      return;
+    }
+
+    this.isUploading.set(true);
+    this.clearMessages();
+
+    this.loaderService.uploadCsv(loader.id, content, dryRun).subscribe({
+      next: (result) => {
+        this.uploadResult.set(result);
+        this.isUploading.set(false);
+        if (result.success) {
+          if (dryRun) {
+            this.successMessage.set(
+              `Preview: ${result.recordsFound} records found, ${result.recordsProcessed} valid, ` +
+              `${result.recordsFailed} errors`
+            );
+          } else {
+            this.successMessage.set(
+              `Uploaded: ${result.recordsProcessed} tasks created, ${result.recordsFailed} failed, ` +
+              `${result.recordsSkipped} skipped`
+            );
+            // Clear the content after successful upload
+            this.csvContent.set('');
+          }
+        } else {
+          this.errorMessage.set(result.error || 'Upload failed');
+        }
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to upload CSV');
+        this.isUploading.set(false);
+      },
+    });
+  }
+
+  /**
+   * Trigger file input click
+   */
+  triggerFileInput(): void {
+    this.csvFileInput?.nativeElement?.click();
   }
 
   clearMessages(): void {
