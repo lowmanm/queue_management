@@ -35,6 +35,15 @@ export const ADMIN_ROUTES: Routes = [
     data: { permissions: ['design:rules'] },
   },
   {
+    path: 'work-states',
+    loadComponent: () =>
+      import('./components/work-states/work-states.component').then(
+        (m) => m.WorkStatesComponent
+      ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:work_states'] },
+  },
+  {
     path: 'users',
     loadComponent: () =>
       import('./components/users/users.component').then(
