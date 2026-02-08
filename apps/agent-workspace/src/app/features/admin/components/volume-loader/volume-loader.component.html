@@ -1,493 +1,545 @@
-<div class="volume-loader-container">
-  <header class="page-header">
-    <div class="header-content">
-      <h1>Volume Loaders</h1>
-      <p class="subtitle">Configure and manage task data loaders from external sources</p>
-    </div>
-    <button class="btn-primary" (click)="openNewEditor()">
-      <span class="material-icons">add</span>
-      New Loader
-    </button>
-  </header>
+<app-page-layout title="Volume Loaders" subtitle="Configure and manage task data loaders from external sources">
+  <button slot="actions" class="btn-primary" (click)="openNewEditor()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+    New Loader
+  </button>
 
-  <!-- Messages -->
-  @if (errorMessage()) {
-    <div class="message error">{{ errorMessage() }}</div>
-  }
-  @if (successMessage()) {
-    <div class="message success">{{ successMessage() }}</div>
-  }
+  <div class="volume-loader-container">
+    <!-- Messages -->
+    @if (errorMessage()) {
+      <div class="message error">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="message success">{{ successMessage() }}</div>
+    }
 
-  <!-- Summary Cards -->
-  @if (summary()) {
-    <div class="summary-cards">
-      <div class="summary-card">
-        <span class="summary-value">{{ summary()?.totalLoaders }}</span>
-        <span class="summary-label">Total Loaders</span>
-      </div>
-      <div class="summary-card">
-        <span class="summary-value active">{{ summary()?.activeLoaders }}</span>
-        <span class="summary-label">Active</span>
-      </div>
-      <div class="summary-card">
-        <span class="summary-value running">{{ summary()?.runningLoaders }}</span>
-        <span class="summary-label">Running</span>
-      </div>
-      <div class="summary-card">
-        <span class="summary-value">{{ summary()?.recordsLoadedToday }}</span>
-        <span class="summary-label">Records Today</span>
-      </div>
-    </div>
-  }
-
-  <!-- Loaders List -->
-  <section class="loaders-section">
-    @if (isLoading()) {
-      <div class="loading">Loading...</div>
-    } @else if (loaders().length === 0) {
-      <div class="empty-state">
-        <span class="material-icons">cloud_download</span>
-        <p>No volume loaders configured. Click "New Loader" to create one.</p>
-      </div>
-    } @else {
-      <div class="loaders-grid">
-        @for (loader of loaders(); track loader.id) {
-          <div class="loader-card" [class.disabled]="!loader.enabled">
-            <div class="loader-header">
-              <div class="loader-icon">
-                <span class="material-icons">{{ getLoaderTypeIcon(loader.type) }}</span>
-              </div>
-              <div class="loader-info">
-                <h3>{{ loader.name }}</h3>
-                <span class="loader-type">{{ getLoaderTypeLabel(loader.type) }}</span>
-              </div>
-              <div class="loader-status" [class]="getStatusClass(loader.status)">
-                {{ loader.status }}
-              </div>
-            </div>
-
-            @if (loader.description) {
-              <p class="loader-description">{{ loader.description }}</p>
-            }
-
-            <div class="loader-stats">
-              <div class="stat">
-                <span class="stat-label">Total Runs</span>
-                <span class="stat-value">{{ loader.stats.totalRuns }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Records</span>
-                <span class="stat-value">{{ loader.stats.totalRecordsProcessed }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Success Rate</span>
-                <span class="stat-value">{{ loader.stats.successRate }}%</span>
-              </div>
-            </div>
-
-            <div class="loader-meta">
-              @if (loader.lastRunAt) {
-                <span class="meta-item">Last run: {{ formatDate(loader.lastRunAt) }}</span>
-              }
-              @if (loader.schedule?.enabled) {
-                <span class="meta-item scheduled">
-                  <span class="material-icons">schedule</span>
-                  Every {{ loader.schedule?.intervalMinutes }} min
-                </span>
-              }
-            </div>
-
-            <div class="loader-actions">
-              <button class="btn-icon" (click)="selectLoader(loader)" title="View Runs">
-                <span class="material-icons">history</span>
-              </button>
-              <button class="btn-icon" (click)="runLoader(loader)" title="Run Now" [disabled]="loader.status === 'RUNNING'">
-                <span class="material-icons">play_arrow</span>
-              </button>
-              <button class="btn-icon" (click)="openEditEditor(loader)" title="Edit">
-                <span class="material-icons">edit</span>
-              </button>
-              <button class="btn-icon" (click)="toggleLoader(loader)" [title]="loader.enabled ? 'Disable' : 'Enable'">
-                <span class="material-icons">{{ loader.enabled ? 'pause' : 'play_circle' }}</span>
-              </button>
-              <button class="btn-icon danger" (click)="deleteLoader(loader)" title="Delete">
-                <span class="material-icons">delete</span>
-              </button>
-            </div>
-          </div>
-        }
+    <!-- Summary Cards -->
+    @if (summary()) {
+      <div class="summary-cards">
+        <div class="summary-card">
+          <span class="summary-value">{{ summary()?.totalLoaders }}</span>
+          <span class="summary-label">Total Loaders</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-value active">{{ summary()?.activeLoaders }}</span>
+          <span class="summary-label">Active</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-value running">{{ summary()?.runningLoaders }}</span>
+          <span class="summary-label">Running</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-value">{{ summary()?.recordsLoadedToday }}</span>
+          <span class="summary-label">Records Today</span>
+        </div>
       </div>
     }
-  </section>
 
-  <!-- Runs Panel (Slide-in) -->
-  @if (showRunsPanel() && selectedLoader()) {
-    <div class="runs-panel-overlay" (click)="closeRunsPanel()">
-      <div class="runs-panel" (click)="$event.stopPropagation()">
-        <div class="panel-header">
-          <h2>{{ selectedLoader()?.name }} - Run History</h2>
-          <button class="btn-icon" (click)="closeRunsPanel()">
-            <span class="material-icons">close</span>
-          </button>
+    <!-- Loaders List -->
+    <section class="loaders-section">
+      @if (isLoading()) {
+        <div class="loading">Loading...</div>
+      } @else if (loaders().length === 0) {
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <p>No volume loaders configured. Click "New Loader" to create one.</p>
         </div>
-
-        <div class="panel-content">
-          @if (selectedLoaderRuns().length === 0) {
-            <div class="empty-runs">
-              <span class="material-icons">history</span>
-              <p>No runs yet</p>
-            </div>
-          } @else {
-            <div class="runs-list">
-              @for (run of selectedLoaderRuns(); track run.id) {
-                <div class="run-item" [class]="getRunStatusClass(run.status)">
-                  <div class="run-status">
-                    <span class="status-badge">{{ run.status }}</span>
-                    <span class="run-trigger">{{ run.trigger }}</span>
-                  </div>
-                  <div class="run-details">
-                    <div class="run-time">{{ formatDate(run.startedAt) }}</div>
-                    <div class="run-stats">
-                      <span>{{ run.recordsProcessed }}/{{ run.recordsFound }} records</span>
-                      @if (run.recordsFailed > 0) {
-                        <span class="failed">{{ run.recordsFailed }} failed</span>
+      } @else {
+        <div class="loaders-grid">
+          @for (loader of loaders(); track loader.id) {
+            <div class="loader-card" [class.disabled]="!loader.enabled">
+              <div class="loader-header">
+                <div class="loader-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    @switch (loader.type) {
+                      @case ('GCS') {
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"></path>
                       }
-                      <span>{{ formatDuration(run.durationMs) }}</span>
-                    </div>
-                  </div>
-                  @if (run.error) {
-                    <div class="run-error">{{ run.error }}</div>
-                  }
+                      @case ('S3') {
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"></path>
+                      }
+                      @case ('HTTP') {
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                      }
+                      @case ('LOCAL') {
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                      }
+                      @default {
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                      }
+                    }
+                  </svg>
                 </div>
+                <div class="loader-info">
+                  <h3>{{ loader.name }}</h3>
+                  <span class="loader-type">{{ getLoaderTypeLabel(loader.type) }}</span>
+                </div>
+                <div class="loader-status" [class]="getStatusClass(loader.status)">
+                  {{ loader.status }}
+                </div>
+              </div>
+
+              @if (loader.description) {
+                <p class="loader-description">{{ loader.description }}</p>
               }
+
+              <div class="loader-stats">
+                <div class="stat">
+                  <span class="stat-label">Total Runs</span>
+                  <span class="stat-value">{{ loader.stats.totalRuns }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Records</span>
+                  <span class="stat-value">{{ loader.stats.totalRecordsProcessed }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Success Rate</span>
+                  <span class="stat-value">{{ loader.stats.successRate }}%</span>
+                </div>
+              </div>
+
+              <div class="loader-meta">
+                @if (loader.lastRunAt) {
+                  <span class="meta-item">Last run: {{ formatDate(loader.lastRunAt) }}</span>
+                }
+                @if (loader.schedule?.enabled) {
+                  <span class="meta-item scheduled">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Every {{ loader.schedule?.intervalMinutes }} min
+                  </span>
+                }
+              </div>
+
+              <div class="loader-actions">
+                <button class="btn-icon" (click)="selectLoader(loader)" title="View Runs">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="12 8 12 12 14 14"></polyline>
+                    <circle cx="12" cy="12" r="10"></circle>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="runLoader(loader)" title="Run Now" [disabled]="loader.status === 'RUNNING'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="openEditEditor(loader)" title="Edit">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="toggleLoader(loader)" [title]="loader.enabled ? 'Disable' : 'Enable'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    @if (loader.enabled) {
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
+                    } @else {
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                    }
+                  </svg>
+                </button>
+                <button class="btn-icon danger" (click)="deleteLoader(loader)" title="Delete">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
           }
         </div>
+      }
+    </section>
+  </div>
+</app-page-layout>
+
+<!-- Runs Panel (Slide-in) -->
+@if (showRunsPanel() && selectedLoader()) {
+  <div class="runs-panel-overlay" (click)="closeRunsPanel()">
+    <div class="runs-panel" (click)="$event.stopPropagation()">
+      <div class="panel-header">
+        <h2>{{ selectedLoader()?.name }} - Run History</h2>
+        <button class="btn-icon" (click)="closeRunsPanel()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="panel-content">
+        @if (selectedLoaderRuns().length === 0) {
+          <div class="empty-runs">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="12 8 12 12 14 14"></polyline>
+              <circle cx="12" cy="12" r="10"></circle>
+            </svg>
+            <p>No runs yet</p>
+          </div>
+        } @else {
+          <div class="runs-list">
+            @for (run of selectedLoaderRuns(); track run.id) {
+              <div class="run-item" [class]="getRunStatusClass(run.status)">
+                <div class="run-status">
+                  <span class="status-badge">{{ run.status }}</span>
+                  <span class="run-trigger">{{ run.trigger }}</span>
+                </div>
+                <div class="run-details">
+                  <div class="run-time">{{ formatDate(run.startedAt) }}</div>
+                  <div class="run-stats">
+                    <span>{{ run.recordsProcessed }}/{{ run.recordsFound }} records</span>
+                    @if (run.recordsFailed > 0) {
+                      <span class="failed">{{ run.recordsFailed }} failed</span>
+                    }
+                    <span>{{ formatDuration(run.durationMs) }}</span>
+                  </div>
+                </div>
+                @if (run.error) {
+                  <div class="run-error">{{ run.error }}</div>
+                }
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
-  }
+  </div>
+}
 
-  <!-- Editor Modal -->
-  @if (showEditor()) {
-    <div class="modal-overlay" (click)="closeEditor()">
-      <div class="modal large" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h2>{{ isEditMode() ? 'Edit' : 'New' }} Volume Loader</h2>
-          <button class="btn-icon" (click)="closeEditor()">
-            <span class="material-icons">close</span>
-          </button>
-        </div>
+<!-- Editor Modal -->
+@if (showEditor()) {
+  <div class="modal-overlay" (click)="closeEditor()">
+    <div class="modal large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Volume Loader</h2>
+        <button class="btn-icon" (click)="closeEditor()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
 
-        <div class="modal-body">
-          <!-- Basic Info -->
-          <div class="form-section">
-            <h3>Basic Information</h3>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="name">Name *</label>
-                <input
-                  type="text"
-                  id="name"
-                  [ngModel]="formData().name"
-                  (ngModelChange)="updateFormField('name', $event)"
-                  placeholder="e.g., Orders GCS Loader"
-                />
-              </div>
-              <div class="form-group">
-                <label for="type">Source Type *</label>
-                <select
-                  id="type"
-                  [ngModel]="formData().type"
-                  (ngModelChange)="onTypeChange($event)"
-                  [disabled]="isEditMode()"
-                >
-                  @for (t of loaderTypes; track t.value) {
-                    <option [value]="t.value">{{ t.label }}</option>
-                  }
-                </select>
-              </div>
+      <div class="modal-body">
+        <!-- Basic Info -->
+        <div class="form-section">
+          <h3>Basic Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Name *</label>
+              <input
+                type="text"
+                id="name"
+                [ngModel]="formData().name"
+                (ngModelChange)="updateFormField('name', $event)"
+                placeholder="e.g., Orders GCS Loader"
+              />
             </div>
             <div class="form-group">
-              <label for="description">Description</label>
-              <textarea
-                id="description"
-                [ngModel]="formData().description"
-                (ngModelChange)="updateFormField('description', $event)"
-                rows="2"
-                placeholder="Describe what this loader does..."
-              ></textarea>
+              <label for="type">Source Type *</label>
+              <select
+                id="type"
+                [ngModel]="formData().type"
+                (ngModelChange)="onTypeChange($event)"
+                [disabled]="isEditMode()"
+              >
+                @for (t of loaderTypes; track t.value) {
+                  <option [value]="t.value">{{ t.label }}</option>
+                }
+              </select>
             </div>
           </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea
+              id="description"
+              [ngModel]="formData().description"
+              (ngModelChange)="updateFormField('description', $event)"
+              rows="2"
+              placeholder="Describe what this loader does..."
+            ></textarea>
+          </div>
+        </div>
 
-          <!-- Connection Config -->
-          <div class="form-section">
-            <h3>Connection Settings</h3>
-            @switch (formData().type) {
-              @case ('GCS') {
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Bucket Name *</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('bucket')"
-                      (ngModelChange)="updateConfigField('bucket', $event)"
-                      placeholder="my-bucket"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Project ID</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('projectId')"
-                      (ngModelChange)="updateConfigField('projectId', $event)"
-                      placeholder="my-project-id"
-                    />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Path Prefix</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('pathPrefix')"
-                      (ngModelChange)="updateConfigField('pathPrefix', $event)"
-                      placeholder="incoming/"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>File Pattern *</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('filePattern')"
-                      (ngModelChange)="updateConfigField('filePattern', $event)"
-                      placeholder="*.csv"
-                    />
-                  </div>
-                </div>
-              }
-              @case ('S3') {
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Bucket Name *</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('bucket')"
-                      (ngModelChange)="updateConfigField('bucket', $event)"
-                      placeholder="my-bucket"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Region *</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('region')"
-                      (ngModelChange)="updateConfigField('region', $event)"
-                      placeholder="us-east-1"
-                    />
-                  </div>
-                </div>
-              }
-              @case ('HTTP') {
+        <!-- Connection Config -->
+        <div class="form-section">
+          <h3>Connection Settings</h3>
+          @switch (formData().type) {
+            @case ('GCS') {
+              <div class="form-row">
                 <div class="form-group">
-                  <label>URL *</label>
+                  <label>Bucket Name *</label>
                   <input
                     type="text"
-                    [ngModel]="getConfigValue('url')"
-                    (ngModelChange)="updateConfigField('url', $event)"
-                    placeholder="https://api.example.com/tasks"
+                    [ngModel]="getConfigValue('bucket')"
+                    (ngModelChange)="updateConfigField('bucket', $event)"
+                    placeholder="my-bucket"
                   />
                 </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Method *</label>
-                    <select
-                      [ngModel]="getConfigValue('method')"
-                      (ngModelChange)="updateConfigField('method', $event)"
-                    >
-                      <option value="GET">GET</option>
-                      <option value="POST">POST</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label>Auth Type</label>
-                    <select
-                      [ngModel]="getConfigValue('authType')"
-                      (ngModelChange)="updateConfigField('authType', $event)"
-                    >
-                      <option value="none">None</option>
-                      <option value="basic">Basic Auth</option>
-                      <option value="bearer">Bearer Token</option>
-                      <option value="api_key">API Key</option>
-                    </select>
-                  </div>
+                <div class="form-group">
+                  <label>Project ID</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('projectId')"
+                    (ngModelChange)="updateConfigField('projectId', $event)"
+                    placeholder="my-project-id"
+                  />
                 </div>
-              }
-              @case ('LOCAL') {
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Directory Path *</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('directory')"
-                      (ngModelChange)="updateConfigField('directory', $event)"
-                      placeholder="/tmp/incoming"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>File Pattern *</label>
-                    <input
-                      type="text"
-                      [ngModel]="getConfigValue('filePattern')"
-                      (ngModelChange)="updateConfigField('filePattern', $event)"
-                      placeholder="*.csv"
-                    />
-                  </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Path Prefix</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('pathPrefix')"
+                    (ngModelChange)="updateConfigField('pathPrefix', $event)"
+                    placeholder="incoming/"
+                  />
                 </div>
-              }
+                <div class="form-group">
+                  <label>File Pattern *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('filePattern')"
+                    (ngModelChange)="updateConfigField('filePattern', $event)"
+                    placeholder="*.csv"
+                  />
+                </div>
+              </div>
             }
-
-            @if (isEditMode()) {
-              <button class="btn-secondary" (click)="testConnection()" [disabled]="isLoading()">
-                <span class="material-icons">wifi_tethering</span>
-                Test Connection
-              </button>
-              @if (testResult()) {
-                <div class="test-result" [class.success]="testResult()?.connectionSuccess" [class.error]="!testResult()?.connectionSuccess">
-                  @if (testResult()?.connectionSuccess) {
-                    <span class="material-icons">check_circle</span>
-                    <span>Connection successful. Found {{ testResult()?.filesFound?.length || 0 }} files.</span>
-                  } @else {
-                    <span class="material-icons">error</span>
-                    <span>{{ testResult()?.connectionError }}</span>
-                  }
+            @case ('S3') {
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Bucket Name *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('bucket')"
+                    (ngModelChange)="updateConfigField('bucket', $event)"
+                    placeholder="my-bucket"
+                  />
                 </div>
-              }
+                <div class="form-group">
+                  <label>Region *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('region')"
+                    (ngModelChange)="updateConfigField('region', $event)"
+                    placeholder="us-east-1"
+                  />
+                </div>
+              </div>
             }
-          </div>
-
-          <!-- Data Format -->
-          <div class="form-section">
-            <h3>Data Format</h3>
-            <div class="form-row">
+            @case ('HTTP') {
               <div class="form-group">
-                <label>Format *</label>
+                <label>URL *</label>
+                <input
+                  type="text"
+                  [ngModel]="getConfigValue('url')"
+                  (ngModelChange)="updateConfigField('url', $event)"
+                  placeholder="https://api.example.com/tasks"
+                />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Method *</label>
+                  <select
+                    [ngModel]="getConfigValue('method')"
+                    (ngModelChange)="updateConfigField('method', $event)"
+                  >
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Auth Type</label>
+                  <select
+                    [ngModel]="getConfigValue('authType')"
+                    (ngModelChange)="updateConfigField('authType', $event)"
+                  >
+                    <option value="none">None</option>
+                    <option value="basic">Basic Auth</option>
+                    <option value="bearer">Bearer Token</option>
+                    <option value="api_key">API Key</option>
+                  </select>
+                </div>
+              </div>
+            }
+            @case ('LOCAL') {
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Directory Path *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('directory')"
+                    (ngModelChange)="updateConfigField('directory', $event)"
+                    placeholder="/tmp/incoming"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>File Pattern *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('filePattern')"
+                    (ngModelChange)="updateConfigField('filePattern', $event)"
+                    placeholder="*.csv"
+                  />
+                </div>
+              </div>
+            }
+          }
+
+          @if (isEditMode()) {
+            <button class="btn-secondary" (click)="testConnection()" [disabled]="isLoading()">
+              Test Connection
+            </button>
+            @if (testResult()) {
+              <div class="test-result" [class.success]="testResult()?.connectionSuccess" [class.error]="!testResult()?.connectionSuccess">
+                @if (testResult()?.connectionSuccess) {
+                  <span>Connection successful. Found {{ testResult()?.filesFound?.length || 0 }} files.</span>
+                } @else {
+                  <span>{{ testResult()?.connectionError }}</span>
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <!-- Data Format -->
+        <div class="form-section">
+          <h3>Data Format</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Format *</label>
+              <select
+                [ngModel]="formData().dataFormat?.format"
+                (ngModelChange)="updateDataFormatField('format', $event)"
+              >
+                @for (f of dataFormats; track f.value) {
+                  <option [value]="f.value">{{ f.label }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Encoding</label>
+              <input
+                type="text"
+                [ngModel]="formData().dataFormat?.encoding"
+                (ngModelChange)="updateDataFormatField('encoding', $event)"
+                placeholder="utf-8"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Mappings -->
+        <div class="form-section">
+          <div class="section-header">
+            <h3>Field Mappings</h3>
+            <button class="btn-secondary small" (click)="addFieldMapping()">+ Add</button>
+          </div>
+          <div class="mappings-table">
+            <div class="mapping-header">
+              <span>Source Field</span>
+              <span>Target Field</span>
+              <span>Required</span>
+              <span></span>
+            </div>
+            @for (mapping of formData().fieldMappings; track $index) {
+              <div class="mapping-row">
+                <input
+                  type="text"
+                  [ngModel]="mapping.sourceField"
+                  (ngModelChange)="updateFieldMapping($index, 'sourceField', $event)"
+                  placeholder="column_name"
+                />
                 <select
-                  [ngModel]="formData().dataFormat?.format"
-                  (ngModelChange)="updateDataFormatField('format', $event)"
+                  [ngModel]="mapping.targetField"
+                  (ngModelChange)="updateFieldMapping($index, 'targetField', $event)"
                 >
-                  @for (f of dataFormats; track f.value) {
+                  @for (f of targetFields; track f.value) {
                     <option [value]="f.value">{{ f.label }}</option>
                   }
                 </select>
-              </div>
-              <div class="form-group">
-                <label>Encoding</label>
-                <input
-                  type="text"
-                  [ngModel]="formData().dataFormat?.encoding"
-                  (ngModelChange)="updateDataFormatField('encoding', $event)"
-                  placeholder="utf-8"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Field Mappings -->
-          <div class="form-section">
-            <div class="section-header">
-              <h3>Field Mappings</h3>
-              <button class="btn-secondary small" (click)="addFieldMapping()">
-                <span class="material-icons">add</span>
-                Add
-              </button>
-            </div>
-            <div class="mappings-table">
-              <div class="mapping-header">
-                <span>Source Field</span>
-                <span>Target Field</span>
-                <span>Required</span>
-                <span></span>
-              </div>
-              @for (mapping of formData().fieldMappings; track $index) {
-                <div class="mapping-row">
-                  <input
-                    type="text"
-                    [ngModel]="mapping.sourceField"
-                    (ngModelChange)="updateFieldMapping($index, 'sourceField', $event)"
-                    placeholder="column_name"
-                  />
-                  <select
-                    [ngModel]="mapping.targetField"
-                    (ngModelChange)="updateFieldMapping($index, 'targetField', $event)"
-                  >
-                    @for (f of targetFields; track f.value) {
-                      <option [value]="f.value">{{ f.label }}</option>
-                    }
-                  </select>
-                  <input
-                    type="checkbox"
-                    [ngModel]="mapping.required"
-                    (ngModelChange)="updateFieldMapping($index, 'required', $event)"
-                  />
-                  <button class="btn-icon danger small" (click)="removeFieldMapping($index)">
-                    <span class="material-icons">close</span>
-                  </button>
-                </div>
-              }
-            </div>
-          </div>
-
-          <!-- Processing Options -->
-          <div class="form-section">
-            <h3>Processing Options</h3>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Batch Size</label>
-                <input
-                  type="number"
-                  [ngModel]="formData().processingOptions?.batchSize"
-                  (ngModelChange)="updateProcessingOption('batchSize', $event)"
-                  min="1"
-                />
-              </div>
-              <div class="form-group">
-                <label>Max Records (0=unlimited)</label>
-                <input
-                  type="number"
-                  [ngModel]="formData().processingOptions?.maxRecords"
-                  (ngModelChange)="updateProcessingOption('maxRecords', $event)"
-                  min="0"
-                />
-              </div>
-            </div>
-            <div class="form-checkboxes">
-              <label class="checkbox-label">
                 <input
                   type="checkbox"
-                  [ngModel]="formData().processingOptions?.skipDuplicates"
-                  (ngModelChange)="updateProcessingOption('skipDuplicates', $event)"
+                  [ngModel]="mapping.required"
+                  (ngModelChange)="updateFieldMapping($index, 'required', $event)"
                 />
-                <span>Skip Duplicates</span>
-              </label>
-              <label class="checkbox-label">
-                <input
-                  type="checkbox"
-                  [ngModel]="formData().processingOptions?.continueOnError"
-                  (ngModelChange)="updateProcessingOption('continueOnError', $event)"
-                />
-                <span>Continue on Error</span>
-              </label>
-            </div>
+                <button class="btn-icon danger small" (click)="removeFieldMapping($index)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            }
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
-          <button class="btn-primary" (click)="saveLoader()" [disabled]="isLoading()">
-            {{ isEditMode() ? 'Update' : 'Create' }} Loader
-          </button>
+        <!-- Processing Options -->
+        <div class="form-section">
+          <h3>Processing Options</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Batch Size</label>
+              <input
+                type="number"
+                [ngModel]="formData().processingOptions?.batchSize"
+                (ngModelChange)="updateProcessingOption('batchSize', $event)"
+                min="1"
+              />
+            </div>
+            <div class="form-group">
+              <label>Max Records (0=unlimited)</label>
+              <input
+                type="number"
+                [ngModel]="formData().processingOptions?.maxRecords"
+                (ngModelChange)="updateProcessingOption('maxRecords', $event)"
+                min="0"
+              />
+            </div>
+          </div>
+          <div class="form-checkboxes">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().processingOptions?.skipDuplicates"
+                (ngModelChange)="updateProcessingOption('skipDuplicates', $event)"
+              />
+              <span>Skip Duplicates</span>
+            </label>
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [ngModel]="formData().processingOptions?.continueOnError"
+                (ngModelChange)="updateProcessingOption('continueOnError', $event)"
+              />
+              <span>Continue on Error</span>
+            </label>
+          </div>
         </div>
       </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+        <button class="btn-primary" (click)="saveLoader()" [disabled]="isLoading()">
+          {{ isEditMode() ? 'Update' : 'Create' }} Loader
+        </button>
+      </div>
     </div>
-  }
-</div>
+  </div>
+}

@@ -1,31 +1,8 @@
 @use 'styles/variables' as *;
 
 .queue-config {
-  padding: $spacing-6;
   max-width: 1400px;
   margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: $spacing-6;
-
-  .header-content {
-    h1 {
-      margin: 0;
-      font-size: $font-size-2xl;
-      font-weight: $font-weight-bold;
-      color: $color-gray-900;
-    }
-
-    .subtitle {
-      margin: $spacing-1 0 0;
-      color: $color-gray-500;
-      font-size: $font-size-sm;
-    }
-  }
 }
 
 .btn-primary {
