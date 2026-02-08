@@ -205,4 +205,45 @@ export class VolumeLoaderController {
     const result = this.volumeLoaderService.validateFieldMappings(id, body.mappings);
     return result;
   }
+
+  // ==========================================================================
+  // DIRECT CSV UPLOAD (Unified Data Loading)
+  // ==========================================================================
+
+  /**
+   * Upload CSV content directly to a loader for immediate processing.
+   * This endpoint provides a unified way to load data without requiring
+   * file system access - useful for browser-based uploads and testing.
+   *
+   * @param id - The loader ID (must have field mappings configured)
+   * @param body - Object containing csvContent and optional dryRun flag
+   * @returns Processing result with counts and any errors
+   */
+  @Post(':id/upload-csv')
+  async uploadCsv(
+    @Param('id') id: string,
+    @Body() body: { csvContent: string; dryRun?: boolean }
+  ) {
+    const loader = this.volumeLoaderService.getLoaderById(id);
+    if (!loader) {
+      throw new HttpException('Loader not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (!body.csvContent) {
+      throw new HttpException('csvContent is required', HttpStatus.BAD_REQUEST);
+    }
+
+    // Process the CSV content using the loader's configuration
+    const result = await this.volumeLoaderService.processDirectCsvUpload(
+      id,
+      body.csvContent,
+      body.dryRun ?? false
+    );
+
+    if (!result.success) {
+      throw new HttpException(result.error || 'Failed to process CSV', HttpStatus.BAD_REQUEST);
+    }
+
+    return result;
+  }
 }
