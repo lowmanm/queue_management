@@ -10,6 +10,7 @@ import {
 } from '../../../../core/services/auth.service';
 import { QueueService } from '../../../../core/services/queue.service';
 import { AgentStatsService } from '../../../../core/services/agent-stats.service';
+import { AgentControlsComponent } from '../agent-controls/agent-controls.component';
 
 interface HeaderStats {
   tasksCompleted: number;
@@ -21,7 +22,7 @@ interface HeaderStats {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, AgentControlsComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
 })

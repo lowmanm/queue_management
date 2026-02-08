@@ -5,6 +5,7 @@ import { RuleEngineService } from './rule-engine.service';
 import { TaskSourceService } from './task-source.service';
 import { DispositionService } from './disposition.service';
 import { RbacService } from './rbac.service';
+import { AgentSessionService } from './agent-session.service';
 import { QueuesService } from '../queues/queues.service';
 import { RoutingService } from '../routing/routing.service';
 
@@ -16,6 +17,7 @@ import { RoutingService } from '../routing/routing.service';
     TaskSourceService,
     DispositionService,
     RbacService,
+    AgentSessionService,
     QueuesService,
     RoutingService,
   ],
@@ -26,6 +28,7 @@ import { RoutingService } from '../routing/routing.service';
     TaskSourceService,
     DispositionService,
     RbacService,
+    AgentSessionService,
     QueuesService,
     RoutingService,
   ],
