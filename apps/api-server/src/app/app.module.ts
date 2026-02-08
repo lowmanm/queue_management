@@ -13,6 +13,7 @@ import { QueuesModule } from './queues/queues.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { RoutingModule } from './routing/routing.module';
 import { SessionsModule } from './sessions';
+import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SessionsModule } from './sessions';
     MetricsModule,
     RoutingModule,
     SessionsModule,
+    VolumeLoaderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -61,4 +61,13 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [designerGuard],
     data: { permissions: ['design:routing'] },
   },
+  {
+    path: 'volume-loaders',
+    loadComponent: () =>
+      import('./components/volume-loader/volume-loader.component').then(
+        (m) => m.VolumeLoaderComponent
+      ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:volume_loaders'] },
+  },
 ];
