@@ -52,4 +52,13 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [designerGuard],
     data: { permissions: ['design:routing'] },
   },
+  {
+    path: 'work-states',
+    loadComponent: () =>
+      import('./components/work-states/work-states.component').then(
+        (m) => m.WorkStatesComponent
+      ),
+    canActivate: [adminGuard],
+    data: { permissions: ['admin:settings'] },
+  },
 ];
