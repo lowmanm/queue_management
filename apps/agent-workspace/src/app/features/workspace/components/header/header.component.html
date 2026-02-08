@@ -61,6 +61,9 @@
   </div>
 
   <div class="header-right">
+    <!-- Agent Work State Controls -->
+    <app-agent-controls></app-agent-controls>
+
     @if (user$ | async; as user) {
       <div class="user-info">
         <span class="user-name">{{ user.displayName }}</span>
@@ -90,16 +93,6 @@
             </div>
           }
         </div>
-      </div>
-    }
-
-    @if (agentState$ | async; as state) {
-      <div class="state-badge" [ngClass]="getStateClass(state)">
-        <span class="state-indicator"></span>
-        <span class="state-label">{{ getStateLabel(state) }}</span>
-        @if (state === 'RESERVED' && (reservationCountdown$ | async); as countdown) {
-          <span class="countdown">({{ countdown }}s)</span>
-        }
       </div>
     }
 

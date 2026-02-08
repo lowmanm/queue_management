@@ -5,7 +5,9 @@ import { RuleEngineService } from './rule-engine.service';
 import { TaskSourceService } from './task-source.service';
 import { DispositionService } from './disposition.service';
 import { RbacService } from './rbac.service';
+import { AgentSessionService } from './agent-session.service';
 import { QueuesService } from '../queues/queues.service';
+import { RoutingService } from '../routing/routing.service';
 
 @Module({
   providers: [
@@ -15,7 +17,9 @@ import { QueuesService } from '../queues/queues.service';
     TaskSourceService,
     DispositionService,
     RbacService,
+    AgentSessionService,
     QueuesService,
+    RoutingService,
   ],
   exports: [
     AgentManagerService,
@@ -24,7 +28,9 @@ import { QueuesService } from '../queues/queues.service';
     TaskSourceService,
     DispositionService,
     RbacService,
+    AgentSessionService,
     QueuesService,
+    RoutingService,
   ],
 })
 export class ServicesModule {}

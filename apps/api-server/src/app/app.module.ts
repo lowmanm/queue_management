@@ -11,6 +11,8 @@ import { RbacModule } from './rbac';
 import { AgentsModule } from './agents/agents.module';
 import { QueuesModule } from './queues/queues.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { RoutingModule } from './routing/routing.module';
+import { SessionsModule } from './sessions';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { MetricsModule } from './metrics/metrics.module';
     AgentsModule,
     QueuesModule,
     MetricsModule,
+    RoutingModule,
+    SessionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

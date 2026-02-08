@@ -43,4 +43,13 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [adminGuard],
     data: { permissions: ['admin:users'] },
   },
+  {
+    path: 'routing',
+    loadComponent: () =>
+      import('./components/routing-config/routing-config.component').then(
+        (m) => m.RoutingConfigComponent
+      ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:routing'] },
+  },
 ];
