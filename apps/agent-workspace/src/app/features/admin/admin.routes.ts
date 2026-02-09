@@ -4,8 +4,17 @@ import { designerGuard, adminGuard } from '../../core/guards';
 export const ADMIN_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'task-sources',
+    redirectTo: 'pipelines',
     pathMatch: 'full',
+  },
+  {
+    path: 'pipelines',
+    loadComponent: () =>
+      import('./components/pipelines/pipelines.component').then(
+        (m) => m.PipelinesComponent
+      ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:pipelines'] },
   },
   {
     path: 'task-sources',

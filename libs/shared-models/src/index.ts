@@ -8,3 +8,4 @@ export * from './lib/agent-stats.interface';
 export * from './lib/routing.interface';
 export * from './lib/work-state.interface';
 export * from './lib/volume-loader.interface';
+export * from './lib/pipeline.interface';
