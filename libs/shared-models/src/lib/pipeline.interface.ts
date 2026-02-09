@@ -39,6 +39,9 @@ export interface Pipeline {
   /** Work types allowed in this pipeline */
   allowedWorkTypes: string[];
 
+  /** Dynamic data schema for this pipeline (defined by sample file upload) */
+  dataSchema?: PipelineDataSchema;
+
   /** Default settings for tasks in this pipeline */
   defaults: PipelineDefaults;
 
@@ -60,6 +63,90 @@ export interface Pipeline {
   /** Updated timestamp */
   updatedAt: string;
 }
+
+// =============================================================================
+// PIPELINE DATA SCHEMA (Dynamic field definitions)
+// =============================================================================
+
+/**
+ * Dynamic data schema for a pipeline
+ *
+ * Each pipeline defines its own field structure based on the data being loaded.
+ * This eliminates the need for rigid, predefined field mappings.
+ */
+export interface PipelineDataSchema {
+  /** All fields in this pipeline's data model */
+  fields: PipelineFieldDefinition[];
+
+  /** Which field serves as the unique identifier for tasks/records */
+  primaryIdField: string;
+
+  /** Sample data from initial schema detection (for preview) */
+  sampleData?: Record<string, unknown>[];
+
+  /** Total rows analyzed when detecting schema */
+  sampleRowCount?: number;
+
+  /** Source file that defined this schema */
+  sourceFileName?: string;
+
+  /** When schema was created/detected */
+  createdAt: string;
+
+  /** When schema was last updated */
+  updatedAt: string;
+}
+
+/**
+ * Definition of a single field in the pipeline's data schema
+ */
+export interface PipelineFieldDefinition {
+  /** Field name (from source data) */
+  name: string;
+
+  /** Display label (user can customize) */
+  label?: string;
+
+  /** Detected or specified data type */
+  type: PipelineFieldType;
+
+  /** Whether this field is required (present in all rows) */
+  required: boolean;
+
+  /** Whether this is the primary ID field */
+  isPrimaryId: boolean;
+
+  /** Sample values from the source data (for reference) */
+  sampleValues?: string[];
+
+  /** User-provided description */
+  description?: string;
+
+  /** Order for display (0 = first) */
+  displayOrder: number;
+
+  /** Whether to include in task payload */
+  includeInPayload: boolean;
+
+  /** Whether this field is searchable/filterable */
+  searchable: boolean;
+}
+
+/**
+ * Data types for pipeline fields
+ */
+export type PipelineFieldType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'email'
+  | 'url'
+  | 'phone'
+  | 'currency'
+  | 'array'
+  | 'object';
 
 /**
  * Default settings applied to tasks entering this pipeline
