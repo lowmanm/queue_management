@@ -158,14 +158,16 @@ export interface HttpConfig {
 }
 
 /**
- * Local file system configuration (for testing)
+ * Local file system configuration (for testing and direct CSV upload)
  */
 export interface LocalConfig {
   type: 'LOCAL';
-  /** Directory path */
+  /** Directory path to watch/read from */
   directory: string;
-  /** File pattern to match (glob) */
+  /** File pattern to match (glob), e.g., "*.csv" */
   filePattern: string;
+  /** Optional directory to move processed files to */
+  archiveDirectory?: string;
 }
 
 /**

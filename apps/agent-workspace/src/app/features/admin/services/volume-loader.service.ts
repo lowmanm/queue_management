@@ -176,4 +176,42 @@ export class VolumeLoaderApiService {
       { mappings }
     );
   }
+
+  // ==========================================================================
+  // DIRECT CSV UPLOAD
+  // ==========================================================================
+
+  /**
+   * Upload CSV content directly to a loader for immediate processing.
+   * Uses the loader's field mappings and defaults to create tasks.
+   *
+   * @param id - The loader ID with configured field mappings
+   * @param csvContent - The CSV content as a string
+   * @param dryRun - If true, parse but don't create tasks (preview mode)
+   * @returns Processing result with counts and any errors
+   */
+  uploadCsv(
+    id: string,
+    csvContent: string,
+    dryRun = false
+  ): Observable<CsvUploadResult> {
+    return this.http.post<CsvUploadResult>(`${API_BASE}/${id}/upload-csv`, {
+      csvContent,
+      dryRun,
+    });
+  }
+}
+
+/**
+ * Result of a CSV upload operation
+ */
+export interface CsvUploadResult {
+  success: boolean;
+  recordsFound: number;
+  recordsProcessed: number;
+  recordsFailed: number;
+  recordsSkipped: number;
+  errors: Array<{ row: number; error: string }>;
+  samplePayloadUrls?: string[];
+  error?: string;
 }

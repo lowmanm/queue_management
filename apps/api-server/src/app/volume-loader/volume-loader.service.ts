@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   VolumeLoader,
   VolumeLoaderType,
@@ -25,7 +27,22 @@ import {
   HttpConfig,
   LocalConfig,
   CsvFormatOptions,
+  Task,
+  TaskAction,
+  PendingOrder,
+  TaskFromSource,
 } from '@nexus-queue/shared-models';
+import { TaskSourceService } from '../services/task-source.service';
+
+/**
+ * Represents a parsed record from a data source before task creation
+ */
+interface ParsedRecord {
+  rowIndex: number;
+  rawData: Record<string, string>;
+  mappedData?: TaskFromSource;
+  error?: string;
+}
 
 @Injectable()
 export class VolumeLoaderService {
@@ -36,7 +53,17 @@ export class VolumeLoaderService {
   private runs: VolumeLoaderRun[] = [];
   private scheduledIntervals = new Map<string, NodeJS.Timeout>();
 
-  constructor() {
+  // Track processed external IDs to prevent duplicates
+  private processedExternalIds = new Set<string>();
+
+  // Task counter for unique IDs
+  private taskCounter = 5000;
+
+  constructor(
+    @Optional()
+    @Inject(forwardRef(() => TaskSourceService))
+    private readonly taskSourceService?: TaskSourceService
+  ) {
     this.initializeDefaultLoaders();
   }
 
@@ -449,69 +476,653 @@ export class VolumeLoaderService {
     return run;
   }
 
-  private processLoader(
+  private async processLoader(
     loader: VolumeLoader,
     run: VolumeLoaderRun,
     request?: TriggerVolumeLoaderRequest
+  ): Promise<void> {
+    const startTime = Date.now();
+    const isDryRun = request?.dryRun ?? false;
+
+    try {
+      // Process based on loader type
+      switch (loader.type) {
+        case 'LOCAL':
+          await this.processLocalLoader(loader, run, isDryRun);
+          break;
+        case 'GCS':
+        case 'S3':
+        case 'SFTP':
+        case 'HTTP':
+          // Fall back to simulated processing for unimplemented types
+          this.processSimulated(loader, run, isDryRun);
+          break;
+        default:
+          throw new Error(`Unsupported loader type: ${loader.type}`);
+      }
+    } catch (error) {
+      run.status = 'FAILED';
+      run.errorLog.push({
+        recordId: 'SYSTEM',
+        rowNumber: 0,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        field: 'system',
+        value: '',
+        timestamp: new Date().toISOString(),
+      });
+      this.logger.error(`Loader ${loader.id} failed: ${error}`);
+    }
+
+    // Calculate duration and finalize
+    run.completedAt = new Date().toISOString();
+    run.durationMs = Date.now() - startTime;
+
+    // Update loader stats
+    this.updateLoaderStats(loader, run);
+
+    // Update loader status based on run result
+    if (run.status === 'FAILED') {
+      loader.status = 'ERROR';
+    } else if (run.status === 'PARTIAL') {
+      loader.status = 'ERROR';
+    } else {
+      loader.status = loader.enabled ? (loader.schedule?.enabled ? 'SCHEDULED' : 'IDLE') : 'DISABLED';
+    }
+    this.loaders.set(loader.id, loader);
+
+    this.logger.log(
+      `Loader ${loader.id} completed: ${run.recordsProcessed}/${run.recordsFound} records processed, ` +
+      `${run.recordsFailed} failed, ${run.recordsSkipped} skipped`
+    );
+  }
+
+  /**
+   * Process a LOCAL file system loader - reads CSV files from a directory
+   */
+  private async processLocalLoader(
+    loader: VolumeLoader,
+    run: VolumeLoaderRun,
+    isDryRun: boolean
+  ): Promise<void> {
+    const config = loader.config as LocalConfig;
+    const directory = config.directory;
+    const filePattern = config.filePattern || '*.csv';
+
+    this.logger.log(`Processing LOCAL loader from directory: ${directory}`);
+
+    // Check if directory exists
+    if (!fs.existsSync(directory)) {
+      // Create directory for convenience in development
+      try {
+        fs.mkdirSync(directory, { recursive: true });
+        this.logger.log(`Created directory: ${directory}`);
+      } catch (err) {
+        throw new Error(`Directory does not exist and could not be created: ${directory}`);
+      }
+    }
+
+    // Find matching files
+    const files = this.findMatchingFiles(directory, filePattern);
+    if (files.length === 0) {
+      run.status = 'COMPLETED';
+      this.logger.log(`No files matching pattern "${filePattern}" found in ${directory}`);
+      return;
+    }
+
+    this.logger.log(`Found ${files.length} file(s) to process`);
+
+    // Process each file
+    for (const file of files) {
+      const filePath = path.join(directory, file);
+      try {
+        const records = await this.parseFile(filePath, loader);
+        run.filesProcessed.push(file);
+        run.recordsFound += records.length;
+
+        // Process each record
+        for (const record of records) {
+          if (record.error) {
+            run.recordsFailed++;
+            run.errorLog.push({
+              recordId: record.rawData['externalId'] || `row-${record.rowIndex}`,
+              rowNumber: record.rowIndex,
+              message: record.error,
+              field: 'mapping',
+              value: '',
+              timestamp: new Date().toISOString(),
+            });
+            continue;
+          }
+
+          if (!record.mappedData) {
+            run.recordsFailed++;
+            continue;
+          }
+
+          // Check for duplicates if enabled
+          if (loader.processingOptions?.skipDuplicates && record.mappedData.externalId) {
+            if (this.processedExternalIds.has(record.mappedData.externalId)) {
+              run.recordsSkipped++;
+              continue;
+            }
+          }
+
+          if (!isDryRun) {
+            // Create task in the task pipeline
+            this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+
+            // Track processed ID
+            if (record.mappedData.externalId) {
+              this.processedExternalIds.add(record.mappedData.externalId);
+            }
+          }
+
+          run.recordsProcessed++;
+        }
+
+        // Move file to processed directory if configured
+        if (!isDryRun && config.archiveDirectory) {
+          this.archiveFile(filePath, config.archiveDirectory);
+        }
+      } catch (err) {
+        run.errorLog.push({
+          recordId: file,
+          rowNumber: 0,
+          message: err instanceof Error ? err.message : 'Failed to process file',
+          field: 'file',
+          value: file,
+          timestamp: new Date().toISOString(),
+        });
+        this.logger.error(`Failed to process file ${file}: ${err}`);
+      }
+    }
+
+    // Determine final status
+    if (run.recordsFailed > 0 && run.recordsProcessed > 0) {
+      run.status = 'PARTIAL';
+    } else if (run.recordsFailed > 0 && run.recordsProcessed === 0) {
+      run.status = 'FAILED';
+    } else {
+      run.status = 'COMPLETED';
+    }
+  }
+
+  /**
+   * Simulated processing for unimplemented loader types
+   */
+  private processSimulated(
+    loader: VolumeLoader,
+    run: VolumeLoaderRun,
+    isDryRun: boolean
   ): void {
-    // Simulate processing delay
-    const processingTime = Math.random() * 2000 + 500;
+    // Generate mock results for demonstration
+    const totalRecords = Math.floor(Math.random() * 30) + 10;
+    const failedRecords = Math.floor(Math.random() * 2);
+    const skippedRecords = Math.floor(Math.random() * 3);
 
-    setTimeout(() => {
-      // Simulate results based on loader type
-      const isDryRun = request?.dryRun ?? false;
+    run.recordsFound = totalRecords;
+    run.recordsProcessed = isDryRun ? 0 : totalRecords - failedRecords - skippedRecords;
+    run.recordsFailed = isDryRun ? 0 : failedRecords;
+    run.recordsSkipped = isDryRun ? totalRecords : skippedRecords;
+    run.filesProcessed = ['simulated_data.csv'];
 
-      if (isDryRun) {
-        run.status = 'COMPLETED';
-        run.recordsFound = 25;
-        run.recordsProcessed = 0;
-        run.recordsSkipped = 25;
-      } else {
-        // Simulate varying results
-        const totalRecords = Math.floor(Math.random() * 50) + 10;
-        const failedRecords = Math.floor(Math.random() * 3);
-        const skippedRecords = Math.floor(Math.random() * 5);
+    if (failedRecords > 0 && !isDryRun) {
+      run.status = 'PARTIAL';
+    } else {
+      run.status = 'COMPLETED';
+    }
 
-        run.recordsFound = totalRecords;
-        run.recordsProcessed = totalRecords - failedRecords - skippedRecords;
-        run.recordsFailed = failedRecords;
-        run.recordsSkipped = skippedRecords;
-        run.filesProcessed = ['orders_20240101.csv', 'orders_20240102.csv'];
+    this.logger.log(
+      `Simulated processing for ${loader.type} loader (not yet implemented)`
+    );
+  }
 
-        if (failedRecords > 0) {
-          run.status = 'PARTIAL';
-          run.errorLog = Array(failedRecords).fill(null).map((_, i) => ({
-            recordId: `record-${i}`,
-            rowNumber: Math.floor(Math.random() * totalRecords),
-            message: 'Invalid data format',
-            field: 'priority',
-            value: 'invalid',
-            timestamp: new Date().toISOString(),
-          }));
+  /**
+   * Find files matching a glob pattern in a directory
+   */
+  private findMatchingFiles(directory: string, pattern: string): string[] {
+    try {
+      const allFiles = fs.readdirSync(directory);
+
+      // Convert glob pattern to regex
+      const regexPattern = pattern
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.');
+      const regex = new RegExp(`^${regexPattern}$`, 'i');
+
+      return allFiles.filter(file => {
+        const stat = fs.statSync(path.join(directory, file));
+        return stat.isFile() && regex.test(file);
+      });
+    } catch (err) {
+      this.logger.error(`Failed to list files in ${directory}: ${err}`);
+      return [];
+    }
+  }
+
+  /**
+   * Parse a file and return records with field mappings applied
+   */
+  private async parseFile(
+    filePath: string,
+    loader: VolumeLoader
+  ): Promise<ParsedRecord[]> {
+    const content = fs.readFileSync(filePath, loader.dataFormat.encoding as BufferEncoding || 'utf-8');
+
+    if (loader.dataFormat.format === 'CSV') {
+      return this.parseCsvContent(content, loader);
+    } else if (loader.dataFormat.format === 'JSON') {
+      return this.parseJsonContent(content, loader);
+    } else {
+      throw new Error(`Unsupported data format: ${loader.dataFormat.format}`);
+    }
+  }
+
+  /**
+   * Parse CSV content and apply field mappings
+   */
+  private parseCsvContent(content: string, loader: VolumeLoader): ParsedRecord[] {
+    const records: ParsedRecord[] = [];
+    const csvOptions = loader.dataFormat.csvOptions || DEFAULT_CSV_OPTIONS;
+    const delimiter = csvOptions.delimiter || ',';
+    const hasHeader = csvOptions.hasHeader !== false;
+
+    const lines = content.trim().split('\n');
+    if (lines.length === 0) return records;
+
+    // Parse header row
+    const headerLine = lines[0];
+    const headers = this.parseCsvLine(headerLine, delimiter);
+
+    const startIndex = hasHeader ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = this.parseCsvLine(line, delimiter);
+      const rawData: Record<string, string> = {};
+
+      headers.forEach((header, index) => {
+        rawData[header] = values[index] || '';
+      });
+
+      try {
+        const mappedData = this.applyFieldMappings(rawData, loader);
+        records.push({
+          rowIndex: i + 1,
+          rawData,
+          mappedData,
+        });
+      } catch (err) {
+        records.push({
+          rowIndex: i + 1,
+          rawData,
+          error: err instanceof Error ? err.message : 'Mapping error',
+        });
+      }
+    }
+
+    return records;
+  }
+
+  /**
+   * Parse a single CSV line, handling quoted values
+   */
+  private parseCsvLine(line: string, delimiter: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
         } else {
-          run.status = 'COMPLETED';
+          inQuotes = !inQuotes;
+        }
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  /**
+   * Parse JSON content and apply field mappings
+   */
+  private parseJsonContent(content: string, loader: VolumeLoader): ParsedRecord[] {
+    const records: ParsedRecord[] = [];
+    const jsonOptions = loader.dataFormat.jsonOptions;
+
+    try {
+      let data = JSON.parse(content);
+
+      // Extract data from path if specified (e.g., "$.data" or "data.items")
+      if (jsonOptions?.dataPath) {
+        const pathParts = jsonOptions.dataPath.replace(/^\$\.?/, '').split('.');
+        for (const part of pathParts) {
+          if (part && data[part] !== undefined) {
+            data = data[part];
+          }
         }
       }
 
-      run.completedAt = new Date().toISOString();
-      run.durationMs = Math.floor(processingTime);
-
-      // Update loader stats
-      this.updateLoaderStats(loader, run);
-
-      // Update loader status based on run result
-      const runStatus = run.status as string;
-      if (runStatus === 'FAILED' || runStatus === 'PARTIAL') {
-        loader.status = 'ERROR';
-      } else {
-        loader.status = loader.enabled ? (loader.schedule?.enabled ? 'SCHEDULED' : 'IDLE') : 'DISABLED';
+      // Ensure data is an array
+      if (!Array.isArray(data)) {
+        data = [data];
       }
-      this.loaders.set(loader.id, loader);
 
-      this.logger.log(
-        `Loader ${loader.id} completed: ${run.recordsProcessed}/${run.recordsFound} records processed`
+      data.forEach((item: Record<string, unknown>, index: number) => {
+        const rawData: Record<string, string> = {};
+        Object.entries(item).forEach(([key, value]) => {
+          rawData[key] = String(value ?? '');
+        });
+
+        try {
+          const mappedData = this.applyFieldMappings(rawData, loader);
+          records.push({
+            rowIndex: index + 1,
+            rawData,
+            mappedData,
+          });
+        } catch (err) {
+          records.push({
+            rowIndex: index + 1,
+            rawData,
+            error: err instanceof Error ? err.message : 'Mapping error',
+          });
+        }
+      });
+    } catch (err) {
+      throw new Error(`Failed to parse JSON: ${err}`);
+    }
+
+    return records;
+  }
+
+  /**
+   * Apply field mappings to raw data to create task data
+   */
+  private applyFieldMappings(
+    rawData: Record<string, string>,
+    loader: VolumeLoader
+  ): TaskFromSource {
+    const metadata: Record<string, string> = {};
+    let externalId = '';
+    let workType = loader.defaults?.workType || 'GENERAL';
+    let title = '';
+    let description = '';
+    let priority = loader.defaults?.priority || 5;
+    let queue = loader.defaults?.queueId;
+    let skills = loader.defaults?.skills;
+
+    // Apply each field mapping
+    for (const mapping of loader.fieldMappings) {
+      let value = rawData[mapping.sourceField];
+
+      // Apply default if value is missing
+      if ((value === undefined || value === '') && mapping.defaultValue !== undefined) {
+        value = mapping.defaultValue;
+      }
+
+      // Check required fields
+      if ((value === undefined || value === '') && mapping.required) {
+        throw new Error(`Required field "${mapping.sourceField}" is missing`);
+      }
+
+      if (value === undefined || value === '') continue;
+
+      // Apply transformations
+      const transformedValue = this.applyTransformation(value, mapping.transform);
+
+      // Map to target field
+      switch (mapping.targetField) {
+        case 'externalId':
+          externalId = String(transformedValue);
+          break;
+        case 'workType':
+          workType = String(transformedValue);
+          break;
+        case 'title':
+          title = String(transformedValue);
+          break;
+        case 'description':
+          description = String(transformedValue);
+          break;
+        case 'priority':
+          priority = typeof transformedValue === 'number'
+            ? transformedValue
+            : parseInt(String(transformedValue), 10) || 5;
+          break;
+        case 'queue':
+        case 'queueId':
+          queue = String(transformedValue);
+          break;
+        case 'skills':
+          skills = Array.isArray(transformedValue)
+            ? transformedValue
+            : String(transformedValue).split(',').map(s => s.trim());
+          break;
+        case 'metadata':
+          // Add to metadata using source field name as key
+          metadata[mapping.sourceField] = String(value);
+          break;
+        case 'payloadUrl':
+          // This will be handled by template below
+          break;
+      }
+    }
+
+    // Also add all raw data to metadata for URL template resolution
+    Object.entries(rawData).forEach(([key, value]) => {
+      if (!metadata[key]) {
+        metadata[key] = value;
+      }
+    });
+
+    // Generate title if not mapped
+    if (!title) {
+      title = externalId ? `Task ${externalId}` : `Task ${Date.now()}`;
+    }
+
+    // Build the payload URL from template using ALL available data
+    const urlData = {
+      ...metadata,
+      externalId,
+      workType,
+      title,
+      priority: String(priority),
+      queue: queue || '',
+    };
+    const payloadUrl = this.buildUrlFromTemplate(
+      loader.defaults?.payloadUrlTemplate || '',
+      urlData
+    );
+
+    return {
+      externalId,
+      workType,
+      title,
+      description,
+      priority,
+      queue,
+      skills,
+      payloadUrl,
+      metadata,
+    };
+  }
+
+  /**
+   * Apply a transformation to a field value
+   * Transformations use the FieldTransformConfig structure with type and params
+   */
+  private applyTransformation(
+    value: string,
+    transform?: VolumeFieldMapping['transform']
+  ): string | number | string[] {
+    if (!transform) return value;
+
+    const { type, params } = transform;
+
+    switch (type) {
+      case 'uppercase':
+        return value.toUpperCase();
+      case 'lowercase':
+        return value.toLowerCase();
+      case 'trim':
+        return value.trim();
+      case 'number':
+        return parseFloat(value) || 0;
+      case 'date':
+        // Parse and format date
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? value : date.toISOString();
+      case 'regex_extract':
+        const pattern = params?.pattern as string;
+        if (pattern) {
+          const match = value.match(new RegExp(pattern));
+          return match ? match[1] || match[0] : value;
+        }
+        return value;
+      case 'template':
+        const template = params?.template as string;
+        if (template) {
+          return template.replace(/\{value\}/g, value);
+        }
+        return value;
+      case 'lookup':
+        const lookupTable = params?.lookupTable as Record<string, string>;
+        const defaultValue = params?.defaultValue as string;
+        if (lookupTable && lookupTable[value]) {
+          return lookupTable[value];
+        }
+        return defaultValue || value;
+      case 'split':
+        const delimiter = (params?.delimiter as string) || ',';
+        return value.split(delimiter).map(s => s.trim());
+      default:
+        return value;
+    }
+  }
+
+  /**
+   * Build a URL from a template using placeholder substitution
+   * Placeholders use {fieldName} syntax, e.g., https://example.com/order/{externalId}
+   */
+  private buildUrlFromTemplate(
+    template: string,
+    data: Record<string, string>
+  ): string {
+    if (!template) return '';
+
+    let url = template;
+
+    // Find all {placeholder} patterns
+    const placeholders = template.match(/\{([^}]+)\}/g) || [];
+
+    for (const placeholder of placeholders) {
+      const key = placeholder.slice(1, -1); // Remove braces
+
+      // Try different case variations
+      const value = data[key]
+        || data[key.toLowerCase()]
+        || data[key.toUpperCase()]
+        || data[this.toCamelCase(key)]
+        || data[this.toSnakeCase(key)]
+        || '';
+
+      // Replace placeholder with URL-encoded value
+      url = url.replace(placeholder, encodeURIComponent(value));
+    }
+
+    return url;
+  }
+
+  /**
+   * Convert string to camelCase
+   */
+  private toCamelCase(str: string): string {
+    return str.replace(/[-_](.)/g, (_, c) => c.toUpperCase());
+  }
+
+  /**
+   * Convert string to snake_case
+   */
+  private toSnakeCase(str: string): string {
+    return str.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
+  }
+
+  /**
+   * Create a task from a parsed record and add to the task pipeline
+   */
+  private createTaskFromRecord(
+    loader: VolumeLoader,
+    taskData: TaskFromSource,
+    rowIndex: number
+  ): void {
+    // If TaskSourceService is available, use it to add the task
+    if (this.taskSourceService) {
+      const pendingOrder: PendingOrder = {
+        rowIndex,
+        rawData: taskData.metadata || {},
+        taskData,
+        status: 'PENDING',
+        importedAt: new Date().toISOString(),
+      };
+
+      // Access the private pendingOrders array through the service
+      // This creates a pending order that TaskDistributor can pick up
+      this.addToPendingOrders(pendingOrder);
+
+      this.logger.debug(
+        `Created pending task from ${loader.name}: ${taskData.externalId} -> ${taskData.payloadUrl}`
       );
-    }, processingTime);
+    } else {
+      this.logger.warn('TaskSourceService not available - task not added to queue');
+    }
+  }
+
+  /**
+   * Add a pending order to the task source service's queue
+   */
+  private addToPendingOrders(order: PendingOrder): void {
+    if (this.taskSourceService) {
+      // Add source marker to metadata for tracking
+      if (order.taskData?.metadata) {
+        order.taskData.metadata['_source'] = 'volume-loader';
+      }
+      this.taskSourceService.addPendingOrder(order);
+    }
+  }
+
+  /**
+   * Archive a processed file to the archive directory
+   */
+  private archiveFile(filePath: string, archiveDirectory: string): void {
+    try {
+      if (!fs.existsSync(archiveDirectory)) {
+        fs.mkdirSync(archiveDirectory, { recursive: true });
+      }
+
+      const filename = path.basename(filePath);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const archiveName = `${timestamp}_${filename}`;
+      const archivePath = path.join(archiveDirectory, archiveName);
+
+      fs.renameSync(filePath, archivePath);
+      this.logger.log(`Archived file to: ${archivePath}`);
+    } catch (err) {
+      this.logger.error(`Failed to archive file ${filePath}: ${err}`);
+    }
   }
 
   private updateLoaderStats(loader: VolumeLoader, run: VolumeLoaderRun): void {
@@ -650,6 +1261,124 @@ export class VolumeLoaderService {
     });
 
     return { success: errors.length === 0, errors: errors.length > 0 ? errors : undefined };
+  }
+
+  // ==========================================================================
+  // DIRECT CSV UPLOAD (Unified Data Loading)
+  // ==========================================================================
+
+  /**
+   * Process CSV content uploaded directly through the API.
+   * Uses the loader's field mappings and defaults to create tasks.
+   *
+   * This method provides a unified approach to data loading, replacing
+   * the separate Task Sources feature with Volume Loader infrastructure.
+   *
+   * @param loaderId - The loader ID with configured field mappings
+   * @param csvContent - The CSV content as a string
+   * @param dryRun - If true, parse but don't create tasks
+   * @returns Processing result with counts and any errors
+   */
+  async processDirectCsvUpload(
+    loaderId: string,
+    csvContent: string,
+    dryRun = false
+  ): Promise<{
+    success: boolean;
+    recordsFound: number;
+    recordsProcessed: number;
+    recordsFailed: number;
+    recordsSkipped: number;
+    errors: Array<{ row: number; error: string }>;
+    samplePayloadUrls?: string[];
+    error?: string;
+  }> {
+    const loader = this.loaders.get(loaderId);
+    if (!loader) {
+      return {
+        success: false,
+        recordsFound: 0,
+        recordsProcessed: 0,
+        recordsFailed: 0,
+        recordsSkipped: 0,
+        errors: [],
+        error: 'Loader not found',
+      };
+    }
+
+    this.logger.log(
+      `Processing direct CSV upload for loader ${loaderId} (dryRun: ${dryRun})`
+    );
+
+    const result = {
+      success: true,
+      recordsFound: 0,
+      recordsProcessed: 0,
+      recordsFailed: 0,
+      recordsSkipped: 0,
+      errors: [] as Array<{ row: number; error: string }>,
+      samplePayloadUrls: [] as string[],
+    };
+
+    try {
+      // Parse CSV using the loader's configuration
+      const records = this.parseCsvContent(csvContent, loader);
+      result.recordsFound = records.length;
+
+      // Process each record
+      for (const record of records) {
+        if (record.error) {
+          result.recordsFailed++;
+          result.errors.push({ row: record.rowIndex, error: record.error });
+          continue;
+        }
+
+        if (!record.mappedData) {
+          result.recordsFailed++;
+          result.errors.push({ row: record.rowIndex, error: 'Failed to map data' });
+          continue;
+        }
+
+        // Check for duplicates
+        if (loader.processingOptions?.skipDuplicates && record.mappedData.externalId) {
+          if (this.processedExternalIds.has(record.mappedData.externalId)) {
+            result.recordsSkipped++;
+            continue;
+          }
+        }
+
+        // Collect sample URLs for preview (first 5)
+        if (result.samplePayloadUrls.length < 5 && record.mappedData.payloadUrl) {
+          result.samplePayloadUrls.push(record.mappedData.payloadUrl);
+        }
+
+        if (!dryRun) {
+          // Create task in the pipeline
+          this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+
+          // Track processed ID
+          if (record.mappedData.externalId) {
+            this.processedExternalIds.add(record.mappedData.externalId);
+          }
+        }
+
+        result.recordsProcessed++;
+      }
+
+      this.logger.log(
+        `Direct CSV upload complete: ${result.recordsProcessed} processed, ` +
+        `${result.recordsFailed} failed, ${result.recordsSkipped} skipped`
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error(`Failed to process direct CSV upload: ${error}`);
+      return {
+        ...result,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   // ==========================================================================

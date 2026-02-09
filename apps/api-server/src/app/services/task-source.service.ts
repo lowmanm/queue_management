@@ -442,6 +442,56 @@ export class TaskSourceService {
     return this.pendingOrders.some(o => o.status === 'PENDING');
   }
 
+  /**
+   * Add a pending order directly (used by VolumeLoaderService)
+   * This allows the unified data loader to inject tasks into the pipeline
+   */
+  addPendingOrder(order: PendingOrder): void {
+    // Ensure the order has PENDING status
+    order.status = 'PENDING';
+    order.importedAt = order.importedAt || new Date().toISOString();
+
+    // Add to the front of pending orders for immediate availability
+    this.pendingOrders.unshift(order);
+
+    const externalId = order.taskData?.externalId || `row-${order.rowIndex}`;
+    this.logger.log(
+      `Added pending order from volume loader: ${externalId} (URL: ${order.taskData?.payloadUrl})`
+    );
+  }
+
+  /**
+   * Add multiple pending orders at once (batch import)
+   */
+  addPendingOrders(orders: PendingOrder[]): number {
+    let added = 0;
+    for (const order of orders) {
+      if (order.status !== 'ERROR' && order.taskData) {
+        this.addPendingOrder(order);
+        added++;
+      }
+    }
+    this.logger.log(`Batch added ${added} pending orders from volume loader`);
+    return added;
+  }
+
+  /**
+   * Get the count of pending orders by source type
+   */
+  getPendingOrdersCount(): { csv: number; volumeLoader: number; total: number } {
+    const orders = this.pendingOrders.filter(o => o.status === 'PENDING');
+    const volumeLoaderOrders = orders.filter(o =>
+      o.taskData?.metadata?.['_source'] === 'volume-loader' ||
+      (o.taskData?.payloadUrl && !o.taskData.payloadUrl.includes('example.com'))
+    );
+
+    return {
+      csv: orders.length - volumeLoaderOrders.length,
+      volumeLoader: volumeLoaderOrders.length,
+      total: orders.length,
+    };
+  }
+
   private generateId(): string {
     return `src-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
