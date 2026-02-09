@@ -237,10 +237,10 @@
   </div>
 }
 
-<!-- Editor Modal -->
+<!-- Editor Modal with Wizard -->
 @if (showEditor()) {
   <div class="modal-overlay" (click)="closeEditor()">
-    <div class="modal large" (click)="$event.stopPropagation()">
+    <div class="modal wizard-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>{{ isEditMode() ? 'Edit' : 'New' }} Volume Loader</h2>
         <button class="btn-icon" (click)="closeEditor()">
@@ -251,345 +251,516 @@
         </button>
       </div>
 
-      <div class="modal-body">
-        <!-- Basic Info -->
-        <div class="form-section">
-          <h3>Basic Information</h3>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="name">Name *</label>
-              <input
-                type="text"
-                id="name"
-                [ngModel]="formData().name"
-                (ngModelChange)="updateFormField('name', $event)"
-                placeholder="e.g., Orders GCS Loader"
-              />
-            </div>
-            <div class="form-group">
-              <label for="type">Source Type *</label>
-              <select
-                id="type"
-                [ngModel]="formData().type"
-                (ngModelChange)="onTypeChange($event)"
-                [disabled]="isEditMode()"
-              >
-                @for (t of loaderTypes; track t.value) {
-                  <option [value]="t.value">{{ t.label }}</option>
-                }
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="description">Description</label>
-            <textarea
-              id="description"
-              [ngModel]="formData().description"
-              (ngModelChange)="updateFormField('description', $event)"
-              rows="2"
-              placeholder="Describe what this loader does..."
-            ></textarea>
-          </div>
-        </div>
-
-        <!-- Target Pipeline -->
-        <div class="form-section">
-          <h3>Target Pipeline</h3>
-          <p class="section-help">
-            Select which pipeline this loader will send data to. The pipeline's routing rules will determine
-            which queue tasks are placed in.
-          </p>
-          <div class="form-group">
-            <label for="pipelineId">Pipeline *</label>
-            <select
-              id="pipelineId"
-              [ngModel]="getFormPipelineId()"
-              (ngModelChange)="updatePipelineId($event)"
-            >
-              <option value="">-- Select a Pipeline --</option>
-              @for (pipeline of pipelines(); track pipeline.id) {
-                <option [value]="pipeline.id" [disabled]="!pipeline.enabled">
-                  {{ pipeline.name }}{{ !pipeline.enabled ? ' (disabled)' : '' }}
-                </option>
+      <!-- Wizard Stepper -->
+      <div class="wizard-stepper">
+        @for (step of wizardSteps; track step.step) {
+          <div
+            class="step"
+            [class.active]="currentStep() === step.step"
+            [class.completed]="isStepComplete(step.step) && currentStep() > step.step"
+            [class.clickable]="isEditMode() || step.step <= currentStep()"
+            (click)="(isEditMode() || step.step <= currentStep()) && goToStep(step.step)"
+          >
+            <div class="step-number">
+              @if (isStepComplete(step.step) && currentStep() > step.step) {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              } @else {
+                {{ step.step }}
               }
-            </select>
-          </div>
-          @if (pipelines().length === 0) {
-            <div class="no-pipelines-warning">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              <span>No pipelines configured. <a routerLink="/admin/pipelines">Create a pipeline</a> first.</span>
             </div>
-          }
-        </div>
+            <div class="step-info">
+              <span class="step-title">{{ step.title }}</span>
+              <span class="step-desc">{{ step.description }}</span>
+            </div>
+          </div>
+        }
+      </div>
 
-        <!-- Connection Config -->
-        <div class="form-section">
-          <h3>Connection Settings</h3>
-          @switch (formData().type) {
-            @case ('GCS') {
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Bucket Name *</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('bucket')"
-                    (ngModelChange)="updateConfigField('bucket', $event)"
-                    placeholder="my-bucket"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Project ID</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('projectId')"
-                    (ngModelChange)="updateConfigField('projectId', $event)"
-                    placeholder="my-project-id"
-                  />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Path Prefix</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('pathPrefix')"
-                    (ngModelChange)="updateConfigField('pathPrefix', $event)"
-                    placeholder="incoming/"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>File Pattern *</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('filePattern')"
-                    (ngModelChange)="updateConfigField('filePattern', $event)"
-                    placeholder="*.csv"
-                  />
-                </div>
-              </div>
-            }
-            @case ('S3') {
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Bucket Name *</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('bucket')"
-                    (ngModelChange)="updateConfigField('bucket', $event)"
-                    placeholder="my-bucket"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>Region *</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('region')"
-                    (ngModelChange)="updateConfigField('region', $event)"
-                    placeholder="us-east-1"
-                  />
-                </div>
-              </div>
-            }
-            @case ('HTTP') {
+      <div class="modal-body">
+        <!-- Step 1: Basic Info -->
+        @if (currentStep() === 1) {
+          <div class="form-section">
+            <h3>Basic Information</h3>
+            <p class="section-help">Enter a name and select the type of data source.</p>
+            <div class="form-row">
               <div class="form-group">
-                <label>URL *</label>
+                <label for="name">Name *</label>
                 <input
                   type="text"
-                  [ngModel]="getConfigValue('url')"
-                  (ngModelChange)="updateConfigField('url', $event)"
-                  placeholder="https://api.example.com/tasks"
+                  id="name"
+                  [ngModel]="formData().name"
+                  (ngModelChange)="updateFormField('name', $event)"
+                  placeholder="e.g., Orders GCS Loader"
                 />
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Method *</label>
-                  <select
-                    [ngModel]="getConfigValue('method')"
-                    (ngModelChange)="updateConfigField('method', $event)"
-                  >
-                    <option value="GET">GET</option>
-                    <option value="POST">POST</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Auth Type</label>
-                  <select
-                    [ngModel]="getConfigValue('authType')"
-                    (ngModelChange)="updateConfigField('authType', $event)"
-                  >
-                    <option value="none">None</option>
-                    <option value="basic">Basic Auth</option>
-                    <option value="bearer">Bearer Token</option>
-                    <option value="api_key">API Key</option>
-                  </select>
-                </div>
+              <div class="form-group">
+                <label for="type">Source Type *</label>
+                <select
+                  id="type"
+                  [ngModel]="formData().type"
+                  (ngModelChange)="onTypeChange($event)"
+                  [disabled]="isEditMode()"
+                >
+                  @for (t of loaderTypes; track t.value) {
+                    <option [value]="t.value">{{ t.label }}</option>
+                  }
+                </select>
               </div>
-            }
-            @case ('LOCAL') {
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Directory Path *</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('directory')"
-                    (ngModelChange)="updateConfigField('directory', $event)"
-                    placeholder="/tmp/incoming"
-                  />
-                </div>
-                <div class="form-group">
-                  <label>File Pattern *</label>
-                  <input
-                    type="text"
-                    [ngModel]="getConfigValue('filePattern')"
-                    (ngModelChange)="updateConfigField('filePattern', $event)"
-                    placeholder="*.csv"
-                  />
-                </div>
-              </div>
-            }
-          }
-
-          @if (isEditMode()) {
-            <button class="btn-secondary" (click)="testConnection()" [disabled]="isLoading()">
-              Test Connection
-            </button>
-            @if (testResult()) {
-              <div class="test-result" [class.success]="testResult()?.connectionSuccess" [class.error]="!testResult()?.connectionSuccess">
-                @if (testResult()?.connectionSuccess) {
-                  <span>Connection successful. Found {{ testResult()?.filesFound?.length || 0 }} files.</span>
-                } @else {
-                  <span>{{ testResult()?.connectionError }}</span>
-                }
-              </div>
-            }
-          }
-        </div>
-
-        <!-- Data Format -->
-        <div class="form-section">
-          <h3>Data Format</h3>
-          <div class="form-row">
+            </div>
             <div class="form-group">
-              <label>Format *</label>
+              <label for="description">Description</label>
+              <textarea
+                id="description"
+                [ngModel]="formData().description"
+                (ngModelChange)="updateFormField('description', $event)"
+                rows="2"
+                placeholder="Describe what this loader does..."
+              ></textarea>
+            </div>
+          </div>
+        }
+
+        <!-- Step 2: Target Pipeline -->
+        @if (currentStep() === 2) {
+          <div class="form-section">
+            <h3>Target Pipeline</h3>
+            <p class="section-help">
+              Select which pipeline this loader will send data to. The pipeline's routing rules will determine
+              which queue tasks are placed in.
+            </p>
+            <div class="form-group">
+              <label for="pipelineId">Pipeline</label>
               <select
-                [ngModel]="formData().dataFormat?.format"
-                (ngModelChange)="updateDataFormatField('format', $event)"
+                id="pipelineId"
+                [ngModel]="getFormPipelineId()"
+                (ngModelChange)="updatePipelineId($event)"
               >
-                @for (f of dataFormats; track f.value) {
-                  <option [value]="f.value">{{ f.label }}</option>
+                <option value="">-- Select a Pipeline --</option>
+                @for (pipeline of pipelines(); track pipeline.id) {
+                  <option [value]="pipeline.id" [disabled]="!pipeline.enabled">
+                    {{ pipeline.name }}{{ !pipeline.enabled ? ' (disabled)' : '' }}
+                  </option>
                 }
               </select>
             </div>
-            <div class="form-group">
-              <label>Encoding</label>
-              <input
-                type="text"
-                [ngModel]="formData().dataFormat?.encoding"
-                (ngModelChange)="updateDataFormatField('encoding', $event)"
-                placeholder="utf-8"
-              />
-            </div>
+            @if (pipelines().length === 0) {
+              <div class="no-pipelines-warning">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>No pipelines configured. <a routerLink="/admin/pipelines">Create a pipeline</a> first.</span>
+              </div>
+            }
           </div>
-        </div>
+        }
 
-        <!-- Field Mappings -->
-        <div class="form-section">
-          <div class="section-header">
-            <h3>Field Mappings</h3>
-            <button class="btn-secondary small" (click)="addFieldMapping()">+ Add</button>
+        <!-- Step 3: Connection Settings -->
+        @if (currentStep() === 3) {
+          <div class="form-section">
+            <h3>Connection Settings</h3>
+            <p class="section-help">Configure connection details for the {{ formData().type }} source.</p>
+            @switch (formData().type) {
+              @case ('GCS') {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Bucket Name *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('bucket')"
+                      (ngModelChange)="updateConfigField('bucket', $event)"
+                      placeholder="my-bucket"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Path Prefix</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('pathPrefix')"
+                      (ngModelChange)="updateConfigField('pathPrefix', $event)"
+                      placeholder="incoming/"
+                    />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>File Pattern *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('filePattern')"
+                      (ngModelChange)="updateConfigField('filePattern', $event)"
+                      placeholder="*.csv"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Project ID</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('projectId')"
+                      (ngModelChange)="updateConfigField('projectId', $event)"
+                      placeholder="my-project"
+                    />
+                  </div>
+                </div>
+              }
+              @case ('S3') {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Bucket Name *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('bucket')"
+                      (ngModelChange)="updateConfigField('bucket', $event)"
+                      placeholder="my-s3-bucket"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Region</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('region')"
+                      (ngModelChange)="updateConfigField('region', $event)"
+                      placeholder="us-east-1"
+                    />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Path Prefix</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('pathPrefix')"
+                      (ngModelChange)="updateConfigField('pathPrefix', $event)"
+                      placeholder="incoming/"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>File Pattern *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('filePattern')"
+                      (ngModelChange)="updateConfigField('filePattern', $event)"
+                      placeholder="*.csv"
+                    />
+                  </div>
+                </div>
+              }
+              @case ('HTTP') {
+                <div class="form-group">
+                  <label>URL *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('url')"
+                    (ngModelChange)="updateConfigField('url', $event)"
+                    placeholder="https://api.example.com/data"
+                  />
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Method</label>
+                    <select
+                      [ngModel]="getConfigValue('method')"
+                      (ngModelChange)="updateConfigField('method', $event)"
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Auth Type</label>
+                    <select
+                      [ngModel]="getConfigValue('authType')"
+                      (ngModelChange)="updateConfigField('authType', $event)"
+                    >
+                      <option value="none">None</option>
+                      <option value="basic">Basic Auth</option>
+                      <option value="bearer">Bearer Token</option>
+                      <option value="api_key">API Key</option>
+                    </select>
+                  </div>
+                </div>
+              }
+              @case ('LOCAL') {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Directory Path *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('directory')"
+                      (ngModelChange)="updateConfigField('directory', $event)"
+                      placeholder="/tmp/incoming"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>File Pattern *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('filePattern')"
+                      (ngModelChange)="updateConfigField('filePattern', $event)"
+                      placeholder="*.csv"
+                    />
+                  </div>
+                </div>
+              }
+            }
+            @if (isEditMode()) {
+              <button class="btn-secondary" (click)="testConnection()" [disabled]="isLoading()">
+                Test Connection
+              </button>
+              @if (testResult()) {
+                <div class="test-result" [class.success]="testResult()?.connectionSuccess" [class.error]="!testResult()?.connectionSuccess">
+                  @if (testResult()?.connectionSuccess) {
+                    <span>Connection successful. Found {{ testResult()?.filesFound?.length || 0 }} files.</span>
+                  } @else {
+                    <span>{{ testResult()?.connectionError }}</span>
+                  }
+                </div>
+              }
+            }
           </div>
-          <div class="mappings-table">
-            <div class="mapping-header">
-              <span>Source Field</span>
-              <span>Target Field</span>
-              <span>Required</span>
-              <span></span>
-            </div>
-            @for (mapping of formData().fieldMappings; track $index) {
-              <div class="mapping-row">
-                <input
-                  type="text"
-                  [ngModel]="mapping.sourceField"
-                  (ngModelChange)="updateFieldMapping($index, 'sourceField', $event)"
-                  placeholder="column_name"
-                />
+        }
+
+        <!-- Step 4: Data Format -->
+        @if (currentStep() === 4) {
+          <div class="form-section">
+            <h3>Data Format</h3>
+            <p class="section-help">Configure how to parse the data files.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Format *</label>
                 <select
-                  [ngModel]="mapping.targetField"
-                  (ngModelChange)="updateFieldMapping($index, 'targetField', $event)"
+                  [ngModel]="formData().dataFormat?.format"
+                  (ngModelChange)="updateDataFormatField('format', $event)"
                 >
-                  @for (f of targetFields; track f.value) {
+                  @for (f of dataFormats; track f.value) {
                     <option [value]="f.value">{{ f.label }}</option>
                   }
                 </select>
+              </div>
+              <div class="form-group">
+                <label>Encoding</label>
                 <input
-                  type="checkbox"
-                  [ngModel]="mapping.required"
-                  (ngModelChange)="updateFieldMapping($index, 'required', $event)"
+                  type="text"
+                  [ngModel]="formData().dataFormat?.encoding"
+                  (ngModelChange)="updateDataFormatField('encoding', $event)"
+                  placeholder="utf-8"
                 />
-                <button class="btn-icon danger small" (click)="removeFieldMapping($index)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+              </div>
+            </div>
+            @if (formData().dataFormat?.format === 'CSV') {
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Delimiter</label>
+                  <select
+                    [ngModel]="getCsvOptionValue('delimiter')"
+                    (ngModelChange)="updateCsvOption('delimiter', $event)"
+                  >
+                    @for (d of delimiterOptions; track d.value) {
+                      <option [value]="d.value">{{ d.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Quote Character</label>
+                  <select
+                    [ngModel]="getCsvOptionValue('quoteChar')"
+                    (ngModelChange)="updateCsvOption('quoteChar', $event)"
+                  >
+                    <option value="&quot;">" (Double Quote)</option>
+                    <option value="'">' (Single Quote)</option>
+                    <option value="">None</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-checkboxes">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [ngModel]="getCsvOptionValue('hasHeader')"
+                    (ngModelChange)="updateCsvOption('hasHeader', $event)"
+                  />
+                  <span>First row contains headers</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [ngModel]="getCsvOptionValue('trimWhitespace')"
+                    (ngModelChange)="updateCsvOption('trimWhitespace', $event)"
+                  />
+                  <span>Trim whitespace</span>
+                </label>
               </div>
             }
           </div>
-        </div>
+        }
 
-        <!-- Processing Options -->
-        <div class="form-section">
-          <h3>Processing Options</h3>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Batch Size</label>
-              <input
-                type="number"
-                [ngModel]="formData().processingOptions?.batchSize"
-                (ngModelChange)="updateProcessingOption('batchSize', $event)"
-                min="1"
-              />
+        <!-- Step 5: Field Mappings -->
+        @if (currentStep() === 5) {
+          <div class="form-section">
+            <div class="section-header">
+              <h3>Field Mappings</h3>
+              <button class="btn-secondary small" (click)="addFieldMapping()">+ Add</button>
+            </div>
+            <p class="section-help">
+              Map source columns to task fields. Use "Custom Field" to add custom metadata.
+            </p>
+            <div class="mappings-table">
+              <div class="mapping-header">
+                <span>Source Field</span>
+                <span>Target Field</span>
+                <span>Custom Name</span>
+                <span>Required</span>
+                <span></span>
+              </div>
+              @for (mapping of formData().fieldMappings; track $index) {
+                <div class="mapping-row" [class.has-custom]="mapping.targetField === 'metadata'">
+                  <input
+                    type="text"
+                    [ngModel]="mapping.sourceField"
+                    (ngModelChange)="updateFieldMapping($index, 'sourceField', $event)"
+                    placeholder="column_name"
+                  />
+                  <select
+                    [ngModel]="mapping.targetField"
+                    (ngModelChange)="updateFieldMapping($index, 'targetField', $event)"
+                  >
+                    @for (f of targetFields; track f.value) {
+                      <option [value]="f.value">{{ f.label }}</option>
+                    }
+                  </select>
+                  @if (mapping.targetField === 'metadata') {
+                    <input
+                      type="text"
+                      [ngModel]="mapping.customField"
+                      (ngModelChange)="updateFieldMapping($index, 'customField', $event)"
+                      placeholder="field_name"
+                      class="custom-field-input"
+                    />
+                  } @else {
+                    <span class="custom-field-placeholder">-</span>
+                  }
+                  <input
+                    type="checkbox"
+                    [ngModel]="mapping.required"
+                    (ngModelChange)="updateFieldMapping($index, 'required', $event)"
+                  />
+                  <button class="btn-icon danger small" (click)="removeFieldMapping($index)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+            <div class="mapping-hint">
+              <strong>Tip:</strong> Add custom fields using "Custom Field" target to store additional data like
+              <code>client</code>, <code>department</code>, <code>region</code>, etc.
+            </div>
+          </div>
+        }
+
+        <!-- Step 6: Processing Options -->
+        @if (currentStep() === 6) {
+          <div class="form-section">
+            <h3>Processing Options</h3>
+            <p class="section-help">Configure how records are processed and errors are handled.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Batch Size</label>
+                <input
+                  type="number"
+                  [ngModel]="formData().processingOptions?.batchSize"
+                  (ngModelChange)="updateProcessingOption('batchSize', $event)"
+                  min="1"
+                />
+              </div>
+              <div class="form-group">
+                <label>Max Records (0=unlimited)</label>
+                <input
+                  type="number"
+                  [ngModel]="formData().processingOptions?.maxRecords"
+                  (ngModelChange)="updateProcessingOption('maxRecords', $event)"
+                  min="0"
+                />
+              </div>
+            </div>
+            <div class="form-checkboxes">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [ngModel]="formData().processingOptions?.skipDuplicates"
+                  (ngModelChange)="updateProcessingOption('skipDuplicates', $event)"
+                />
+                <span>Skip Duplicate External IDs</span>
+              </label>
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [ngModel]="formData().processingOptions?.continueOnError"
+                  (ngModelChange)="updateProcessingOption('continueOnError', $event)"
+                />
+                <span>Continue on Error</span>
+              </label>
             </div>
             <div class="form-group">
-              <label>Max Records (0=unlimited)</label>
+              <label>Error Threshold (%)</label>
               <input
                 type="number"
-                [ngModel]="formData().processingOptions?.maxRecords"
-                (ngModelChange)="updateProcessingOption('maxRecords', $event)"
+                [ngModel]="formData().processingOptions?.errorThreshold"
+                (ngModelChange)="updateProcessingOption('errorThreshold', $event)"
                 min="0"
+                max="100"
+                placeholder="50"
               />
+              <span class="field-hint">Stop processing if error rate exceeds this percentage</span>
             </div>
           </div>
-          <div class="form-checkboxes">
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                [ngModel]="formData().processingOptions?.skipDuplicates"
-                (ngModelChange)="updateProcessingOption('skipDuplicates', $event)"
-              />
-              <span>Skip Duplicates</span>
-            </label>
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                [ngModel]="formData().processingOptions?.continueOnError"
-                (ngModelChange)="updateProcessingOption('continueOnError', $event)"
-              />
-              <span>Continue on Error</span>
-            </label>
-          </div>
-        </div>
+        }
+
+        <!-- Error/Success Messages -->
+        @if (errorMessage()) {
+          <div class="message error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="message success">{{ successMessage() }}</div>
+        }
       </div>
 
-      <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
-        <button class="btn-primary" (click)="saveLoader()" [disabled]="isLoading()">
-          {{ isEditMode() ? 'Update' : 'Create' }} Loader
-        </button>
+      <!-- Wizard Footer -->
+      <div class="modal-footer wizard-footer">
+        <div class="wizard-nav-left">
+          @if (currentStep() > 1) {
+            <button class="btn-secondary" (click)="prevStep()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              Back
+            </button>
+          }
+        </div>
+        <div class="wizard-nav-right">
+          @if (currentStep() < wizardSteps.length) {
+            <button class="btn-primary" (click)="nextStep()">
+              Next
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          } @else {
+            <button class="btn-primary" (click)="saveLoader()" [disabled]="isLoading()">
+              @if (isLoading()) {
+                Saving...
+              } @else {
+                {{ isEditMode() ? 'Save Changes' : 'Create Loader' }}
+              }
+            </button>
+          }
+          <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>

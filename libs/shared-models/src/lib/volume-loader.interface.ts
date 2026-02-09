@@ -264,6 +264,8 @@ export interface VolumeFieldMapping {
   sourceField: string;
   /** Target field on task */
   targetField: VolumeTaskField;
+  /** Custom metadata field name (when targetField is 'metadata') */
+  customField?: string;
   /** Transformation to apply */
   transform?: FieldTransformConfig;
   /** Default value if source is empty */
