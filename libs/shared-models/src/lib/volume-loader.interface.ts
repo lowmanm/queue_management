@@ -49,6 +49,9 @@ export interface VolumeLoader {
   /** Statistics */
   stats: VolumeLoaderStats;
 
+  /** Persisted errors for debugging failed uploads */
+  persistedErrors?: PersistedUploadError[];
+
   /** When this loader was created */
   createdAt: string;
 
@@ -257,27 +260,56 @@ export interface JsonFormatOptions {
 }
 
 /**
- * Field mapping from source to task
+ * Field mapping from source to pipeline schema
+ *
+ * Dynamic mappings: Source fields map to pipeline-defined fields (not fixed system fields)
  */
 export interface VolumeFieldMapping {
   /** Field name/path in source data */
   sourceField: string;
-  /** Target field on task */
-  targetField: VolumeTaskField;
-  /** Custom metadata field name (when targetField is 'metadata') */
-  customField?: string;
+
+  /**
+   * Target field name in the pipeline's schema
+   * This is now dynamic - references PipelineFieldDefinition.name
+   */
+  targetField: string;
+
+  /** Whether this field is the primary ID (unique identifier) */
+  isPrimaryId: boolean;
+
   /** Transformation to apply */
   transform?: FieldTransformConfig;
+
   /** Default value if source is empty */
   defaultValue?: string;
+
   /** Whether this field is required */
   required: boolean;
+
   /** Validation regex pattern */
   validationPattern?: string;
+
+  /** Detected data type from sample analysis */
+  detectedType?: DetectedFieldType;
 }
 
 /**
- * Task fields that can be populated from volume data
+ * Detected field types from sample file analysis
+ */
+export type DetectedFieldType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'email'
+  | 'url'
+  | 'phone'
+  | 'currency'
+  | 'empty';
+
+/**
+ * @deprecated Use dynamic field mappings instead
+ * Kept for backwards compatibility during migration
  */
 export type VolumeTaskField =
   | 'externalId'
@@ -572,3 +604,251 @@ export const DEFAULT_JSON_OPTIONS: JsonFormatOptions = {
   dataPath: '$',
   linesFormat: false,
 };
+
+// =============================================================================
+// SAMPLE FILE PARSING & SCHEMA DETECTION
+// =============================================================================
+
+/**
+ * Request to parse a sample file and detect schema
+ */
+export interface ParseSampleFileRequest {
+  /** File content as base64 or text */
+  content: string;
+
+  /** File name (used to detect format) */
+  fileName: string;
+
+  /** Override file format detection */
+  format?: 'CSV' | 'JSON' | 'JSONL';
+
+  /** CSV options (if format is CSV) */
+  csvOptions?: Partial<CsvFormatOptions>;
+
+  /** JSON options (if format is JSON) */
+  jsonOptions?: Partial<JsonFormatOptions>;
+
+  /** Maximum rows to parse for schema detection */
+  maxRows?: number;
+}
+
+/**
+ * Result of sample file parsing
+ */
+export interface ParseSampleFileResult {
+  /** Whether parsing was successful */
+  success: boolean;
+
+  /** Error message if parsing failed */
+  error?: string;
+
+  /** Detailed parsing errors */
+  parseErrors?: SampleFileParseError[];
+
+  /** Detected file format */
+  detectedFormat?: 'CSV' | 'JSON' | 'JSONL';
+
+  /** Detected fields from the file */
+  detectedFields: DetectedField[];
+
+  /** Sample data rows (for preview) */
+  sampleData: Record<string, unknown>[];
+
+  /** Total rows in the sample */
+  totalRows: number;
+
+  /** Rows that failed to parse */
+  failedRows: number;
+
+  /** Suggested primary ID field (if detected) */
+  suggestedPrimaryIdField?: string;
+
+  /** File encoding detected */
+  detectedEncoding?: string;
+
+  /** CSV delimiter detected (if applicable) */
+  detectedDelimiter?: string;
+}
+
+/**
+ * A detected field from sample file analysis
+ */
+export interface DetectedField {
+  /** Field name (column header or JSON key) */
+  name: string;
+
+  /** Detected data type based on values */
+  detectedType: DetectedFieldType;
+
+  /** Confidence score for type detection (0-1) */
+  typeConfidence: number;
+
+  /** Whether all rows have a value for this field */
+  isRequired: boolean;
+
+  /** Unique value count (for detecting potential IDs) */
+  uniqueValueCount: number;
+
+  /** Total non-empty value count */
+  nonEmptyCount: number;
+
+  /** Sample values (first few unique values) */
+  sampleValues: string[];
+
+  /** Whether this looks like a unique ID field */
+  looksLikeId: boolean;
+
+  /** Suggested display label */
+  suggestedLabel: string;
+
+  /** Min/max for numeric fields */
+  numericRange?: { min: number; max: number };
+
+  /** Date format detected (for date fields) */
+  dateFormat?: string;
+}
+
+/**
+ * Parsing error for a specific row/field
+ */
+export interface SampleFileParseError {
+  /** Row number (1-indexed) */
+  rowNumber: number;
+
+  /** Field name that caused the error */
+  field?: string;
+
+  /** Error message */
+  message: string;
+
+  /** The problematic raw value */
+  rawValue?: string;
+
+  /** Error type */
+  errorType: 'parse_error' | 'encoding_error' | 'format_error' | 'validation_error';
+}
+
+/**
+ * Auto-generated field mappings from sample file
+ */
+export interface AutoGeneratedMappings {
+  /** Generated field mappings */
+  mappings: VolumeFieldMapping[];
+
+  /** Suggested primary ID field */
+  suggestedPrimaryIdField: string;
+
+  /** Confidence score for the mapping (0-1) */
+  confidence: number;
+
+  /** Warnings about the auto-mapping */
+  warnings: string[];
+}
+
+/**
+ * Request to validate a file against existing schema
+ */
+export interface ValidateFileRequest {
+  /** File content */
+  content: string;
+
+  /** File name */
+  fileName: string;
+
+  /** Pipeline ID to validate against */
+  pipelineId: string;
+
+  /** Loader ID (if validating for existing loader) */
+  loaderId?: string;
+}
+
+/**
+ * Result of file validation against schema
+ */
+export interface ValidateFileResult {
+  /** Whether file is valid */
+  isValid: boolean;
+
+  /** Validation errors */
+  errors: FileValidationError[];
+
+  /** Validation warnings */
+  warnings: string[];
+
+  /** Fields in file but not in schema */
+  extraFields: string[];
+
+  /** Fields in schema but not in file */
+  missingFields: string[];
+
+  /** Sample of valid rows */
+  validRowCount: number;
+
+  /** Sample of invalid rows */
+  invalidRowCount: number;
+}
+
+/**
+ * File validation error
+ */
+export interface FileValidationError {
+  /** Error type */
+  type: 'missing_required_field' | 'type_mismatch' | 'validation_failed' | 'duplicate_id' | 'schema_mismatch';
+
+  /** Field that caused the error */
+  field: string;
+
+  /** Row number(s) affected */
+  rowNumbers?: number[];
+
+  /** Error message */
+  message: string;
+
+  /** Expected value/type */
+  expected?: string;
+
+  /** Actual value/type found */
+  actual?: string;
+}
+
+/**
+ * Persisted error record for failed uploads
+ * Stored with the volume loader for debugging
+ */
+export interface PersistedUploadError {
+  /** Unique error ID */
+  id: string;
+
+  /** Loader ID */
+  loaderId: string;
+
+  /** When the error occurred */
+  timestamp: string;
+
+  /** Original file name */
+  fileName: string;
+
+  /** Error category */
+  category: 'parse_error' | 'validation_error' | 'schema_error' | 'connection_error' | 'processing_error';
+
+  /** Error summary */
+  summary: string;
+
+  /** Detailed error information */
+  details: string;
+
+  /** Number of rows affected */
+  rowsAffected?: number;
+
+  /** Sample of failed data (for debugging) */
+  sampleFailedData?: Record<string, unknown>[];
+
+  /** Whether this error has been acknowledged/resolved */
+  acknowledged: boolean;
+
+  /** User who acknowledged (if applicable) */
+  acknowledgedBy?: string;
+
+  /** When acknowledged */
+  acknowledgedAt?: string;
+}

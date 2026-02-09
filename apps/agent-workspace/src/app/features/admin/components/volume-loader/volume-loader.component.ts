@@ -14,17 +14,18 @@ import {
   CreateVolumeLoaderRequest,
   UpdateVolumeLoaderRequest,
   VolumeFieldMapping,
-  VolumeTaskField,
   ProcessingOptions,
-  DataFormatConfig,
-  VolumeLoaderSchedule,
   DEFAULT_PROCESSING_OPTIONS,
   DEFAULT_CSV_OPTIONS,
+  CsvFormatOptions,
   GcsConfig,
   S3Config,
   HttpConfig,
   LocalConfig,
   Pipeline,
+  DetectedField,
+  ParseSampleFileResult,
+  DetectedFieldType,
 } from '@nexus-queue/shared-models';
 
 @Component({
@@ -61,9 +62,18 @@ export class VolumeLoaderComponent implements OnInit {
     { step: 2, title: 'Pipeline', description: 'Select target pipeline' },
     { step: 3, title: 'Connection', description: 'Configure source' },
     { step: 4, title: 'Data Format', description: 'CSV/JSON settings' },
-    { step: 5, title: 'Field Mappings', description: 'Map columns to fields' },
-    { step: 6, title: 'Options', description: 'Processing settings' },
+    { step: 5, title: 'Sample File', description: 'Upload to detect fields' },
+    { step: 6, title: 'Field Mappings', description: 'Select primary ID' },
+    { step: 7, title: 'Options', description: 'Processing settings' },
   ];
+
+  // Sample file parsing state
+  sampleFileContent = signal('');
+  sampleFileName = signal('');
+  sampleParseResult = signal<ParseSampleFileResult | null>(null);
+  detectedFields = signal<DetectedField[]>([]);
+  selectedPrimaryIdField = signal<string>('');
+  isParsingSample = signal(false);
 
   // Form state
   editingLoader = signal<VolumeLoader | null>(null);
@@ -90,6 +100,7 @@ export class VolumeLoaderComponent implements OnInit {
   dryRunMode = signal(true); // Preview mode by default
 
   @ViewChild('csvFileInput') csvFileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('sampleFileInput') sampleFileInput!: ElementRef<HTMLInputElement>;
 
   // Available options
   readonly loaderTypes: { value: VolumeLoaderType; label: string; icon: string }[] = [
@@ -100,18 +111,18 @@ export class VolumeLoaderComponent implements OnInit {
     { value: 'LOCAL', label: 'Local File System', icon: 'folder_open' },
   ];
 
-  readonly targetFields: { value: VolumeTaskField; label: string }[] = [
-    { value: 'externalId', label: 'External ID' },
-    { value: 'workType', label: 'Work Type' },
-    { value: 'title', label: 'Title' },
-    { value: 'description', label: 'Description' },
-    { value: 'priority', label: 'Priority' },
-    { value: 'queue', label: 'Queue' },
-    { value: 'queueId', label: 'Queue ID' },
-    { value: 'skills', label: 'Skills' },
-    { value: 'payloadUrl', label: 'Payload URL' },
-    { value: 'metadata', label: 'Custom Field' },
-  ];
+  // Field type display labels
+  readonly fieldTypeLabels: Record<DetectedFieldType, string> = {
+    string: 'Text',
+    number: 'Number',
+    boolean: 'Yes/No',
+    date: 'Date',
+    email: 'Email',
+    url: 'URL',
+    phone: 'Phone',
+    currency: 'Currency',
+    empty: 'Empty',
+  };
 
   readonly dataFormats: { value: string; label: string }[] = [
     { value: 'CSV', label: 'CSV' },
@@ -200,13 +211,15 @@ export class VolumeLoaderComponent implements OnInit {
         csvOptions: DEFAULT_CSV_OPTIONS,
         encoding: 'utf-8',
       },
-      fieldMappings: [
-        { sourceField: '', targetField: 'externalId', required: true },
-        { sourceField: '', targetField: 'workType', required: true },
-        { sourceField: '', targetField: 'title', required: true },
-      ],
+      fieldMappings: [], // Will be auto-generated from sample file
       processingOptions: DEFAULT_PROCESSING_OPTIONS,
     });
+    // Reset sample file state
+    this.sampleFileContent.set('');
+    this.sampleFileName.set('');
+    this.sampleParseResult.set(null);
+    this.detectedFields.set([]);
+    this.selectedPrimaryIdField.set('');
     this.showEditor.set(true);
     this.clearMessages();
   }
@@ -235,6 +248,12 @@ export class VolumeLoaderComponent implements OnInit {
     this.editingLoader.set(null);
     this.testResult.set(null);
     this.currentStep.set(1);
+    // Reset sample file state
+    this.sampleFileContent.set('');
+    this.sampleFileName.set('');
+    this.sampleParseResult.set(null);
+    this.detectedFields.set([]);
+    this.selectedPrimaryIdField.set('');
     this.clearMessages();
   }
 
@@ -312,22 +331,33 @@ export class VolumeLoaderComponent implements OnInit {
       case 4: // Data Format
         return true;
 
-      case 5: // Field Mappings
-        if (!data.fieldMappings || data.fieldMappings.length === 0) {
-          this.errorMessage.set('At least one field mapping is required');
+      case 5: // Sample File
+        // Check if sample was uploaded and parsed successfully
+        const parseResult = this.sampleParseResult();
+        if (!parseResult || !parseResult.success) {
+          this.errorMessage.set('Please upload a valid sample file to detect fields');
           return false;
         }
-        // Check required mappings have source fields
-        const hasExternalId = data.fieldMappings.some(
-          (m) => m.targetField === 'externalId' && m.sourceField?.trim()
-        );
-        if (!hasExternalId) {
-          this.errorMessage.set('External ID mapping is required');
+        if (this.detectedFields().length === 0) {
+          this.errorMessage.set('No fields were detected. Please check the file format.');
           return false;
         }
         return true;
 
-      case 6: // Options
+      case 6: // Field Mappings
+        if (!data.fieldMappings || data.fieldMappings.length === 0) {
+          this.errorMessage.set('At least one field mapping is required');
+          return false;
+        }
+        // Check that a primary ID field is selected
+        const hasPrimaryId = data.fieldMappings.some((m) => m.isPrimaryId);
+        if (!hasPrimaryId) {
+          this.errorMessage.set('Please select a primary ID field (unique identifier)');
+          return false;
+        }
+        return true;
+
+      case 7: // Options
         return true;
 
       default:
@@ -351,9 +381,12 @@ export class VolumeLoaderComponent implements OnInit {
         return true;
       case 4:
         return true;
-      case 5:
-        return (data.fieldMappings?.length || 0) > 0;
-      case 6:
+      case 5: // Sample File
+        const parseResult = this.sampleParseResult();
+        return !!parseResult?.success && this.detectedFields().length > 0;
+      case 6: // Field Mappings
+        return (data.fieldMappings?.length || 0) > 0 && data.fieldMappings?.some((m) => m.isPrimaryId) === true;
+      case 7:
         return true;
       default:
         return false;
@@ -539,7 +572,7 @@ export class VolumeLoaderComponent implements OnInit {
 
   addFieldMapping(): void {
     const mappings = this.formData().fieldMappings || [];
-    mappings.push({ sourceField: '', targetField: 'metadata', required: false });
+    mappings.push({ sourceField: '', targetField: '', isPrimaryId: false, required: false });
     this.updateFormField('fieldMappings', [...mappings]);
   }
 
@@ -611,6 +644,596 @@ export class VolumeLoaderComponent implements OnInit {
         csvOptions: { ...csvOptions },
       });
     }
+  }
+
+  // ============ Sample File Parsing ============
+
+  /**
+   * Handle sample file selection for schema detection
+   */
+  onSampleFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    this.sampleFileName.set(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      this.sampleFileContent.set(content);
+      // Auto-parse on file load
+      this.parseSampleFile();
+    };
+    reader.onerror = () => {
+      this.errorMessage.set('Failed to read sample file');
+    };
+    reader.readAsText(file);
+
+    // Clear the input so the same file can be selected again
+    input.value = '';
+  }
+
+  /**
+   * Trigger sample file input click
+   */
+  triggerSampleFileInput(): void {
+    this.sampleFileInput?.nativeElement?.click();
+  }
+
+  /**
+   * Parse sample file content and detect fields
+   */
+  parseSampleFile(): void {
+    const content = this.sampleFileContent();
+    if (!content.trim()) {
+      this.errorMessage.set('Please provide sample file content');
+      return;
+    }
+
+    this.isParsingSample.set(true);
+    this.clearMessages();
+
+    // Detect format from file name or content
+    const fileName = this.sampleFileName() || 'sample.csv';
+    const dataFormat = this.formData().dataFormat;
+    const format = dataFormat?.format || this.detectFormatFromFileName(fileName);
+
+    // Parse based on format
+    try {
+      let result: ParseSampleFileResult;
+
+      if (format === 'CSV') {
+        result = this.parseCsvContent(content, dataFormat?.csvOptions);
+      } else if (format === 'JSON' || format === 'JSONL') {
+        result = this.parseJsonContent(content, format === 'JSONL');
+      } else {
+        result = {
+          success: false,
+          error: `Unsupported format: ${format}`,
+          detectedFields: [],
+          sampleData: [],
+          totalRows: 0,
+          failedRows: 0,
+        };
+      }
+
+      this.sampleParseResult.set(result);
+
+      if (result.success) {
+        this.detectedFields.set(result.detectedFields);
+        // Auto-select suggested primary ID field
+        if (result.suggestedPrimaryIdField) {
+          this.selectedPrimaryIdField.set(result.suggestedPrimaryIdField);
+        }
+        // Auto-generate field mappings
+        this.generateFieldMappingsFromDetectedFields(result.detectedFields, result.suggestedPrimaryIdField);
+        this.successMessage.set(
+          `Detected ${result.detectedFields.length} fields from ${result.totalRows} rows`
+        );
+      } else {
+        this.errorMessage.set(result.error || 'Failed to parse sample file');
+      }
+    } catch (err: any) {
+      this.sampleParseResult.set({
+        success: false,
+        error: err.message || 'Failed to parse sample file',
+        detectedFields: [],
+        sampleData: [],
+        totalRows: 0,
+        failedRows: 0,
+      });
+      this.errorMessage.set(err.message || 'Failed to parse sample file');
+    }
+
+    this.isParsingSample.set(false);
+  }
+
+  /**
+   * Detect file format from file name
+   */
+  private detectFormatFromFileName(fileName: string): 'CSV' | 'JSON' | 'JSONL' {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.json')) return 'JSON';
+    if (lower.endsWith('.jsonl') || lower.endsWith('.ndjson')) return 'JSONL';
+    return 'CSV';
+  }
+
+  /**
+   * Parse CSV content and detect field types
+   */
+  private parseCsvContent(
+    content: string,
+    options?: Partial<CsvFormatOptions>
+  ): ParseSampleFileResult {
+    const delimiter = options?.delimiter || ',';
+    const hasHeader = options?.hasHeader !== false;
+    const skipRows = options?.skipRows || 0;
+
+    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length === 0) {
+      return {
+        success: false,
+        error: 'File is empty',
+        detectedFields: [],
+        sampleData: [],
+        totalRows: 0,
+        failedRows: 0,
+      };
+    }
+
+    // Skip initial rows if configured
+    const dataLines = lines.slice(skipRows);
+    if (dataLines.length === 0) {
+      return {
+        success: false,
+        error: 'No data after skipping rows',
+        detectedFields: [],
+        sampleData: [],
+        totalRows: 0,
+        failedRows: 0,
+      };
+    }
+
+    // Parse headers
+    const headerLine = dataLines[0];
+    const headers = this.parseCsvLine(headerLine, delimiter);
+
+    // If no header, generate column names
+    const columnNames = hasHeader
+      ? headers
+      : headers.map((_, i) => `column_${i + 1}`);
+
+    // Parse data rows
+    const startRow = hasHeader ? 1 : 0;
+    const dataRows = dataLines.slice(startRow);
+    const maxRowsToAnalyze = Math.min(dataRows.length, 100); // Analyze up to 100 rows
+
+    const sampleData: Record<string, unknown>[] = [];
+    const fieldValues: Map<string, string[]> = new Map();
+    let failedRows = 0;
+
+    // Initialize field values map
+    columnNames.forEach((col) => fieldValues.set(col, []));
+
+    for (let i = 0; i < maxRowsToAnalyze; i++) {
+      try {
+        const values = this.parseCsvLine(dataRows[i], delimiter);
+        const row: Record<string, unknown> = {};
+
+        columnNames.forEach((col, idx) => {
+          const value = values[idx] || '';
+          row[col] = value;
+          fieldValues.get(col)?.push(value);
+        });
+
+        sampleData.push(row);
+      } catch {
+        failedRows++;
+      }
+    }
+
+    // Analyze fields
+    const detectedFields = this.analyzeFields(columnNames, fieldValues, dataRows.length);
+
+    // Find suggested primary ID field
+    const suggestedPrimaryIdField = this.findPrimaryIdCandidate(detectedFields);
+
+    return {
+      success: true,
+      detectedFormat: 'CSV',
+      detectedFields,
+      sampleData: sampleData.slice(0, 5), // First 5 rows for preview
+      totalRows: dataRows.length,
+      failedRows,
+      suggestedPrimaryIdField,
+      detectedDelimiter: delimiter,
+    };
+  }
+
+  /**
+   * Parse a single CSV line handling quotes
+   */
+  private parseCsvLine(line: string, delimiter: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (inQuotes) {
+        if (char === '"' && nextChar === '"') {
+          current += '"';
+          i++; // Skip next quote
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          current += char;
+        }
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === delimiter) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+    }
+
+    result.push(current.trim());
+    return result;
+  }
+
+  /**
+   * Parse JSON/JSONL content
+   */
+  private parseJsonContent(content: string, isJsonl: boolean): ParseSampleFileResult {
+    let records: Record<string, unknown>[] = [];
+    let failedRows = 0;
+
+    try {
+      if (isJsonl) {
+        const lines = content.split(/\r?\n/).filter((line) => line.trim());
+        for (const line of lines) {
+          try {
+            records.push(JSON.parse(line));
+          } catch {
+            failedRows++;
+          }
+        }
+      } else {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) {
+          records = parsed;
+        } else if (typeof parsed === 'object') {
+          // Try to find an array in the object
+          const arrayKey = Object.keys(parsed).find((k) => Array.isArray(parsed[k]));
+          if (arrayKey) {
+            records = parsed[arrayKey];
+          } else {
+            records = [parsed];
+          }
+        }
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Invalid JSON: ${err.message}`,
+        detectedFields: [],
+        sampleData: [],
+        totalRows: 0,
+        failedRows: 0,
+      };
+    }
+
+    if (records.length === 0) {
+      return {
+        success: false,
+        error: 'No records found in JSON',
+        detectedFields: [],
+        sampleData: [],
+        totalRows: 0,
+        failedRows,
+      };
+    }
+
+    // Get all unique field names
+    const fieldNames = new Set<string>();
+    records.forEach((record) => {
+      Object.keys(record).forEach((key) => fieldNames.add(key));
+    });
+
+    // Build field values map
+    const fieldValues: Map<string, string[]> = new Map();
+    fieldNames.forEach((field) => fieldValues.set(field, []));
+
+    const maxRowsToAnalyze = Math.min(records.length, 100);
+    for (let i = 0; i < maxRowsToAnalyze; i++) {
+      const record = records[i];
+      fieldNames.forEach((field) => {
+        const value = record[field];
+        fieldValues.get(field)?.push(value !== undefined ? String(value) : '');
+      });
+    }
+
+    const columnNames = Array.from(fieldNames);
+    const detectedFields = this.analyzeFields(columnNames, fieldValues, records.length);
+    const suggestedPrimaryIdField = this.findPrimaryIdCandidate(detectedFields);
+
+    return {
+      success: true,
+      detectedFormat: isJsonl ? 'JSONL' : 'JSON',
+      detectedFields,
+      sampleData: records.slice(0, 5),
+      totalRows: records.length,
+      failedRows,
+      suggestedPrimaryIdField,
+    };
+  }
+
+  /**
+   * Analyze fields and detect types
+   */
+  private analyzeFields(
+    columnNames: string[],
+    fieldValues: Map<string, string[]>,
+    totalRows: number
+  ): DetectedField[] {
+    return columnNames.map((name) => {
+      const values = fieldValues.get(name) || [];
+      const nonEmptyValues = values.filter((v) => v && v.trim());
+      const uniqueValues = new Set(nonEmptyValues);
+
+      // Detect type
+      const typeInfo = this.detectFieldType(nonEmptyValues);
+
+      // Check if it looks like an ID field
+      const looksLikeId = this.looksLikeIdField(name, uniqueValues.size, nonEmptyValues.length, totalRows);
+
+      return {
+        name,
+        detectedType: typeInfo.type,
+        typeConfidence: typeInfo.confidence,
+        isRequired: nonEmptyValues.length === values.length && values.length > 0,
+        uniqueValueCount: uniqueValues.size,
+        nonEmptyCount: nonEmptyValues.length,
+        sampleValues: Array.from(uniqueValues).slice(0, 5),
+        looksLikeId,
+        suggestedLabel: this.formatFieldLabel(name),
+        numericRange: typeInfo.numericRange,
+        dateFormat: typeInfo.dateFormat,
+      };
+    });
+  }
+
+  /**
+   * Detect the type of a field based on its values
+   */
+  private detectFieldType(values: string[]): {
+    type: DetectedFieldType;
+    confidence: number;
+    numericRange?: { min: number; max: number };
+    dateFormat?: string;
+  } {
+    if (values.length === 0) {
+      return { type: 'empty', confidence: 1 };
+    }
+
+    // Check patterns
+    let numberCount = 0;
+    let booleanCount = 0;
+    let emailCount = 0;
+    let urlCount = 0;
+    let phoneCount = 0;
+    let dateCount = 0;
+    let currencyCount = 0;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const urlRegex = /^https?:\/\/.+/i;
+    const phoneRegex = /^[\d\s\-+().]{7,}$/;
+    const dateRegex = /^\d{4}[-/]\d{2}[-/]\d{2}|^\d{2}[-/]\d{2}[-/]\d{4}|^\d{1,2}\/\d{1,2}\/\d{2,4}/;
+    const currencyRegex = /^[$€£¥]?\s*[\d,]+\.?\d*$/;
+    const booleanValues = ['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'];
+
+    let minNum = Infinity;
+    let maxNum = -Infinity;
+
+    for (const value of values) {
+      const trimmed = value.trim().toLowerCase();
+
+      if (!isNaN(Number(value)) && value.trim() !== '') {
+        numberCount++;
+        const num = Number(value);
+        minNum = Math.min(minNum, num);
+        maxNum = Math.max(maxNum, num);
+      }
+      if (booleanValues.includes(trimmed)) booleanCount++;
+      if (emailRegex.test(value)) emailCount++;
+      if (urlRegex.test(value)) urlCount++;
+      if (phoneRegex.test(value) && !emailRegex.test(value)) phoneCount++;
+      if (dateRegex.test(value)) dateCount++;
+      if (currencyRegex.test(value)) currencyCount++;
+    }
+
+    const total = values.length;
+    const threshold = 0.8; // 80% match threshold
+
+    // Priority order: more specific types first
+    if (emailCount / total >= threshold) {
+      return { type: 'email', confidence: emailCount / total };
+    }
+    if (urlCount / total >= threshold) {
+      return { type: 'url', confidence: urlCount / total };
+    }
+    if (phoneCount / total >= threshold) {
+      return { type: 'phone', confidence: phoneCount / total };
+    }
+    if (dateCount / total >= threshold) {
+      return { type: 'date', confidence: dateCount / total };
+    }
+    if (currencyCount / total >= threshold && numberCount / total >= threshold) {
+      return { type: 'currency', confidence: currencyCount / total };
+    }
+    if (booleanCount / total >= threshold) {
+      return { type: 'boolean', confidence: booleanCount / total };
+    }
+    if (numberCount / total >= threshold) {
+      return {
+        type: 'number',
+        confidence: numberCount / total,
+        numericRange: { min: minNum, max: maxNum },
+      };
+    }
+
+    return { type: 'string', confidence: 1 };
+  }
+
+  /**
+   * Check if a field looks like a unique ID field
+   */
+  private looksLikeIdField(
+    name: string,
+    uniqueCount: number,
+    nonEmptyCount: number,
+    totalRows: number
+  ): boolean {
+    const nameLower = name.toLowerCase();
+
+    // Check name patterns
+    const idPatterns = ['id', 'key', 'code', 'number', 'num', 'ref', 'identifier', 'uuid', 'guid'];
+    const hasIdPattern = idPatterns.some(
+      (pattern) =>
+        nameLower === pattern ||
+        nameLower.endsWith('_id') ||
+        nameLower.endsWith('id') ||
+        nameLower.startsWith('id_') ||
+        nameLower.includes('_id_') ||
+        nameLower.includes(pattern)
+    );
+
+    // Check uniqueness - should be highly unique
+    const uniquenessRatio = nonEmptyCount > 0 ? uniqueCount / nonEmptyCount : 0;
+    const isHighlyUnique = uniquenessRatio >= 0.95;
+
+    // Check completeness - ID field should have values in most rows
+    const completenessRatio = totalRows > 0 ? nonEmptyCount / totalRows : 0;
+    const isComplete = completenessRatio >= 0.95;
+
+    return (hasIdPattern && isHighlyUnique) || (isHighlyUnique && isComplete && uniqueCount > 10);
+  }
+
+  /**
+   * Find the best candidate for primary ID field
+   */
+  private findPrimaryIdCandidate(fields: DetectedField[]): string | undefined {
+    // Sort by likelihood of being an ID field
+    const candidates = fields
+      .filter((f) => f.looksLikeId)
+      .sort((a, b) => {
+        // Prefer fields with "id" in the name
+        const aHasId = a.name.toLowerCase().includes('id') ? 1 : 0;
+        const bHasId = b.name.toLowerCase().includes('id') ? 1 : 0;
+        if (aHasId !== bHasId) return bHasId - aHasId;
+
+        // Prefer fields with higher uniqueness
+        return b.uniqueValueCount - a.uniqueValueCount;
+      });
+
+    return candidates[0]?.name;
+  }
+
+  /**
+   * Format a field name into a display label
+   */
+  private formatFieldLabel(name: string): string {
+    return name
+      .replace(/[_-]/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
+   * Generate field mappings from detected fields
+   */
+  generateFieldMappingsFromDetectedFields(
+    fields: DetectedField[],
+    primaryIdField?: string
+  ): void {
+    const mappings: VolumeFieldMapping[] = fields.map((field) => ({
+      sourceField: field.name,
+      targetField: field.name, // Dynamic: same as source field
+      isPrimaryId: field.name === primaryIdField,
+      required: field.isRequired,
+      detectedType: field.detectedType,
+    }));
+
+    this.updateFormField('fieldMappings', mappings);
+  }
+
+  /**
+   * Set the primary ID field
+   */
+  setPrimaryIdField(fieldName: string): void {
+    this.selectedPrimaryIdField.set(fieldName);
+    const mappings = this.formData().fieldMappings || [];
+
+    // Update mappings to reflect new primary ID
+    const updatedMappings = mappings.map((m) => ({
+      ...m,
+      isPrimaryId: m.sourceField === fieldName,
+    }));
+
+    this.updateFormField('fieldMappings', updatedMappings);
+  }
+
+  /**
+   * Toggle whether a field should be included in the mapping
+   */
+  toggleFieldInclusion(fieldName: string, included: boolean): void {
+    const mappings = this.formData().fieldMappings || [];
+
+    if (included) {
+      // Add the field if not present
+      const field = this.detectedFields().find((f) => f.name === fieldName);
+      if (field && !mappings.find((m) => m.sourceField === fieldName)) {
+        mappings.push({
+          sourceField: field.name,
+          targetField: field.name,
+          isPrimaryId: false,
+          required: field.isRequired,
+          detectedType: field.detectedType,
+        });
+      }
+    } else {
+      // Remove the field
+      const index = mappings.findIndex((m) => m.sourceField === fieldName);
+      if (index >= 0) {
+        mappings.splice(index, 1);
+      }
+    }
+
+    this.updateFormField('fieldMappings', [...mappings]);
+  }
+
+  /**
+   * Check if a field is included in the current mappings
+   */
+  isFieldIncluded(fieldName: string): boolean {
+    const mappings = this.formData().fieldMappings || [];
+    return mappings.some((m) => m.sourceField === fieldName);
+  }
+
+  /**
+   * Get type confidence as a percentage string
+   */
+  getTypeConfidencePercent(confidence: number): string {
+    return `${Math.round(confidence * 100)}%`;
   }
 
   getConfigValue(field: string): any {

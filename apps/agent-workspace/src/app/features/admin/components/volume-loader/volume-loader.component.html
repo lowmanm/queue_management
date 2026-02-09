@@ -597,74 +597,179 @@
           </div>
         }
 
-        <!-- Step 5: Field Mappings -->
+        <!-- Step 5: Sample File Upload -->
         @if (currentStep() === 5) {
           <div class="form-section">
-            <div class="section-header">
-              <h3>Field Mappings</h3>
-              <button class="btn-secondary small" (click)="addFieldMapping()">+ Add</button>
-            </div>
+            <h3>Sample File</h3>
             <p class="section-help">
-              Map source columns to task fields. Use "Custom Field" to add custom metadata.
+              Upload a sample file to automatically detect fields and their types. This will create
+              your field mappings automatically.
             </p>
-            <div class="mappings-table">
-              <div class="mapping-header">
-                <span>Source Field</span>
-                <span>Target Field</span>
-                <span>Custom Name</span>
-                <span>Required</span>
-                <span></span>
-              </div>
-              @for (mapping of formData().fieldMappings; track $index) {
-                <div class="mapping-row" [class.has-custom]="mapping.targetField === 'metadata'">
-                  <input
-                    type="text"
-                    [ngModel]="mapping.sourceField"
-                    (ngModelChange)="updateFieldMapping($index, 'sourceField', $event)"
-                    placeholder="column_name"
-                  />
-                  <select
-                    [ngModel]="mapping.targetField"
-                    (ngModelChange)="updateFieldMapping($index, 'targetField', $event)"
-                  >
-                    @for (f of targetFields; track f.value) {
-                      <option [value]="f.value">{{ f.label }}</option>
-                    }
-                  </select>
-                  @if (mapping.targetField === 'metadata') {
-                    <input
-                      type="text"
-                      [ngModel]="mapping.customField"
-                      (ngModelChange)="updateFieldMapping($index, 'customField', $event)"
-                      placeholder="field_name"
-                      class="custom-field-input"
-                    />
-                  } @else {
-                    <span class="custom-field-placeholder">-</span>
-                  }
-                  <input
-                    type="checkbox"
-                    [ngModel]="mapping.required"
-                    (ngModelChange)="updateFieldMapping($index, 'required', $event)"
-                  />
-                  <button class="btn-icon danger small" (click)="removeFieldMapping($index)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </button>
-                </div>
+
+            <!-- File Input -->
+            <input
+              #sampleFileInput
+              type="file"
+              accept=".csv,.json,.jsonl"
+              (change)="onSampleFileSelected($event)"
+              style="display: none"
+            />
+
+            <div class="upload-zone">
+              <button class="upload-btn" (click)="triggerSampleFileInput()" [disabled]="isParsingSample()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>{{ isParsingSample() ? 'Parsing...' : 'Choose Sample File' }}</span>
+              </button>
+              @if (sampleFileName()) {
+                <span class="upload-or">{{ sampleFileName() }}</span>
+              } @else {
+                <span class="upload-or">CSV, JSON, or JSONL</span>
               }
             </div>
-            <div class="mapping-hint">
-              <strong>Tip:</strong> Add custom fields using "Custom Field" target to store additional data like
-              <code>client</code>, <code>department</code>, <code>region</code>, etc.
-            </div>
+
+            @if (sampleParseResult()?.success) {
+              <div class="sample-result success">
+                <div class="result-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>
+                    Detected <strong>{{ detectedFields().length }}</strong> fields from
+                    <strong>{{ sampleParseResult()?.totalRows }}</strong> rows
+                  </span>
+                </div>
+
+                <div class="detected-fields-preview">
+                  <h4>Detected Fields:</h4>
+                  <div class="fields-grid">
+                    @for (field of detectedFields(); track field.name) {
+                      <div class="field-chip" [class.is-id]="field.looksLikeId">
+                        <span class="field-name">{{ field.name }}</span>
+                        <span class="field-type">{{ fieldTypeLabels[field.detectedType] }}</span>
+                        @if (field.looksLikeId) {
+                          <span class="id-badge">ID</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                @if (sampleParseResult()?.suggestedPrimaryIdField) {
+                  <div class="suggested-id">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>
+                      Suggested primary ID: <strong>{{ sampleParseResult()?.suggestedPrimaryIdField }}</strong>
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (sampleParseResult() && !sampleParseResult()?.success) {
+              <div class="sample-result error">
+                <div class="result-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                  <span>{{ sampleParseResult()?.error }}</span>
+                </div>
+              </div>
+            }
           </div>
         }
 
-        <!-- Step 6: Processing Options -->
+        <!-- Step 6: Field Mappings (Primary ID Selection) -->
         @if (currentStep() === 6) {
+          <div class="form-section">
+            <h3>Field Mappings</h3>
+            <p class="section-help">
+              Select which field contains the unique identifier (Primary ID) for each record.
+              All detected fields will be included in the task data.
+            </p>
+
+            @if (detectedFields().length === 0) {
+              <div class="no-fields-warning">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>Please upload a sample file in the previous step to detect fields.</span>
+              </div>
+            } @else {
+              <div class="primary-id-section">
+                <label>Primary ID Field (Unique Identifier) *</label>
+                <div class="id-field-options">
+                  @for (field of detectedFields(); track field.name) {
+                    <label
+                      class="id-field-option"
+                      [class.selected]="selectedPrimaryIdField() === field.name"
+                      [class.recommended]="field.looksLikeId"
+                    >
+                      <input
+                        type="radio"
+                        name="primaryIdField"
+                        [value]="field.name"
+                        [checked]="selectedPrimaryIdField() === field.name"
+                        (change)="setPrimaryIdField(field.name)"
+                      />
+                      <div class="field-info">
+                        <span class="field-name">{{ field.name }}</span>
+                        <span class="field-meta">
+                          {{ fieldTypeLabels[field.detectedType] }}
+                          · {{ field.uniqueValueCount }} unique values
+                          @if (field.looksLikeId) {
+                            <span class="recommended-badge">Recommended</span>
+                          }
+                        </span>
+                      </div>
+                    </label>
+                  }
+                </div>
+              </div>
+
+              <div class="included-fields-section">
+                <h4>Included Fields</h4>
+                <p class="section-help">All fields will be included in the task data.</p>
+                <div class="included-fields-list">
+                  @for (field of detectedFields(); track field.name) {
+                    <div class="included-field" [class.is-primary]="selectedPrimaryIdField() === field.name">
+                      <label class="checkbox-label">
+                        <input
+                          type="checkbox"
+                          [checked]="isFieldIncluded(field.name)"
+                          (change)="toggleFieldInclusion(field.name, $any($event.target).checked)"
+                          [disabled]="selectedPrimaryIdField() === field.name"
+                        />
+                        <span class="field-name">{{ field.name }}</span>
+                      </label>
+                      <span class="field-type-badge">{{ fieldTypeLabels[field.detectedType] }}</span>
+                      @if (selectedPrimaryIdField() === field.name) {
+                        <span class="primary-badge">Primary ID</span>
+                      }
+                      @if (field.isRequired) {
+                        <span class="required-badge">Required</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 7: Processing Options -->
+        @if (currentStep() === 7) {
           <div class="form-section">
             <h3>Processing Options</h3>
             <p class="section-help">Configure how records are processed and errors are handled.</p>
