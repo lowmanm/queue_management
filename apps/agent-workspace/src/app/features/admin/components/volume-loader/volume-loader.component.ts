@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { VolumeLoaderApiService, CsvUploadResult } from '../../services/volume-loader.service';
+import { PipelineApiService } from '../../services/pipeline.service';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import {
   VolumeLoader,
@@ -22,20 +24,23 @@ import {
   S3Config,
   HttpConfig,
   LocalConfig,
+  Pipeline,
 } from '@nexus-queue/shared-models';
 
 @Component({
   selector: 'app-volume-loader',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageLayoutComponent],
+  imports: [CommonModule, FormsModule, RouterModule, PageLayoutComponent],
   templateUrl: './volume-loader.component.html',
   styleUrls: ['./volume-loader.component.scss'],
 })
 export class VolumeLoaderComponent implements OnInit {
   private readonly loaderService = inject(VolumeLoaderApiService);
+  private readonly pipelineService = inject(PipelineApiService);
 
   // Data
   loaders = signal<VolumeLoader[]>([]);
+  pipelines = signal<Pipeline[]>([]);
   summary = signal<VolumeLoaderSummary | null>(null);
   selectedLoader = signal<VolumeLoader | null>(null);
   selectedLoaderRuns = signal<VolumeLoaderRun[]>([]);
@@ -133,6 +138,12 @@ export class VolumeLoaderComponent implements OnInit {
     this.loaderService.getSummary().subscribe({
       next: (summary) => this.summary.set(summary),
     });
+
+    // Load pipelines for the selector
+    this.pipelineService.getAllPipelines().subscribe({
+      next: (pipelines) => this.pipelines.set(pipelines),
+      error: (err) => console.error('Failed to load pipelines', err),
+    });
   }
 
   // ============ Loader Selection ============
@@ -192,6 +203,8 @@ export class VolumeLoaderComponent implements OnInit {
       fieldMappings: loader.fieldMappings.map((m) => ({ ...m })),
       defaults: loader.defaults ? { ...loader.defaults } : undefined,
       processingOptions: { ...loader.processingOptions },
+      // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
+      pipelineId: loader.pipelineId,
     });
     this.showEditor.set(true);
     this.clearMessages();
@@ -601,5 +614,38 @@ export class VolumeLoaderComponent implements OnInit {
   clearMessages(): void {
     this.errorMessage.set('');
     this.successMessage.set('');
+  }
+
+  // ============ Pipeline Helpers ============
+
+  /**
+   * Get pipeline name by ID
+   */
+  getPipelineName(pipelineId: string | undefined): string {
+    if (!pipelineId) return 'Not assigned';
+    const pipeline = this.pipelines().find((p) => p.id === pipelineId);
+    return pipeline?.name || pipelineId;
+  }
+
+  /**
+   * Update pipelineId on the loader
+   */
+  updatePipelineId(pipelineId: string): void {
+    // Store pipelineId as a custom field in formData
+    // We'll need to add this to the interface or handle it separately
+    const current = this.formData();
+    this.formData.set({
+      ...current,
+      // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
+      pipelineId: pipelineId || undefined,
+    });
+  }
+
+  /**
+   * Get current pipelineId from form data
+   */
+  getFormPipelineId(): string {
+    // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
+    return (this.formData() as any).pipelineId || '';
   }
 }

@@ -33,6 +33,7 @@ import {
   TaskFromSource,
 } from '@nexus-queue/shared-models';
 import { TaskSourceService } from '../services/task-source.service';
+import { PipelineService } from '../pipelines/pipeline.service';
 
 /**
  * Represents a parsed record from a data source before task creation
@@ -62,7 +63,10 @@ export class VolumeLoaderService {
   constructor(
     @Optional()
     @Inject(forwardRef(() => TaskSourceService))
-    private readonly taskSourceService?: TaskSourceService
+    private readonly taskSourceService?: TaskSourceService,
+    @Optional()
+    @Inject(forwardRef(() => PipelineService))
+    private readonly pipelineService?: PipelineService
   ) {
     this.initializeDefaultLoaders();
   }
@@ -282,6 +286,7 @@ export class VolumeLoaderService {
       description: request.description,
       type: request.type,
       enabled: false,
+      pipelineId: request.pipelineId,
       config: request.config,
       schedule: request.schedule,
       dataFormat: request.dataFormat,
@@ -329,6 +334,7 @@ export class VolumeLoaderService {
       ...(updates.name !== undefined && { name: updates.name }),
       ...(updates.description !== undefined && { description: updates.description }),
       ...(updates.enabled !== undefined && { enabled: updates.enabled }),
+      ...(updates.pipelineId !== undefined && { pipelineId: updates.pipelineId }),
       ...(updates.config !== undefined && { config: updates.config }),
       ...(updates.schedule !== undefined && { schedule: updates.schedule }),
       ...(updates.dataFormat !== undefined && { dataFormat: updates.dataFormat }),
@@ -1063,12 +1069,31 @@ export class VolumeLoaderService {
 
   /**
    * Create a task from a parsed record and add to the task pipeline
+   * Routes through the associated Pipeline if pipelineId is configured
    */
   private createTaskFromRecord(
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
   ): void {
+    // Route through Pipeline if configured
+    if (loader.pipelineId && this.pipelineService) {
+      const routingResult = this.pipelineService.routeTask(loader.pipelineId, taskData);
+
+      if (routingResult.error) {
+        this.logger.warn(
+          `Pipeline routing failed for task ${taskData.externalId}: ${routingResult.error}`
+        );
+      } else if (routingResult.queueId) {
+        // Update task data with the routed queue
+        taskData.queue = routingResult.queueId;
+        this.logger.debug(
+          `Task ${taskData.externalId} routed to queue ${routingResult.queueId} ` +
+          `${routingResult.ruleId ? `by rule ${routingResult.ruleId}` : 'via default routing'}`
+        );
+      }
+    }
+
     // If TaskSourceService is available, use it to add the task
     if (this.taskSourceService) {
       const pendingOrder: PendingOrder = {

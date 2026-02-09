@@ -22,6 +22,9 @@ export interface VolumeLoader {
   /** Whether the loader is enabled */
   enabled: boolean;
 
+  /** Target pipeline ID - data flows into this pipeline's routing rules */
+  pipelineId?: string;
+
   /** Connection/source configuration */
   config: VolumeLoaderConfig;
 
@@ -320,7 +323,9 @@ export type FieldTransformType =
 export interface VolumeTaskDefaults {
   workType?: string;
   priority?: number;
+  /** @deprecated Use pipelineId on VolumeLoader instead */
   queue?: string;
+  /** @deprecated Use pipelineId on VolumeLoader instead */
   queueId?: string;
   skills?: string[];
   payloadUrlTemplate?: string;
@@ -456,6 +461,8 @@ export interface CreateVolumeLoaderRequest {
   name: string;
   description?: string;
   type: VolumeLoaderType;
+  /** Target pipeline ID - data flows into this pipeline's routing rules */
+  pipelineId?: string;
   config: VolumeLoaderConfig;
   schedule?: VolumeLoaderSchedule;
   dataFormat: DataFormatConfig;
@@ -471,6 +478,8 @@ export interface UpdateVolumeLoaderRequest {
   name?: string;
   description?: string;
   enabled?: boolean;
+  /** Target pipeline ID - data flows into this pipeline's routing rules */
+  pipelineId?: string;
   config?: VolumeLoaderConfig;
   schedule?: VolumeLoaderSchedule;
   dataFormat?: DataFormatConfig;
