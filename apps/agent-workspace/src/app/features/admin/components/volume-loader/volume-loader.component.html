@@ -109,6 +109,16 @@
               </div>
 
               <div class="loader-meta">
+                @if (loader.pipelineId) {
+                  <span class="meta-item pipeline">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 3h18v18H3z"></path>
+                      <path d="M3 9h18"></path>
+                      <path d="M9 21V9"></path>
+                    </svg>
+                    {{ getPipelineName(loader.pipelineId) }}
+                  </span>
+                }
                 @if (loader.lastRunAt) {
                   <span class="meta-item">Last run: {{ formatDate(loader.lastRunAt) }}</span>
                 }
@@ -280,6 +290,40 @@
               placeholder="Describe what this loader does..."
             ></textarea>
           </div>
+        </div>
+
+        <!-- Target Pipeline -->
+        <div class="form-section">
+          <h3>Target Pipeline</h3>
+          <p class="section-help">
+            Select which pipeline this loader will send data to. The pipeline's routing rules will determine
+            which queue tasks are placed in.
+          </p>
+          <div class="form-group">
+            <label for="pipelineId">Pipeline *</label>
+            <select
+              id="pipelineId"
+              [ngModel]="getFormPipelineId()"
+              (ngModelChange)="updatePipelineId($event)"
+            >
+              <option value="">-- Select a Pipeline --</option>
+              @for (pipeline of pipelines(); track pipeline.id) {
+                <option [value]="pipeline.id" [disabled]="!pipeline.enabled">
+                  {{ pipeline.name }}{{ !pipeline.enabled ? ' (disabled)' : '' }}
+                </option>
+              }
+            </select>
+          </div>
+          @if (pipelines().length === 0) {
+            <div class="no-pipelines-warning">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>No pipelines configured. <a routerLink="/admin/pipelines">Create a pipeline</a> first.</span>
+            </div>
+          }
         </div>
 
         <!-- Connection Config -->
