@@ -54,6 +54,17 @@ export class VolumeLoaderComponent implements OnInit {
   errorMessage = signal('');
   successMessage = signal('');
 
+  // Wizard/Stepper state
+  currentStep = signal(1);
+  readonly wizardSteps = [
+    { step: 1, title: 'Basic Info', description: 'Name and source type' },
+    { step: 2, title: 'Pipeline', description: 'Select target pipeline' },
+    { step: 3, title: 'Connection', description: 'Configure source' },
+    { step: 4, title: 'Data Format', description: 'CSV/JSON settings' },
+    { step: 5, title: 'Field Mappings', description: 'Map columns to fields' },
+    { step: 6, title: 'Options', description: 'Processing settings' },
+  ];
+
   // Form state
   editingLoader = signal<VolumeLoader | null>(null);
   formData = signal<Partial<CreateVolumeLoaderRequest>>({
@@ -99,7 +110,7 @@ export class VolumeLoaderComponent implements OnInit {
     { value: 'queueId', label: 'Queue ID' },
     { value: 'skills', label: 'Skills' },
     { value: 'payloadUrl', label: 'Payload URL' },
-    { value: 'metadata', label: 'Metadata' },
+    { value: 'metadata', label: 'Custom Field' },
   ];
 
   readonly dataFormats: { value: string; label: string }[] = [
@@ -108,6 +119,14 @@ export class VolumeLoaderComponent implements OnInit {
     { value: 'JSONL', label: 'JSON Lines' },
     { value: 'XML', label: 'XML' },
     { value: 'EXCEL', label: 'Excel' },
+  ];
+
+  readonly delimiterOptions: { value: string; label: string }[] = [
+    { value: ',', label: ', (Comma)' },
+    { value: '\t', label: 'Tab' },
+    { value: ';', label: '; (Semicolon)' },
+    { value: '|', label: '| (Pipe)' },
+    { value: ' ', label: 'Space' },
   ];
 
   // Computed
@@ -170,6 +189,7 @@ export class VolumeLoaderComponent implements OnInit {
 
   openNewEditor(): void {
     this.editingLoader.set(null);
+    this.currentStep.set(1); // Start at step 1 for new loaders
     this.formData.set({
       name: '',
       description: '',
@@ -214,7 +234,130 @@ export class VolumeLoaderComponent implements OnInit {
     this.showEditor.set(false);
     this.editingLoader.set(null);
     this.testResult.set(null);
+    this.currentStep.set(1);
     this.clearMessages();
+  }
+
+  // ============ Wizard Navigation ============
+
+  goToStep(step: number): void {
+    if (step >= 1 && step <= this.wizardSteps.length) {
+      this.currentStep.set(step);
+    }
+  }
+
+  nextStep(): void {
+    const current = this.currentStep();
+    if (current < this.wizardSteps.length) {
+      // Validate current step before proceeding
+      if (this.validateCurrentStep()) {
+        this.currentStep.set(current + 1);
+      }
+    }
+  }
+
+  prevStep(): void {
+    const current = this.currentStep();
+    if (current > 1) {
+      this.currentStep.set(current - 1);
+    }
+  }
+
+  validateCurrentStep(): boolean {
+    const data = this.formData();
+    const step = this.currentStep();
+    this.clearMessages();
+
+    switch (step) {
+      case 1: // Basic Info
+        if (!data.name?.trim()) {
+          this.errorMessage.set('Name is required');
+          return false;
+        }
+        return true;
+
+      case 2: // Pipeline
+        // Pipeline is optional but recommended
+        return true;
+
+      case 3: // Connection
+        // Basic validation based on type
+        if (data.type === 'GCS') {
+          const config = data.config as GcsConfig;
+          if (!config?.bucket) {
+            this.errorMessage.set('Bucket name is required');
+            return false;
+          }
+        } else if (data.type === 'S3') {
+          const config = data.config as S3Config;
+          if (!config?.bucket) {
+            this.errorMessage.set('Bucket name is required');
+            return false;
+          }
+        } else if (data.type === 'HTTP') {
+          const config = data.config as HttpConfig;
+          if (!config?.url) {
+            this.errorMessage.set('URL is required');
+            return false;
+          }
+        } else if (data.type === 'LOCAL') {
+          const config = data.config as LocalConfig;
+          if (!config?.directory) {
+            this.errorMessage.set('Directory path is required');
+            return false;
+          }
+        }
+        return true;
+
+      case 4: // Data Format
+        return true;
+
+      case 5: // Field Mappings
+        if (!data.fieldMappings || data.fieldMappings.length === 0) {
+          this.errorMessage.set('At least one field mapping is required');
+          return false;
+        }
+        // Check required mappings have source fields
+        const hasExternalId = data.fieldMappings.some(
+          (m) => m.targetField === 'externalId' && m.sourceField?.trim()
+        );
+        if (!hasExternalId) {
+          this.errorMessage.set('External ID mapping is required');
+          return false;
+        }
+        return true;
+
+      case 6: // Options
+        return true;
+
+      default:
+        return true;
+    }
+  }
+
+  isStepComplete(step: number): boolean {
+    const data = this.formData();
+
+    switch (step) {
+      case 1:
+        return !!data.name?.trim();
+      case 2:
+        return true; // Optional
+      case 3:
+        if (data.type === 'GCS') return !!(data.config as GcsConfig)?.bucket;
+        if (data.type === 'S3') return !!(data.config as S3Config)?.bucket;
+        if (data.type === 'HTTP') return !!(data.config as HttpConfig)?.url;
+        if (data.type === 'LOCAL') return !!(data.config as LocalConfig)?.directory;
+        return true;
+      case 4:
+        return true;
+      case 5:
+        return (data.fieldMappings?.length || 0) > 0;
+      case 6:
+        return true;
+      default:
+        return false;
+    }
   }
 
   saveLoader(): void {
@@ -435,6 +578,38 @@ export class VolumeLoaderComponent implements OnInit {
     if (dataFormat) {
       (dataFormat as any)[field] = value;
       this.updateFormField('dataFormat', { ...dataFormat });
+    }
+  }
+
+  getCsvOptionValue(field: string): any {
+    const dataFormat = this.formData().dataFormat;
+    if (dataFormat?.csvOptions) {
+      return (dataFormat.csvOptions as any)[field];
+    }
+    // Return defaults
+    switch (field) {
+      case 'delimiter':
+        return ',';
+      case 'quoteChar':
+        return '"';
+      case 'hasHeader':
+        return true;
+      case 'trimWhitespace':
+        return true;
+      default:
+        return undefined;
+    }
+  }
+
+  updateCsvOption(field: string, value: any): void {
+    const dataFormat = this.formData().dataFormat;
+    if (dataFormat) {
+      const csvOptions = dataFormat.csvOptions || { ...DEFAULT_CSV_OPTIONS };
+      (csvOptions as any)[field] = value;
+      this.updateFormField('dataFormat', {
+        ...dataFormat,
+        csvOptions: { ...csvOptions },
+      });
     }
   }
 
