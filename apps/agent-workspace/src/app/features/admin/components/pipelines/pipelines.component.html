@@ -1,0 +1,582 @@
+<app-page-layout
+  [title]="viewMode() === 'list' ? 'Pipelines' : selectedPipeline()?.name || 'Pipeline'"
+  [subtitle]="viewMode() === 'list' ? 'Manage workflow pipelines, queues, and routing rules' : 'Configure queues and routing for this pipeline'"
+>
+  @if (viewMode() === 'list') {
+    <button slot="actions" class="btn-primary" (click)="openPipelineEditor()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      New Pipeline
+    </button>
+  } @else {
+    <button slot="actions" class="btn-secondary" (click)="backToList()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+      Back to Pipelines
+    </button>
+  }
+
+  <div class="pipelines-container">
+    <!-- Messages -->
+    @if (errorMessage()) {
+      <div class="message error">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="message success">{{ successMessage() }}</div>
+    }
+
+    <!-- LIST VIEW -->
+    @if (viewMode() === 'list') {
+      @if (isLoading()) {
+        <div class="loading">Loading pipelines...</div>
+      } @else if (pipelines().length === 0) {
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          <p>No pipelines configured. Create a pipeline to organize your workflow.</p>
+          <button class="btn-primary" (click)="openPipelineEditor()">Create First Pipeline</button>
+        </div>
+      } @else {
+        <div class="pipelines-grid">
+          @for (pipeline of pipelines(); track pipeline.id) {
+            <div class="pipeline-card" [class.disabled]="!pipeline.enabled">
+              <div class="pipeline-header">
+                <div class="pipeline-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                  </svg>
+                </div>
+                <div class="pipeline-info">
+                  <h3>{{ pipeline.name }}</h3>
+                  <span class="pipeline-status" [class.enabled]="pipeline.enabled">
+                    {{ pipeline.enabled ? 'Active' : 'Disabled' }}
+                  </span>
+                </div>
+              </div>
+
+              @if (pipeline.description) {
+                <p class="pipeline-description">{{ pipeline.description }}</p>
+              }
+
+              <div class="pipeline-stats">
+                @if (getSummary(pipeline.id); as summary) {
+                  <div class="stat">
+                    <span class="stat-value">{{ summary.queueCount }}</span>
+                    <span class="stat-label">Queues</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-value">{{ summary.totalTasksInQueue }}</span>
+                    <span class="stat-label">In Queue</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-value">{{ summary.agentCount }}</span>
+                    <span class="stat-label">Agents</span>
+                  </div>
+                }
+              </div>
+
+              @if (pipeline.allowedWorkTypes?.length) {
+                <div class="work-types">
+                  @for (workType of pipeline.allowedWorkTypes; track workType) {
+                    <span class="work-type-tag">{{ workType }}</span>
+                  }
+                </div>
+              }
+
+              <div class="pipeline-actions">
+                <button class="btn-icon" (click)="loadPipelineDetails(pipeline)" title="Configure">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="openPipelineEditor(pipeline)" title="Edit">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="togglePipeline(pipeline)" [title]="pipeline.enabled ? 'Disable' : 'Enable'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    @if (pipeline.enabled) {
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
+                    } @else {
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    }
+                  </svg>
+                </button>
+                <button class="btn-icon danger" (click)="deletePipeline(pipeline)" title="Delete">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- DETAIL VIEW -->
+    @if (viewMode() === 'detail' && selectedPipeline()) {
+      <div class="pipeline-detail">
+        <!-- Queues Section -->
+        <section class="detail-section">
+          <div class="section-header">
+            <h2>Queues</h2>
+            <button class="btn-secondary small" (click)="openQueueEditor()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Queue
+            </button>
+          </div>
+
+          @if (selectedPipelineQueues().length === 0) {
+            <div class="empty-section">
+              <p>No queues configured. Add queues to route work within this pipeline.</p>
+            </div>
+          } @else {
+            <div class="queues-list">
+              @for (queue of selectedPipelineQueues(); track queue.id) {
+                <div class="queue-item" [class.disabled]="!queue.enabled">
+                  <div class="queue-info">
+                    <span class="queue-priority">{{ queue.priority }}</span>
+                    <div class="queue-details">
+                      <h4>{{ queue.name }}</h4>
+                      @if (queue.description) {
+                        <p>{{ queue.description }}</p>
+                      }
+                      @if (queue.requiredSkills?.length) {
+                        <div class="skills-list">
+                          @for (skill of queue.requiredSkills; track skill) {
+                            <span class="skill-tag">{{ skill }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+                  <div class="queue-stats">
+                    <span class="stat-inline">
+                      <strong>{{ queue.stats.tasksWaiting }}</strong> waiting
+                    </span>
+                    <span class="stat-inline">
+                      <strong>{{ queue.stats.tasksActive }}</strong> active
+                    </span>
+                  </div>
+                  <div class="queue-actions">
+                    <button class="btn-icon small" (click)="openQueueEditor(queue)" title="Edit">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </button>
+                    <button class="btn-icon small danger" (click)="deleteQueue(queue)" title="Delete">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <!-- Routing Rules Section -->
+        <section class="detail-section">
+          <div class="section-header">
+            <h2>Routing Rules</h2>
+            <button class="btn-secondary small" (click)="openRuleEditor()" [disabled]="selectedPipelineQueues().length === 0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Rule
+            </button>
+          </div>
+
+          <p class="section-help">
+            Rules are evaluated in order of priority. The first matching rule determines the target queue.
+          </p>
+
+          @if (selectedPipelineRules().length === 0) {
+            <div class="empty-section">
+              <p>No routing rules configured. All tasks will use default routing.</p>
+            </div>
+          } @else {
+            <div class="rules-list">
+              @for (rule of selectedPipelineRules(); track rule.id) {
+                <div class="rule-item" [class.disabled]="!rule.enabled">
+                  <div class="rule-priority">{{ rule.priority }}</div>
+                  <div class="rule-info">
+                    <h4>{{ rule.name }}</h4>
+                    @if (rule.description) {
+                      <p>{{ rule.description }}</p>
+                    }
+                    <div class="rule-conditions">
+                      @for (condition of rule.conditions; track condition.id; let last = $last) {
+                        <span class="condition">{{ formatCondition(condition) }}</span>
+                        @if (!last) {
+                          <span class="condition-logic">{{ rule.conditionLogic }}</span>
+                        }
+                      }
+                    </div>
+                  </div>
+                  <div class="rule-target">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                    <span>{{ getQueueName(rule.targetQueueId) }}</span>
+                  </div>
+                  <div class="rule-stats">
+                    <span class="match-count">{{ rule.matchCount }} matches</span>
+                  </div>
+                  <div class="rule-actions">
+                    <button class="btn-icon small" (click)="openRuleEditor(rule)" title="Edit">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </button>
+                    <button class="btn-icon small danger" (click)="deleteRule(rule)" title="Delete">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      </div>
+    }
+  </div>
+</app-page-layout>
+
+<!-- PIPELINE EDITOR MODAL -->
+@if (editorMode() === 'pipeline') {
+  <div class="modal-overlay" (click)="closeEditor()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Pipeline</h2>
+        <button class="btn-icon" (click)="closeEditor()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="pipelineName">Name *</label>
+          <input
+            type="text"
+            id="pipelineName"
+            [ngModel]="pipelineForm().name"
+            (ngModelChange)="updatePipelineField('name', $event)"
+            placeholder="e.g., Business A"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="pipelineDescription">Description</label>
+          <textarea
+            id="pipelineDescription"
+            [ngModel]="pipelineForm().description"
+            (ngModelChange)="updatePipelineField('description', $event)"
+            rows="2"
+            placeholder="Describe this pipeline's purpose..."
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Allowed Work Types</label>
+          <div class="tag-input">
+            <div class="tags">
+              @for (workType of pipelineForm().allowedWorkTypes; track workType) {
+                <span class="tag">
+                  {{ workType }}
+                  <button type="button" (click)="removeWorkType(workType)">&times;</button>
+                </span>
+              }
+            </div>
+            <div class="input-row">
+              <input
+                type="text"
+                [ngModel]="workTypeInput()"
+                (ngModelChange)="workTypeInput.set($event)"
+                (keydown.enter)="addWorkType(); $event.preventDefault()"
+                placeholder="Add work type..."
+              />
+              <button type="button" class="btn-secondary small" (click)="addWorkType()">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+        <button class="btn-primary" (click)="savePipeline()" [disabled]="isLoading()">
+          {{ isEditMode() ? 'Update' : 'Create' }} Pipeline
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- QUEUE EDITOR MODAL -->
+@if (editorMode() === 'queue') {
+  <div class="modal-overlay" (click)="closeEditor()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Queue</h2>
+        <button class="btn-icon" (click)="closeEditor()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="queueName">Name *</label>
+            <input
+              type="text"
+              id="queueName"
+              [ngModel]="queueForm().name"
+              (ngModelChange)="updateQueueField('name', $event)"
+              placeholder="e.g., Client Support"
+            />
+          </div>
+          <div class="form-group small">
+            <label for="queuePriority">Priority</label>
+            <input
+              type="number"
+              id="queuePriority"
+              [ngModel]="queueForm().priority"
+              (ngModelChange)="updateQueueField('priority', $event)"
+              min="1"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="queueDescription">Description</label>
+          <textarea
+            id="queueDescription"
+            [ngModel]="queueForm().description"
+            (ngModelChange)="updateQueueField('description', $event)"
+            rows="2"
+            placeholder="Describe this queue..."
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Required Skills</label>
+          <div class="tag-input">
+            <div class="tags">
+              @for (skill of queueForm().requiredSkills; track skill) {
+                <span class="tag">
+                  {{ skill }}
+                  <button type="button" (click)="removeSkill(skill)">&times;</button>
+                </span>
+              }
+            </div>
+            <div class="input-row">
+              <input
+                type="text"
+                [ngModel]="skillInput()"
+                (ngModelChange)="skillInput.set($event)"
+                (keydown.enter)="addSkill(); $event.preventDefault()"
+                placeholder="Add skill..."
+              />
+              <button type="button" class="btn-secondary small" (click)="addSkill()">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="maxCapacity">Max Capacity (0 = unlimited)</label>
+          <input
+            type="number"
+            id="maxCapacity"
+            [ngModel]="queueForm().maxCapacity"
+            (ngModelChange)="updateQueueField('maxCapacity', $event)"
+            min="0"
+          />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+        <button class="btn-primary" (click)="saveQueue()" [disabled]="isLoading()">
+          {{ isEditMode() ? 'Update' : 'Create' }} Queue
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ROUTING RULE EDITOR MODAL -->
+@if (editorMode() === 'rule') {
+  <div class="modal-overlay" (click)="closeEditor()">
+    <div class="modal large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Routing Rule</h2>
+        <button class="btn-icon" (click)="closeEditor()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ruleName">Name *</label>
+            <input
+              type="text"
+              id="ruleName"
+              [ngModel]="ruleForm().name"
+              (ngModelChange)="updateRuleField('name', $event)"
+              placeholder="e.g., High Priority Routing"
+            />
+          </div>
+          <div class="form-group small">
+            <label for="rulePriority">Priority</label>
+            <input
+              type="number"
+              id="rulePriority"
+              [ngModel]="ruleForm().priority"
+              (ngModelChange)="updateRuleField('priority', $event)"
+              min="1"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ruleDescription">Description</label>
+          <input
+            type="text"
+            id="ruleDescription"
+            [ngModel]="ruleForm().description"
+            (ngModelChange)="updateRuleField('description', $event)"
+            placeholder="Describe when this rule applies..."
+          />
+        </div>
+
+        <!-- Conditions -->
+        <div class="form-section">
+          <h3>Conditions</h3>
+
+          <!-- Existing conditions -->
+          @if (ruleForm().conditions?.length) {
+            <div class="conditions-list">
+              @for (condition of ruleForm().conditions; track condition.id; let i = $index) {
+                @if (i > 0) {
+                  <div class="logic-selector">
+                    <select
+                      [ngModel]="ruleForm().conditionLogic"
+                      (ngModelChange)="updateRuleField('conditionLogic', $event)"
+                    >
+                      <option value="AND">AND</option>
+                      <option value="OR">OR</option>
+                    </select>
+                  </div>
+                }
+                <div class="condition-row">
+                  <span class="condition-text">{{ formatCondition(condition) }}</span>
+                  <button class="btn-icon small danger" (click)="removeCondition(condition.id)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Add new condition -->
+          <div class="condition-builder">
+            <select
+              [ngModel]="editingCondition().field"
+              (ngModelChange)="updateConditionField('field', $event)"
+            >
+              @for (field of conditionFields; track field.value) {
+                <option [value]="field.value">{{ field.label }}</option>
+              }
+            </select>
+
+            @if (editingCondition().field === 'metadata') {
+              <input
+                type="text"
+                [ngModel]="editingCondition().customField"
+                (ngModelChange)="updateConditionField('customField', $event)"
+                placeholder="Field name"
+                class="custom-field-input"
+              />
+            }
+
+            <select
+              [ngModel]="editingCondition().operator"
+              (ngModelChange)="updateConditionField('operator', $event)"
+            >
+              @for (op of availableOperators(); track op) {
+                <option [value]="op">{{ operatorLabels[op] }}</option>
+              }
+            </select>
+
+            <input
+              type="text"
+              [ngModel]="editingCondition().value"
+              (ngModelChange)="updateConditionField('value', $event)"
+              placeholder="Value"
+              class="value-input"
+            />
+
+            <button class="btn-secondary small" (click)="addCondition()">Add</button>
+          </div>
+        </div>
+
+        <!-- Target Queue -->
+        <div class="form-group">
+          <label for="targetQueue">Route To Queue *</label>
+          <select
+            id="targetQueue"
+            [ngModel]="ruleForm().targetQueueId"
+            (ngModelChange)="updateRuleField('targetQueueId', $event)"
+          >
+            <option value="">Select a queue...</option>
+            @for (queue of selectedPipelineQueues(); track queue.id) {
+              <option [value]="queue.id">{{ queue.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+        <button class="btn-primary" (click)="saveRule()" [disabled]="isLoading()">
+          {{ isEditMode() ? 'Update' : 'Create' }} Rule
+        </button>
+      </div>
+    </div>
+  </div>
+}

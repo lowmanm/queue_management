@@ -14,6 +14,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { RoutingModule } from './routing/routing.module';
 import { SessionsModule } from './sessions';
 import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
+import { PipelineModule } from './pipelines/pipeline.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
     RoutingModule,
     SessionsModule,
     VolumeLoaderModule,
+    PipelineModule,
   ],
   controllers: [AppController],
   providers: [AppService],
