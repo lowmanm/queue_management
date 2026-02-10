@@ -25,8 +25,9 @@ import {
   Pipeline,
   PipelineQueue,
   RoutingRule,
-  RoutingConditionField,
   RoutingOperator,
+  ROUTING_OPERATORS_BY_TYPE,
+  ROUTING_OPERATOR_LABELS,
   DetectedField,
   ParseSampleFileResult,
   DetectedFieldType,
@@ -122,9 +123,7 @@ export class VolumeLoaderComponent implements OnInit {
   pipelineRoutingRules = signal<RoutingRule[]>([]);
   showAddRuleForm = signal(false);
   newRuleName = signal('');
-  newRuleField = signal<RoutingConditionField>('workType');
-  newRuleCustomField = signal('');
-  newRuleFieldSelection = signal('workType');
+  newRuleField = signal('');
   newRuleOperator = signal<RoutingOperator>('equals');
   newRuleValue = signal('');
   newRuleTargetQueue = signal('');
@@ -190,6 +189,19 @@ export class VolumeLoaderComponent implements OnInit {
 
   // Computed
   isEditMode = computed(() => this.editingLoader() !== null);
+
+  // Operator labels for display
+  readonly operatorLabels = ROUTING_OPERATOR_LABELS;
+
+  // Available operators for the currently selected routing field, driven by its detected type
+  availableOperators = computed(() => {
+    const fieldName = this.newRuleField();
+    if (!fieldName) return ROUTING_OPERATORS_BY_TYPE['string'];
+
+    const field = this.detectedFields().find((f) => f.name === fieldName);
+    const fieldType = field?.detectedType || 'string';
+    return ROUTING_OPERATORS_BY_TYPE[fieldType] || ROUTING_OPERATORS_BY_TYPE['string'];
+  });
   enabledLoaders = computed(() => this.loaders().filter((l) => l.enabled));
   disabledLoaders = computed(() => this.loaders().filter((l) => !l.enabled));
 
@@ -1749,57 +1761,30 @@ export class VolumeLoaderComponent implements OnInit {
   // ============ Routing Rules (Step 9) ============
 
   /**
-   * Handle routing rule field selection change
-   * Maps 'schema:fieldName' selections to metadata field + customField
-   */
-  onRuleFieldChange(selection: string): void {
-    this.newRuleFieldSelection.set(selection);
-
-    if (selection.startsWith('schema:')) {
-      const customField = selection.substring(7);
-      this.newRuleField.set('metadata');
-      this.newRuleCustomField.set(customField);
-    } else {
-      this.newRuleField.set(selection as RoutingConditionField);
-      this.newRuleCustomField.set('');
-    }
-  }
-
-  /**
    * Create a routing rule within the selected pipeline
+   * Field references are schema-driven — any field from the detected schema is valid.
    */
   createRoutingRule(): void {
     const pipelineId = this.getFormPipelineId();
     const name = this.newRuleName();
     const targetQueueId = this.newRuleTargetQueue();
-    if (!pipelineId || !name?.trim() || !targetQueueId) return;
+    const field = this.newRuleField();
+    if (!pipelineId || !name?.trim() || !targetQueueId || !field) return;
 
-    const condition: {
-      id: string;
-      field: RoutingConditionField;
-      customField?: string;
-      operator: RoutingOperator;
-      value: string | string[];
-    } = {
-      id: `cond-${Date.now()}`,
-      field: this.newRuleField(),
-      operator: this.newRuleOperator(),
-      value: this.newRuleValue(),
-    };
-
-    // Add customField for schema-based fields
-    if (this.newRuleCustomField()) {
-      condition.customField = this.newRuleCustomField();
-    }
-
-    // Handle 'in' operator: split comma-separated values into array
+    // Build condition value — split for 'in'/'not_in' operators
+    let conditionValue: string | string[] = this.newRuleValue();
     if (this.newRuleOperator() === 'in' || this.newRuleOperator() === 'not_in') {
-      condition.value = this.newRuleValue().split(',').map((v) => v.trim()).filter((v) => v);
+      conditionValue = this.newRuleValue().split(',').map((v) => v.trim()).filter((v) => v);
     }
 
     this.pipelineService.createRoutingRule(pipelineId, {
       name: name.trim(),
-      conditions: [condition],
+      conditions: [{
+        id: `cond-${Date.now()}`,
+        field,
+        operator: this.newRuleOperator(),
+        value: conditionValue,
+      }],
       conditionLogic: 'AND',
       targetQueueId,
     }).subscribe({
@@ -1807,9 +1792,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.pipelineRoutingRules.set([...this.pipelineRoutingRules(), rule]);
         this.showAddRuleForm.set(false);
         this.newRuleName.set('');
-        this.newRuleField.set('workType');
-        this.newRuleCustomField.set('');
-        this.newRuleFieldSelection.set('workType');
+        this.newRuleField.set('');
         this.newRuleOperator.set('equals');
         this.newRuleValue.set('');
         this.newRuleTargetQueue.set('');

@@ -519,20 +519,11 @@
               [ngModel]="editingCondition().field"
               (ngModelChange)="updateConditionField('field', $event)"
             >
-              @for (field of conditionFields; track field.value) {
-                <option [value]="field.value">{{ field.label }}</option>
+              <option value="">-- Select Field --</option>
+              @for (field of conditionFields(); track field.value) {
+                <option [value]="field.value">{{ field.label }} ({{ field.type }})</option>
               }
             </select>
-
-            @if (editingCondition().field === 'metadata') {
-              <input
-                type="text"
-                [ngModel]="editingCondition().customField"
-                (ngModelChange)="updateConditionField('customField', $event)"
-                placeholder="Field name"
-                class="custom-field-input"
-              />
-            }
 
             <select
               [ngModel]="editingCondition().operator"
@@ -553,6 +544,9 @@
 
             <button class="btn-secondary small" (click)="addCondition()">Add</button>
           </div>
+          @if (conditionFields().length === 0) {
+            <p class="field-hint">No schema fields available. Upload a sample file to the pipeline's data source to define routable fields.</p>
+          }
         </div>
 
         <!-- Target Queue -->

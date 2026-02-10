@@ -12,9 +12,10 @@ import {
   CreatePipelineRequest,
   CreateQueueRequest,
   CreateRoutingRuleRequest,
-  RoutingConditionField,
   RoutingOperator,
   ROUTING_OPERATOR_LABELS,
+  ROUTING_OPERATORS_BY_TYPE,
+  PipelineFieldDefinition,
 } from '@nexus-queue/shared-models';
 
 type ViewMode = 'list' | 'detail';
@@ -78,38 +79,36 @@ export class PipelinesComponent implements OnInit {
 
   // Condition being edited
   editingCondition = signal<Partial<RoutingCondition>>({
-    field: 'workType',
+    field: '',
     operator: 'equals',
     value: '',
   });
 
-  // Available fields and operators for routing conditions
-  readonly conditionFields: { value: RoutingConditionField; label: string }[] = [
-    { value: 'workType', label: 'Work Type' },
-    { value: 'priority', label: 'Priority' },
-    { value: 'externalId', label: 'External ID' },
-    { value: 'title', label: 'Title' },
-    { value: 'skills', label: 'Skills' },
-    { value: 'metadata', label: 'Custom Field' },
-  ];
-
   readonly operatorLabels = ROUTING_OPERATOR_LABELS;
 
-  readonly stringOperators: RoutingOperator[] = [
-    'equals', 'not_equals', 'contains', 'starts_with', 'ends_with', 'in', 'not_in', 'exists', 'not_exists'
-  ];
+  // Schema fields from the selected pipeline's data schema — drives routing condition field options
+  pipelineSchemaFields = signal<PipelineFieldDefinition[]>([]);
 
-  readonly numberOperators: RoutingOperator[] = [
-    'equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between'
-  ];
-
-  // Computed
-  availableOperators = computed(() => {
-    const field = this.editingCondition().field;
-    if (field === 'priority') {
-      return this.numberOperators;
+  // Computed: condition fields derived from the pipeline's data schema
+  conditionFields = computed(() => {
+    const schemaFields = this.pipelineSchemaFields();
+    if (schemaFields.length > 0) {
+      return schemaFields.map((f) => ({
+        value: f.name,
+        label: f.label || f.name,
+        type: f.type,
+      }));
     }
-    return this.stringOperators;
+    // Fallback when no schema is defined
+    return [] as { value: string; label: string; type: string }[];
+  });
+
+  // Available operators based on the currently selected condition field's type
+  availableOperators = computed(() => {
+    const fieldName = this.editingCondition().field;
+    const schemaField = this.pipelineSchemaFields().find((f) => f.name === fieldName);
+    const fieldType = schemaField?.type || 'string';
+    return ROUTING_OPERATORS_BY_TYPE[fieldType] || ROUTING_OPERATORS_BY_TYPE['string'];
   });
 
   ngOnInit(): void {
@@ -146,6 +145,13 @@ export class PipelinesComponent implements OnInit {
   loadPipelineDetails(pipeline: Pipeline): void {
     this.selectedPipeline.set(pipeline);
     this.viewMode.set('detail');
+
+    // Load schema fields from pipeline's data schema
+    if (pipeline.dataSchema?.fields) {
+      this.pipelineSchemaFields.set(pipeline.dataSchema.fields);
+    } else {
+      this.pipelineSchemaFields.set([]);
+    }
 
     // Load queues
     this.pipelineApi.getPipelineQueues(pipeline.id).subscribe({
@@ -514,10 +520,9 @@ export class PipelinesComponent implements OnInit {
 
     const newCondition: RoutingCondition = {
       id: `cond-${Date.now()}`,
-      field: condition.field as RoutingConditionField,
+      field: condition.field,
       operator: condition.operator as RoutingOperator,
       value: condition.value || '',
-      customField: condition.customField,
     };
 
     this.ruleForm.update((f) => ({
@@ -537,7 +542,7 @@ export class PipelinesComponent implements OnInit {
 
   resetConditionForm(): void {
     this.editingCondition.set({
-      field: 'workType',
+      field: '',
       operator: 'equals',
       value: '',
     });
@@ -553,12 +558,10 @@ export class PipelinesComponent implements OnInit {
   }
 
   formatCondition(condition: RoutingCondition): string {
-    const fieldLabel = this.conditionFields.find((f) => f.value === condition.field)?.label || condition.field;
+    const schemaField = this.pipelineSchemaFields().find((f) => f.name === condition.field);
+    const fieldLabel = schemaField?.label || schemaField?.name || condition.field;
     const operatorLabel = this.operatorLabels[condition.operator] || condition.operator;
-    const value = condition.field === 'metadata' && condition.customField
-      ? `${condition.customField} ${operatorLabel} "${condition.value}"`
-      : `${fieldLabel} ${operatorLabel} "${condition.value}"`;
-    return value;
+    return `${fieldLabel} ${operatorLabel} "${condition.value}"`;
   }
 
   // ===========================================================================
