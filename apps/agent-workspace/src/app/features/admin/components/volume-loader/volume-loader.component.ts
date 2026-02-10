@@ -15,6 +15,7 @@ import {
   UpdateVolumeLoaderRequest,
   VolumeFieldMapping,
   ProcessingOptions,
+  VolumeTaskDefaults,
   DEFAULT_PROCESSING_OPTIONS,
   DEFAULT_CSV_OPTIONS,
   CsvFormatOptions,
@@ -70,7 +71,7 @@ export class VolumeLoaderComponent implements OnInit {
     { step: 4, title: 'Data Format', description: 'CSV/JSON settings' },
     { step: 5, title: 'Sample File', description: 'Upload to detect fields' },
     { step: 6, title: 'Field Mappings', description: 'Select primary ID' },
-    { step: 7, title: 'Options', description: 'Processing settings' },
+    { step: 7, title: 'URL & Options', description: 'Work URL and processing' },
     { step: 8, title: 'Queues', description: 'Configure queues' },
     { step: 9, title: 'Routing', description: 'Set routing rules' },
   ];
@@ -96,6 +97,7 @@ export class VolumeLoaderComponent implements OnInit {
       encoding: 'utf-8',
     },
     fieldMappings: [],
+    defaults: {},
     processingOptions: DEFAULT_PROCESSING_OPTIONS,
   });
 
@@ -578,18 +580,59 @@ export class VolumeLoaderComponent implements OnInit {
 
   runLoader(loader: VolumeLoader): void {
     this.isLoading.set(true);
+    this.clearMessages();
+    this.successMessage.set('Run started — processing records...');
+
     this.loaderService.triggerRun(loader.id).subscribe({
       next: (run) => {
-        this.successMessage.set(`Run started: ${run.id}`);
-        this.isLoading.set(false);
-        // Refresh loader to get updated status
-        setTimeout(() => this.loadData(), 1000);
+        // Poll for completion since processing is async on the backend
+        this.pollRunStatus(loader.id, run.id, 0);
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to trigger run');
         this.isLoading.set(false);
       },
     });
+  }
+
+  private pollRunStatus(loaderId: string, runId: string, attempt: number): void {
+    const maxAttempts = 20; // ~10 seconds max
+    if (attempt >= maxAttempts) {
+      this.successMessage.set('Run is still processing. Refresh to see results.');
+      this.isLoading.set(false);
+      this.loadData();
+      return;
+    }
+
+    setTimeout(() => {
+      this.loaderService.getRun(loaderId, runId).subscribe({
+        next: (run) => {
+          if (!run || run.status === 'RUNNING') {
+            this.pollRunStatus(loaderId, runId, attempt + 1);
+          } else {
+            this.isLoading.set(false);
+            if (run.status === 'COMPLETED') {
+              this.successMessage.set(
+                `Run complete: ${run.recordsProcessed} records processed, ` +
+                `${run.recordsFailed} failed, ${run.recordsSkipped} skipped`
+              );
+            } else if (run.status === 'PARTIAL') {
+              this.successMessage.set(
+                `Run completed with errors: ${run.recordsProcessed}/${run.recordsFound} records processed`
+              );
+            } else {
+              this.errorMessage.set(
+                `Run failed: ${run.errorLog?.[0]?.message || 'Unknown error'}`
+              );
+            }
+            this.loadData();
+          }
+        },
+        error: () => {
+          this.pollRunStatus(loaderId, runId, attempt + 1);
+        },
+      });
+    }, 500);
   }
 
   deleteLoader(loader: VolumeLoader): void {
@@ -652,7 +695,7 @@ export class VolumeLoaderComponent implements OnInit {
         config = { type: 'S3', bucket: '', region: 'us-east-1', filePattern: '*.csv' };
         break;
       case 'HTTP':
-        config = { type: 'HTTP', url: '', method: 'GET' };
+        config = { type: 'HTTP', url: '', method: 'GET', authType: 'none', urlTemplate: '', urlField: '' };
         break;
       case 'SFTP':
         config = { type: 'SFTP', host: '', port: 22, username: '', remotePath: '/', filePattern: '*.csv' };
@@ -694,6 +737,22 @@ export class VolumeLoaderComponent implements OnInit {
   ): void {
     const current = this.formData().processingOptions || DEFAULT_PROCESSING_OPTIONS;
     this.updateFormField('processingOptions', { ...current, [field]: value });
+  }
+
+  updateDefault<K extends keyof VolumeTaskDefaults>(
+    field: K,
+    value: VolumeTaskDefaults[K]
+  ): void {
+    const current = this.formData().defaults || {};
+    this.updateFormField('defaults', { ...current, [field]: value });
+  }
+
+  /**
+   * Append a field placeholder to the URL template input.
+   */
+  insertPlaceholder(fieldName: string): void {
+    const current = this.formData().defaults?.payloadUrlTemplate || '';
+    this.updateDefault('payloadUrlTemplate', current + `{${fieldName}}`);
   }
 
   updateConfigField(field: string, value: any): void {

@@ -1466,3 +1466,69 @@
     }
   }
 }
+
+// ============ Work URL Template (Step 7) ============
+
+.section-divider {
+  border: none;
+  border-top: $border-width-thin solid $border-color;
+  margin: $spacing-5 0;
+}
+
+.available-placeholders {
+  margin-top: $spacing-2;
+
+  label {
+    display: block;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $color-gray-600;
+    margin-bottom: $spacing-1;
+  }
+
+  .placeholder-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-1;
+  }
+
+  .placeholder-chip {
+    display: inline-block;
+    padding: 2px $spacing-2;
+    font-size: $font-size-xs;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    color: $color-gray-700;
+    background: $color-gray-100;
+    border: $border-width-thin solid $color-gray-200;
+    border-radius: $border-radius-sm;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background: $color-gray-200;
+      color: $color-gray-900;
+    }
+  }
+}
+
+.url-preview {
+  margin-top: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  background: $color-gray-50;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+
+  label {
+    display: block;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $color-gray-500;
+    margin-bottom: 4px;
+  }
+
+  .url-preview-text {
+    font-size: $font-size-sm;
+    color: $color-gray-800;
+    word-break: break-all;
+  }
+}

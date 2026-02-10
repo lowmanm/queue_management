@@ -868,9 +868,54 @@
           </div>
         }
 
-        <!-- Step 7: Processing Options -->
+        <!-- Step 7: Options & Work URL -->
         @if (currentStep() === 7) {
           <div class="form-section">
+            <!-- Work URL Template -->
+            <h3>Work URL Template</h3>
+            <p class="section-help">
+              Build the URL that employees will use to access each work item.
+              Use field placeholders from your schema to construct dynamic URLs.
+            </p>
+            <div class="form-group">
+              <label>URL Template *</label>
+              <input
+                type="text"
+                [ngModel]="formData().defaults?.payloadUrlTemplate"
+                (ngModelChange)="updateDefault('payloadUrlTemplate', $event)"
+                placeholder="https://your-app.com/orders/{order_id}/details"
+              />
+              <span class="field-hint">
+                Use {{'{'}}field_name{{'}'}} placeholders — they'll be replaced with values from each record.
+              </span>
+            </div>
+            @if (detectedFields().length > 0) {
+              <div class="available-placeholders">
+                <label>Available fields from your schema:</label>
+                <div class="placeholder-chips">
+                  @for (field of detectedFields(); track field.name) {
+                    <button
+                      class="placeholder-chip"
+                      type="button"
+                      (click)="insertPlaceholder(field.name)"
+                      title="Click to copy placeholder"
+                    >
+                      {{'{'}}{{ field.name }}{{'}'}}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+            @if (formData().defaults?.payloadUrlTemplate) {
+              <div class="url-preview">
+                <label>Preview:</label>
+                <code class="url-preview-text">{{ formData().defaults?.payloadUrlTemplate }}</code>
+              </div>
+            }
+
+            <hr class="section-divider" />
+
+            <!-- Processing Options -->
             <h3>Processing Options</h3>
             <p class="section-help">Configure how records are processed and errors are handled.</p>
             <div class="form-row">
