@@ -27,7 +27,7 @@ export class VolumeLoaderController {
   constructor(private readonly volumeLoaderService: VolumeLoaderService) {}
 
   // ==========================================================================
-  // LOADER CRUD
+  // STATIC ROUTES (must be declared before :id to avoid route collision)
   // ==========================================================================
 
   /**
@@ -66,13 +66,28 @@ export class VolumeLoaderController {
   }
 
   /**
+   * Get service dependency diagnostics (useful for debugging).
+   */
+  @Get('diagnostics/status')
+  getDiagnostics() {
+    return this.volumeLoaderService.getDiagnostics();
+  }
+
+  // ==========================================================================
+  // PARAMETERIZED ROUTES (:id)
+  // ==========================================================================
+
+  /**
    * Get a specific loader by ID
    */
   @Get(':id')
   getLoader(@Param('id') id: string) {
     const loader = this.volumeLoaderService.getLoaderById(id);
     if (!loader) {
-      throw new HttpException('Loader not found', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, message: 'Loader not found', error: 'Not Found' },
+        HttpStatus.NOT_FOUND,
+      );
     }
     // Include staged record count so frontend knows if "Run Now" has data to process
     return {
@@ -164,7 +179,9 @@ export class VolumeLoaderController {
   triggerRun(@Param('id') id: string, @Body() request?: TriggerVolumeLoaderRequest) {
     const result = this.volumeLoaderService.triggerRun(id, request);
     if (!result.success) {
-      throw new HttpException(result.error || 'Failed to trigger run', HttpStatus.BAD_REQUEST);
+      const msg = result.error || 'Failed to trigger run';
+      const status = msg.includes('not found') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+      throw new HttpException({ statusCode: status, message: msg }, status);
     }
     return result.run;
   }
@@ -220,18 +237,6 @@ export class VolumeLoaderController {
   validateMappings(@Param('id') id: string, @Body() body: { mappings: VolumeFieldMapping[] }) {
     const result = this.volumeLoaderService.validateFieldMappings(id, body.mappings);
     return result;
-  }
-
-  // ==========================================================================
-  // DIAGNOSTICS
-  // ==========================================================================
-
-  /**
-   * Get service dependency diagnostics (useful for debugging).
-   */
-  @Get('diagnostics/status')
-  getDiagnostics() {
-    return this.volumeLoaderService.getDiagnostics();
   }
 
   /**

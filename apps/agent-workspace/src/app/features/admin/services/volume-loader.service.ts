@@ -158,9 +158,7 @@ export class VolumeLoaderApiService {
    * Get a specific run by ID
    */
   getRun(loaderId: string, runId: string): Observable<VolumeLoaderRun | null> {
-    return this.http.get<VolumeLoaderRun>(`${API_BASE}/${loaderId}/runs/${runId}`).pipe(
-      catchError(() => of(null))
-    );
+    return this.http.get<VolumeLoaderRun>(`${API_BASE}/${loaderId}/runs/${runId}`);
   }
 
   // ==========================================================================

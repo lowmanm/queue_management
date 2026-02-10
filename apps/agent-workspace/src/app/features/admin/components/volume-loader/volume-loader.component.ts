@@ -555,7 +555,7 @@ export class VolumeLoaderComponent implements OnInit {
           this.closeEditor();
         },
         error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to update loader');
+          this.errorMessage.set(this.extractErrorMessage(err, 'Failed to update loader'));
           this.isLoading.set(false);
         },
       });
@@ -568,7 +568,7 @@ export class VolumeLoaderComponent implements OnInit {
           this.closeEditor();
         },
         error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to create loader');
+          this.errorMessage.set(this.extractErrorMessage(err, 'Failed to create loader'));
           this.isLoading.set(false);
         },
       });
@@ -595,7 +595,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to toggle loader');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to toggle loader'));
         this.isLoading.set(false);
       },
     });
@@ -612,7 +612,8 @@ export class VolumeLoaderComponent implements OnInit {
         this.pollRunStatus(loader.id, run.id, 0);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to trigger run');
+        this.successMessage.set(''); // Clear the "Run started" message
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to trigger run'));
         this.isLoading.set(false);
       },
     });
@@ -621,7 +622,8 @@ export class VolumeLoaderComponent implements OnInit {
   private pollRunStatus(loaderId: string, runId: string, attempt: number): void {
     const maxAttempts = 20; // ~10 seconds max
     if (attempt >= maxAttempts) {
-      this.successMessage.set('Run is still processing. Refresh to see results.');
+      this.successMessage.set('');
+      this.errorMessage.set('Run is taking longer than expected. Please check back later or refresh the page.');
       this.isLoading.set(false);
       this.loadData();
       return;
@@ -702,7 +704,17 @@ export class VolumeLoaderComponent implements OnInit {
             this.loadData();
           }
         },
-        error: () => {
+        error: (err) => {
+          // On 404, the loader or run no longer exists — stop polling
+          if (err?.status === 404) {
+            this.successMessage.set('');
+            this.errorMessage.set(
+              'Could not retrieve run status. The data source may no longer exist on the server.'
+            );
+            this.isLoading.set(false);
+            this.loadData();
+            return;
+          }
           this.pollRunStatus(loaderId, runId, attempt + 1);
         },
       });
@@ -753,7 +765,7 @@ export class VolumeLoaderComponent implements OnInit {
         }
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to delete data source');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to delete data source'));
         this.isLoading.set(false);
       },
     });
@@ -784,7 +796,7 @@ export class VolumeLoaderComponent implements OnInit {
         }
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to test connection');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to test connection'));
         this.isLoading.set(false);
       },
     });
@@ -1796,7 +1808,7 @@ export class VolumeLoaderComponent implements OnInit {
         }
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to upload CSV');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to upload CSV'));
         this.isUploading.set(false);
       },
     });
@@ -1893,7 +1905,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.successMessage.set(`Pipeline "${pipeline.name}" created`);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to create pipeline');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to create pipeline'));
       },
     });
   }
@@ -1947,7 +1959,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.successMessage.set(`Queue "${queue.name}" created`);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to create queue');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to create queue'));
       },
     });
   }
@@ -1965,7 +1977,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.successMessage.set('Queue removed');
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to remove queue');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to remove queue'));
       },
     });
   }
@@ -2059,7 +2071,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.successMessage.set(`Routing rule "${rule.name}" created`);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to create routing rule');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to create routing rule'));
       },
     });
   }
@@ -2077,8 +2089,44 @@ export class VolumeLoaderComponent implements OnInit {
         this.successMessage.set('Routing rule removed');
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to remove routing rule');
+        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to remove routing rule'));
       },
     });
+  }
+
+  // ============ Error Handling ============
+
+  /**
+   * Extract a human-readable error message from an HTTP error response.
+   * Handles various NestJS error shapes:
+   *   - { error: { message: '...' } }           (structured NestJS HttpException)
+   *   - { error: { message: ['...', '...'] } }   (class-validator / validation pipe)
+   *   - { error: 'plain string' }                (simple string body)
+   *   - { message: '...' }                       (fallback)
+   *   - { statusText: '...' }                    (browser-level failure)
+   *
+   * For 404 errors, appends a hint about server restarts since data is in-memory.
+   */
+  private extractErrorMessage(err: any, fallback: string): string {
+    let msg = fallback;
+
+    if (err?.error?.message) {
+      // NestJS structured exception — message may be a string or array
+      const raw = err.error.message;
+      msg = Array.isArray(raw) ? raw.join('; ') : String(raw);
+    } else if (typeof err?.error === 'string' && err.error.length > 0) {
+      msg = err.error;
+    } else if (err?.message) {
+      msg = err.message;
+    } else if (err?.statusText) {
+      msg = err.statusText;
+    }
+
+    // Append server-restart hint for 404 on loader operations
+    if (err?.status === 404 || err?.status === 0) {
+      msg += ' — The server may have restarted. Please recreate the data source configuration.';
+    }
+
+    return msg;
   }
 }
