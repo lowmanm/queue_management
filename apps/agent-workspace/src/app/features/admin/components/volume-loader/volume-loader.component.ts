@@ -25,6 +25,7 @@ import {
   Pipeline,
   PipelineQueue,
   RoutingRule,
+  RoutingCondition,
   RoutingOperator,
   ROUTING_OPERATORS_BY_TYPE,
   ROUTING_OPERATOR_LABELS,
@@ -123,10 +124,14 @@ export class VolumeLoaderComponent implements OnInit {
   pipelineRoutingRules = signal<RoutingRule[]>([]);
   showAddRuleForm = signal(false);
   newRuleName = signal('');
-  newRuleField = signal('');
-  newRuleOperator = signal<RoutingOperator>('equals');
-  newRuleValue = signal('');
+  newRuleConditions = signal<{ field: string; operator: RoutingOperator; value: string }[]>([
+    { field: '', operator: 'equals', value: '' },
+  ]);
+  newRuleConditionLogic = signal<'AND' | 'OR'>('AND');
   newRuleTargetQueue = signal('');
+
+  // Convenience accessors for the "active" condition (used by availableOperators computed)
+  activeConditionIndex = signal(0);
 
   @ViewChild('csvFileInput') csvFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('sampleFileInput') sampleFileInput!: ElementRef<HTMLInputElement>;
@@ -193,15 +198,15 @@ export class VolumeLoaderComponent implements OnInit {
   // Operator labels for display
   readonly operatorLabels = ROUTING_OPERATOR_LABELS;
 
-  // Available operators for the currently selected routing field, driven by its detected type
-  availableOperators = computed(() => {
-    const fieldName = this.newRuleField();
+  /**
+   * Get available operators for a given field name based on its detected type.
+   */
+  getOperatorsForField(fieldName: string): RoutingOperator[] {
     if (!fieldName) return ROUTING_OPERATORS_BY_TYPE['string'];
-
     const field = this.detectedFields().find((f) => f.name === fieldName);
     const fieldType = field?.detectedType || 'string';
     return ROUTING_OPERATORS_BY_TYPE[fieldType] || ROUTING_OPERATORS_BY_TYPE['string'];
-  });
+  }
   enabledLoaders = computed(() => this.loaders().filter((l) => l.enabled));
   disabledLoaders = computed(() => this.loaders().filter((l) => !l.enabled));
 
@@ -1417,7 +1422,8 @@ export class VolumeLoaderComponent implements OnInit {
   }
 
   /**
-   * Update the data type for a field
+   * Update the data type for a field.
+   * Keeps detectedFields() in sync so downstream steps (routing, etc.) reflect the override.
    */
   updateFieldDataType(fieldName: string, dataType: DetectedFieldType): void {
     const mappings = this.formData().fieldMappings || [];
@@ -1425,6 +1431,14 @@ export class VolumeLoaderComponent implements OnInit {
     if (mapping) {
       mapping.detectedType = dataType;
       this.updateFormField('fieldMappings', [...mappings]);
+    }
+
+    // Sync detectedFields so the routing step dropdown shows the overridden type
+    const fields = this.detectedFields();
+    const field = fields.find((f) => f.name === fieldName);
+    if (field) {
+      field.detectedType = dataType;
+      this.detectedFields.set([...fields]);
     }
   }
 
@@ -1761,6 +1775,41 @@ export class VolumeLoaderComponent implements OnInit {
   // ============ Routing Rules (Step 9) ============
 
   /**
+   * Add a blank condition row to the rule builder.
+   */
+  addRuleCondition(): void {
+    this.newRuleConditions.set([
+      ...this.newRuleConditions(),
+      { field: '', operator: 'equals' as RoutingOperator, value: '' },
+    ]);
+  }
+
+  /**
+   * Remove a condition row by index (keep at least one).
+   */
+  removeRuleCondition(index: number): void {
+    const conditions = this.newRuleConditions();
+    if (conditions.length <= 1) return;
+    this.newRuleConditions.set(conditions.filter((_, i) => i !== index));
+  }
+
+  /**
+   * Update a single condition's field/operator/value.
+   */
+  updateRuleCondition(index: number, key: 'field' | 'operator' | 'value', value: string): void {
+    const conditions = [...this.newRuleConditions()];
+    conditions[index] = { ...conditions[index], [key]: value };
+    // Reset operator when field changes (new field may not support current operator)
+    if (key === 'field') {
+      const ops = this.getOperatorsForField(value);
+      if (!ops.includes(conditions[index].operator as RoutingOperator)) {
+        conditions[index].operator = ops[0] || 'equals';
+      }
+    }
+    this.newRuleConditions.set(conditions);
+  }
+
+  /**
    * Create a routing rule within the selected pipeline
    * Field references are schema-driven — any field from the detected schema is valid.
    */
@@ -1768,33 +1817,38 @@ export class VolumeLoaderComponent implements OnInit {
     const pipelineId = this.getFormPipelineId();
     const name = this.newRuleName();
     const targetQueueId = this.newRuleTargetQueue();
-    const field = this.newRuleField();
-    if (!pipelineId || !name?.trim() || !targetQueueId || !field) return;
+    const rawConditions = this.newRuleConditions();
 
-    // Build condition value — split for 'in'/'not_in' operators
-    let conditionValue: string | string[] = this.newRuleValue();
-    if (this.newRuleOperator() === 'in' || this.newRuleOperator() === 'not_in') {
-      conditionValue = this.newRuleValue().split(',').map((v) => v.trim()).filter((v) => v);
-    }
+    // Validate — every condition must have a field selected
+    const validConditions = rawConditions.filter((c) => c.field);
+    if (!pipelineId || !name?.trim() || !targetQueueId || validConditions.length === 0) return;
+
+    // Build RoutingCondition[] — split value for 'in'/'not_in' operators
+    const conditions: Omit<RoutingCondition, 'id'>[] = validConditions.map((c) => {
+      let conditionValue: string | string[] = c.value;
+      if (c.operator === 'in' || c.operator === 'not_in') {
+        conditionValue = c.value.split(',').map((v) => v.trim()).filter((v) => v);
+      }
+      return {
+        id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        field: c.field,
+        operator: c.operator as RoutingOperator,
+        value: conditionValue,
+      };
+    });
 
     this.pipelineService.createRoutingRule(pipelineId, {
       name: name.trim(),
-      conditions: [{
-        id: `cond-${Date.now()}`,
-        field,
-        operator: this.newRuleOperator(),
-        value: conditionValue,
-      }],
-      conditionLogic: 'AND',
+      conditions: conditions as RoutingCondition[],
+      conditionLogic: this.newRuleConditionLogic(),
       targetQueueId,
     }).subscribe({
       next: (rule) => {
         this.pipelineRoutingRules.set([...this.pipelineRoutingRules(), rule]);
         this.showAddRuleForm.set(false);
         this.newRuleName.set('');
-        this.newRuleField.set('');
-        this.newRuleOperator.set('equals');
-        this.newRuleValue.set('');
+        this.newRuleConditions.set([{ field: '', operator: 'equals', value: '' }]);
+        this.newRuleConditionLogic.set('AND');
         this.newRuleTargetQueue.set('');
         this.successMessage.set(`Routing rule "${rule.name}" created`);
       },

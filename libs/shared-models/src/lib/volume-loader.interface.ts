@@ -161,6 +161,10 @@ export interface HttpConfig {
   authCredentials?: string;
   /** Pagination configuration */
   pagination?: PaginationConfig;
+  /** Dynamic URL template with field placeholders, e.g., "https://api.example.com/orders/{order_id}" */
+  urlTemplate?: string;
+  /** Primary field to use in the URL template */
+  urlField?: string;
 }
 
 /**
