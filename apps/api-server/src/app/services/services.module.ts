@@ -8,8 +8,14 @@ import { RbacService } from './rbac.service';
 import { AgentSessionService } from './agent-session.service';
 import { QueuesService } from '../queues/queues.service';
 import { RoutingService } from '../routing/routing.service';
+import { TaskStoreService } from './task-store.service';
+import { QueueManagerService } from './queue-manager.service';
+import { PipelineOrchestratorService } from './pipeline-orchestrator.service';
+import { SLAMonitorService } from './sla-monitor.service';
+import { PipelineModule } from '../pipelines/pipeline.module';
 
 @Module({
+  imports: [forwardRef(() => PipelineModule)],
   providers: [
     AgentManagerService,
     TaskDistributorService,
@@ -20,6 +26,11 @@ import { RoutingService } from '../routing/routing.service';
     AgentSessionService,
     QueuesService,
     RoutingService,
+    // V2 Orchestration services
+    TaskStoreService,
+    QueueManagerService,
+    PipelineOrchestratorService,
+    SLAMonitorService,
   ],
   exports: [
     AgentManagerService,
@@ -31,6 +42,11 @@ import { RoutingService } from '../routing/routing.service';
     AgentSessionService,
     QueuesService,
     RoutingService,
+    // V2 Orchestration services
+    TaskStoreService,
+    QueueManagerService,
+    PipelineOrchestratorService,
+    SLAMonitorService,
   ],
 })
 export class ServicesModule {}
