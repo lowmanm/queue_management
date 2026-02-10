@@ -1,0 +1,1046 @@
+<app-page-layout title="Volume Loaders" subtitle="Configure and manage task data loaders from external sources">
+  <button slot="actions" class="btn-primary" (click)="openNewEditor()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+    New Loader
+  </button>
+
+  <div class="volume-loader-container">
+    <!-- Messages -->
+    @if (errorMessage()) {
+      <div class="message error">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="message success">{{ successMessage() }}</div>
+    }
+
+    <!-- Summary Cards -->
+    @if (summary()) {
+      <div class="summary-cards">
+        <div class="summary-card">
+          <span class="summary-value">{{ summary()?.totalLoaders }}</span>
+          <span class="summary-label">Total Loaders</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-value active">{{ summary()?.activeLoaders }}</span>
+          <span class="summary-label">Active</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-value running">{{ summary()?.runningLoaders }}</span>
+          <span class="summary-label">Running</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-value">{{ summary()?.recordsLoadedToday }}</span>
+          <span class="summary-label">Records Today</span>
+        </div>
+      </div>
+    }
+
+    <!-- Loaders List -->
+    <section class="loaders-section">
+      @if (isLoading()) {
+        <div class="loading">Loading...</div>
+      } @else if (loaders().length === 0) {
+        <div class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <p>No volume loaders configured. Click "New Loader" to create one.</p>
+        </div>
+      } @else {
+        <div class="loaders-grid">
+          @for (loader of loaders(); track loader.id) {
+            <div class="loader-card" [class.disabled]="!loader.enabled">
+              <div class="loader-header">
+                <div class="loader-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    @switch (loader.type) {
+                      @case ('GCS') {
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"></path>
+                      }
+                      @case ('S3') {
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"></path>
+                      }
+                      @case ('HTTP') {
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                      }
+                      @case ('LOCAL') {
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                      }
+                      @default {
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                      }
+                    }
+                  </svg>
+                </div>
+                <div class="loader-info">
+                  <h3>{{ loader.name }}</h3>
+                  <span class="loader-type">{{ getLoaderTypeLabel(loader.type) }}</span>
+                </div>
+                <div class="loader-status" [class]="getStatusClass(loader.status)">
+                  {{ loader.status }}
+                </div>
+              </div>
+
+              @if (loader.description) {
+                <p class="loader-description">{{ loader.description }}</p>
+              }
+
+              <div class="loader-stats">
+                <div class="stat">
+                  <span class="stat-label">Total Runs</span>
+                  <span class="stat-value">{{ loader.stats.totalRuns }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Records</span>
+                  <span class="stat-value">{{ loader.stats.totalRecordsProcessed }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Success Rate</span>
+                  <span class="stat-value">{{ loader.stats.successRate }}%</span>
+                </div>
+              </div>
+
+              <div class="loader-meta">
+                @if (loader.pipelineId) {
+                  <span class="meta-item pipeline">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 3h18v18H3z"></path>
+                      <path d="M3 9h18"></path>
+                      <path d="M9 21V9"></path>
+                    </svg>
+                    {{ getPipelineName(loader.pipelineId) }}
+                  </span>
+                }
+                @if (loader.lastRunAt) {
+                  <span class="meta-item">Last run: {{ formatDate(loader.lastRunAt) }}</span>
+                }
+                @if (loader.schedule?.enabled) {
+                  <span class="meta-item scheduled">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Every {{ loader.schedule?.intervalMinutes }} min
+                  </span>
+                }
+              </div>
+
+              <div class="loader-actions">
+                <button class="btn-icon" (click)="selectLoader(loader)" title="View Runs">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="12 8 12 12 14 14"></polyline>
+                    <circle cx="12" cy="12" r="10"></circle>
+                  </svg>
+                </button>
+                <button class="btn-icon upload" (click)="openUploadPanel(loader)" title="Upload CSV">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="runLoader(loader)" title="Run Now" [disabled]="loader.status === 'RUNNING'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="openEditEditor(loader)" title="Edit">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="toggleLoader(loader)" [title]="loader.enabled ? 'Disable' : 'Enable'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    @if (loader.enabled) {
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
+                    } @else {
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                    }
+                  </svg>
+                </button>
+                <button class="btn-icon danger" (click)="deleteLoader(loader)" title="Delete">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  </div>
+</app-page-layout>
+
+<!-- Runs Panel (Slide-in) -->
+@if (showRunsPanel() && selectedLoader()) {
+  <div class="runs-panel-overlay" (click)="closeRunsPanel()">
+    <div class="runs-panel" (click)="$event.stopPropagation()">
+      <div class="panel-header">
+        <h2>{{ selectedLoader()?.name }} - Run History</h2>
+        <button class="btn-icon" (click)="closeRunsPanel()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="panel-content">
+        @if (selectedLoaderRuns().length === 0) {
+          <div class="empty-runs">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="12 8 12 12 14 14"></polyline>
+              <circle cx="12" cy="12" r="10"></circle>
+            </svg>
+            <p>No runs yet</p>
+          </div>
+        } @else {
+          <div class="runs-list">
+            @for (run of selectedLoaderRuns(); track run.id) {
+              <div class="run-item" [class]="getRunStatusClass(run.status)">
+                <div class="run-status">
+                  <span class="status-badge">{{ run.status }}</span>
+                  <span class="run-trigger">{{ run.trigger }}</span>
+                </div>
+                <div class="run-details">
+                  <div class="run-time">{{ formatDate(run.startedAt) }}</div>
+                  <div class="run-stats">
+                    <span>{{ run.recordsProcessed }}/{{ run.recordsFound }} records</span>
+                    @if (run.recordsFailed > 0) {
+                      <span class="failed">{{ run.recordsFailed }} failed</span>
+                    }
+                    <span>{{ formatDuration(run.durationMs) }}</span>
+                  </div>
+                </div>
+                @if (run.error) {
+                  <div class="run-error">{{ run.error }}</div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Editor Modal with Wizard -->
+@if (showEditor()) {
+  <div class="modal-overlay" (click)="closeEditor()">
+    <div class="modal wizard-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Volume Loader</h2>
+        <button class="btn-icon" (click)="closeEditor()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Wizard Stepper -->
+      <div class="wizard-stepper">
+        @for (step of wizardSteps; track step.step) {
+          <div
+            class="step"
+            [class.active]="currentStep() === step.step"
+            [class.completed]="isStepComplete(step.step) && currentStep() > step.step"
+            [class.clickable]="isEditMode() || step.step <= currentStep()"
+            (click)="(isEditMode() || step.step <= currentStep()) && goToStep(step.step)"
+          >
+            <div class="step-number">
+              @if (isStepComplete(step.step) && currentStep() > step.step) {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              } @else {
+                {{ step.step }}
+              }
+            </div>
+            <div class="step-info">
+              <span class="step-title">{{ step.title }}</span>
+              <span class="step-desc">{{ step.description }}</span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-body">
+        <!-- Step 1: Basic Info -->
+        @if (currentStep() === 1) {
+          <div class="form-section">
+            <h3>Basic Information</h3>
+            <p class="section-help">Enter a name and select the type of data source.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Name *</label>
+                <input
+                  type="text"
+                  id="name"
+                  [ngModel]="formData().name"
+                  (ngModelChange)="updateFormField('name', $event)"
+                  placeholder="e.g., Orders GCS Loader"
+                />
+              </div>
+              <div class="form-group">
+                <label for="type">Source Type *</label>
+                <select
+                  id="type"
+                  [ngModel]="formData().type"
+                  (ngModelChange)="onTypeChange($event)"
+                  [disabled]="isEditMode()"
+                >
+                  @for (t of loaderTypes; track t.value) {
+                    <option [value]="t.value">{{ t.label }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea
+                id="description"
+                [ngModel]="formData().description"
+                (ngModelChange)="updateFormField('description', $event)"
+                rows="2"
+                placeholder="Describe what this loader does..."
+              ></textarea>
+            </div>
+          </div>
+        }
+
+        <!-- Step 2: Target Pipeline -->
+        @if (currentStep() === 2) {
+          <div class="form-section">
+            <h3>Target Pipeline</h3>
+            <p class="section-help">
+              Select which pipeline this loader will send data to. The pipeline's routing rules will determine
+              which queue tasks are placed in.
+            </p>
+            <div class="form-group">
+              <label for="pipelineId">Pipeline</label>
+              <select
+                id="pipelineId"
+                [ngModel]="getFormPipelineId()"
+                (ngModelChange)="updatePipelineId($event)"
+              >
+                <option value="">-- Select a Pipeline --</option>
+                @for (pipeline of pipelines(); track pipeline.id) {
+                  <option [value]="pipeline.id" [disabled]="!pipeline.enabled">
+                    {{ pipeline.name }}{{ !pipeline.enabled ? ' (disabled)' : '' }}
+                  </option>
+                }
+              </select>
+            </div>
+            @if (pipelines().length === 0) {
+              <div class="no-pipelines-warning">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>No pipelines configured. <a routerLink="/admin/pipelines">Create a pipeline</a> first.</span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 3: Connection Settings -->
+        @if (currentStep() === 3) {
+          <div class="form-section">
+            <h3>Connection Settings</h3>
+            <p class="section-help">Configure connection details for the {{ formData().type }} source.</p>
+            @switch (formData().type) {
+              @case ('GCS') {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Bucket Name *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('bucket')"
+                      (ngModelChange)="updateConfigField('bucket', $event)"
+                      placeholder="my-bucket"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Path Prefix</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('pathPrefix')"
+                      (ngModelChange)="updateConfigField('pathPrefix', $event)"
+                      placeholder="incoming/"
+                    />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>File Pattern *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('filePattern')"
+                      (ngModelChange)="updateConfigField('filePattern', $event)"
+                      placeholder="*.csv"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Project ID</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('projectId')"
+                      (ngModelChange)="updateConfigField('projectId', $event)"
+                      placeholder="my-project"
+                    />
+                  </div>
+                </div>
+              }
+              @case ('S3') {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Bucket Name *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('bucket')"
+                      (ngModelChange)="updateConfigField('bucket', $event)"
+                      placeholder="my-s3-bucket"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>Region</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('region')"
+                      (ngModelChange)="updateConfigField('region', $event)"
+                      placeholder="us-east-1"
+                    />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Path Prefix</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('pathPrefix')"
+                      (ngModelChange)="updateConfigField('pathPrefix', $event)"
+                      placeholder="incoming/"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>File Pattern *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('filePattern')"
+                      (ngModelChange)="updateConfigField('filePattern', $event)"
+                      placeholder="*.csv"
+                    />
+                  </div>
+                </div>
+              }
+              @case ('HTTP') {
+                <div class="form-group">
+                  <label>URL *</label>
+                  <input
+                    type="text"
+                    [ngModel]="getConfigValue('url')"
+                    (ngModelChange)="updateConfigField('url', $event)"
+                    placeholder="https://api.example.com/data"
+                  />
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Method</label>
+                    <select
+                      [ngModel]="getConfigValue('method')"
+                      (ngModelChange)="updateConfigField('method', $event)"
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Auth Type</label>
+                    <select
+                      [ngModel]="getConfigValue('authType')"
+                      (ngModelChange)="updateConfigField('authType', $event)"
+                    >
+                      <option value="none">None</option>
+                      <option value="basic">Basic Auth</option>
+                      <option value="bearer">Bearer Token</option>
+                      <option value="api_key">API Key</option>
+                    </select>
+                  </div>
+                </div>
+              }
+              @case ('LOCAL') {
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Directory Path *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('directory')"
+                      (ngModelChange)="updateConfigField('directory', $event)"
+                      placeholder="/tmp/incoming"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label>File Pattern *</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('filePattern')"
+                      (ngModelChange)="updateConfigField('filePattern', $event)"
+                      placeholder="*.csv"
+                    />
+                  </div>
+                </div>
+              }
+            }
+            @if (isEditMode()) {
+              <button class="btn-secondary" (click)="testConnection()" [disabled]="isLoading()">
+                Test Connection
+              </button>
+              @if (testResult()) {
+                <div class="test-result" [class.success]="testResult()?.connectionSuccess" [class.error]="!testResult()?.connectionSuccess">
+                  @if (testResult()?.connectionSuccess) {
+                    <span>Connection successful. Found {{ testResult()?.filesFound?.length || 0 }} files.</span>
+                  } @else {
+                    <span>{{ testResult()?.connectionError }}</span>
+                  }
+                </div>
+              }
+            }
+          </div>
+        }
+
+        <!-- Step 4: Data Format -->
+        @if (currentStep() === 4) {
+          <div class="form-section">
+            <h3>Data Format</h3>
+            <p class="section-help">Configure how to parse the data files.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Format *</label>
+                <select
+                  [ngModel]="formData().dataFormat?.format"
+                  (ngModelChange)="updateDataFormatField('format', $event)"
+                >
+                  @for (f of dataFormats; track f.value) {
+                    <option [value]="f.value">{{ f.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Encoding</label>
+                <input
+                  type="text"
+                  [ngModel]="formData().dataFormat?.encoding"
+                  (ngModelChange)="updateDataFormatField('encoding', $event)"
+                  placeholder="utf-8"
+                />
+              </div>
+            </div>
+            @if (formData().dataFormat?.format === 'CSV') {
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Delimiter</label>
+                  <select
+                    [ngModel]="getCsvOptionValue('delimiter')"
+                    (ngModelChange)="updateCsvOption('delimiter', $event)"
+                  >
+                    @for (d of delimiterOptions; track d.value) {
+                      <option [value]="d.value">{{ d.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Quote Character</label>
+                  <select
+                    [ngModel]="getCsvOptionValue('quoteChar')"
+                    (ngModelChange)="updateCsvOption('quoteChar', $event)"
+                  >
+                    <option value="&quot;">" (Double Quote)</option>
+                    <option value="'">' (Single Quote)</option>
+                    <option value="">None</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-checkboxes">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [ngModel]="getCsvOptionValue('hasHeader')"
+                    (ngModelChange)="updateCsvOption('hasHeader', $event)"
+                  />
+                  <span>First row contains headers</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [ngModel]="getCsvOptionValue('trimWhitespace')"
+                    (ngModelChange)="updateCsvOption('trimWhitespace', $event)"
+                  />
+                  <span>Trim whitespace</span>
+                </label>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 5: Sample File Upload -->
+        @if (currentStep() === 5) {
+          <div class="form-section">
+            <h3>Sample File</h3>
+            <p class="section-help">
+              Upload a sample file to automatically detect fields and their types. This will create
+              your field mappings automatically.
+            </p>
+
+            <!-- File Input -->
+            <input
+              #sampleFileInput
+              type="file"
+              accept=".csv,.json,.jsonl"
+              (change)="onSampleFileSelected($event)"
+              style="display: none"
+            />
+
+            <div class="upload-zone">
+              <button class="upload-btn" (click)="triggerSampleFileInput()" [disabled]="isParsingSample()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>{{ isParsingSample() ? 'Parsing...' : 'Choose Sample File' }}</span>
+              </button>
+              @if (sampleFileName()) {
+                <span class="upload-or">{{ sampleFileName() }}</span>
+              } @else {
+                <span class="upload-or">CSV, JSON, or JSONL</span>
+              }
+            </div>
+
+            @if (sampleParseResult()?.success) {
+              <div class="sample-result success">
+                <div class="result-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>
+                    Detected <strong>{{ detectedFields().length }}</strong> fields from
+                    <strong>{{ sampleParseResult()?.totalRows }}</strong> rows
+                  </span>
+                </div>
+
+                <div class="detected-fields-preview">
+                  <h4>Detected Fields:</h4>
+                  <div class="fields-grid">
+                    @for (field of detectedFields(); track field.name) {
+                      <div class="field-chip" [class.is-id]="field.looksLikeId">
+                        <span class="field-name">{{ field.name }}</span>
+                        <span class="field-type">{{ fieldTypeLabels[field.detectedType] }}</span>
+                        @if (field.looksLikeId) {
+                          <span class="id-badge">ID</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                @if (sampleParseResult()?.suggestedPrimaryIdField) {
+                  <div class="suggested-id">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>
+                      Suggested primary ID: <strong>{{ sampleParseResult()?.suggestedPrimaryIdField }}</strong>
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (sampleParseResult() && !sampleParseResult()?.success) {
+              <div class="sample-result error">
+                <div class="result-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                  </svg>
+                  <span>{{ sampleParseResult()?.error }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 6: Field Mappings (Primary ID Selection) -->
+        @if (currentStep() === 6) {
+          <div class="form-section">
+            <h3>Field Mappings</h3>
+            <p class="section-help">
+              Select which field contains the unique identifier (Primary ID) for each record.
+              All detected fields will be included in the task data.
+            </p>
+
+            @if (detectedFields().length === 0) {
+              <div class="no-fields-warning">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>Please upload a sample file in the previous step to detect fields.</span>
+              </div>
+            } @else {
+              <div class="primary-id-section">
+                <label>Primary ID Field (Unique Identifier) *</label>
+                <div class="id-field-options">
+                  @for (field of detectedFields(); track field.name) {
+                    <label
+                      class="id-field-option"
+                      [class.selected]="selectedPrimaryIdField() === field.name"
+                      [class.recommended]="field.looksLikeId"
+                    >
+                      <input
+                        type="radio"
+                        name="primaryIdField"
+                        [value]="field.name"
+                        [checked]="selectedPrimaryIdField() === field.name"
+                        (change)="setPrimaryIdField(field.name)"
+                      />
+                      <div class="field-info">
+                        <span class="field-name">{{ field.name }}</span>
+                        <span class="field-meta">
+                          {{ fieldTypeLabels[field.detectedType] }}
+                          · {{ field.uniqueValueCount }} unique values
+                          @if (field.looksLikeId) {
+                            <span class="recommended-badge">Recommended</span>
+                          }
+                        </span>
+                      </div>
+                    </label>
+                  }
+                </div>
+              </div>
+
+              <!-- Editable Fields Configuration Table -->
+              <div class="included-fields-section">
+                <h4>Field Configuration</h4>
+                <p class="section-help">Rename fields and change data types as needed. Uncheck fields to exclude them.</p>
+                <div class="fields-config-table">
+                  <div class="fields-config-header">
+                    <span>Use</span>
+                    <span>Original Field</span>
+                    <span>Display Name</span>
+                    <span>Data Type</span>
+                    <span>Status</span>
+                  </div>
+                  @for (field of detectedFields(); track field.name) {
+                    <div class="fields-config-row" [class.is-primary]="selectedPrimaryIdField() === field.name">
+                      <input
+                        type="checkbox"
+                        [checked]="isFieldIncluded(field.name)"
+                        (change)="toggleFieldInclusion(field.name, $any($event.target).checked)"
+                        [disabled]="selectedPrimaryIdField() === field.name"
+                        [title]="selectedPrimaryIdField() === field.name ? 'Primary ID field cannot be excluded' : 'Include/exclude this field'"
+                      />
+                      <div class="original-field">
+                        <span>{{ field.name }}</span>
+                        @if (field.looksLikeId) {
+                          <span class="id-badge">ID</span>
+                        }
+                      </div>
+                      <input
+                        type="text"
+                        class="display-name-input"
+                        [class.changed]="getFieldDisplayName(field.name) && getFieldDisplayName(field.name) !== field.name"
+                        [value]="getFieldDisplayName(field.name) || field.name"
+                        (change)="updateFieldDisplayName(field.name, $any($event.target).value)"
+                        placeholder="{{ field.name }}"
+                      />
+                      <select
+                        class="type-select"
+                        [value]="getFieldDataType(field.name) || field.detectedType"
+                        (change)="updateFieldDataType(field.name, $any($event.target).value)"
+                      >
+                        @for (type of fieldTypeOptions; track type.value) {
+                          <option [value]="type.value">{{ type.label }}</option>
+                        }
+                      </select>
+                      <div class="field-badges">
+                        @if (selectedPrimaryIdField() === field.name) {
+                          <span class="primary-badge">Primary</span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 7: Processing Options -->
+        @if (currentStep() === 7) {
+          <div class="form-section">
+            <h3>Processing Options</h3>
+            <p class="section-help">Configure how records are processed and errors are handled.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Batch Size</label>
+                <input
+                  type="number"
+                  [ngModel]="formData().processingOptions?.batchSize"
+                  (ngModelChange)="updateProcessingOption('batchSize', $event)"
+                  min="1"
+                />
+              </div>
+              <div class="form-group">
+                <label>Max Records (0=unlimited)</label>
+                <input
+                  type="number"
+                  [ngModel]="formData().processingOptions?.maxRecords"
+                  (ngModelChange)="updateProcessingOption('maxRecords', $event)"
+                  min="0"
+                />
+              </div>
+            </div>
+            <div class="form-checkboxes">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [ngModel]="formData().processingOptions?.skipDuplicates"
+                  (ngModelChange)="updateProcessingOption('skipDuplicates', $event)"
+                />
+                <span>Skip Duplicate External IDs</span>
+              </label>
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [ngModel]="formData().processingOptions?.continueOnError"
+                  (ngModelChange)="updateProcessingOption('continueOnError', $event)"
+                />
+                <span>Continue on Error</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Error Threshold (%)</label>
+              <input
+                type="number"
+                [ngModel]="formData().processingOptions?.errorThreshold"
+                (ngModelChange)="updateProcessingOption('errorThreshold', $event)"
+                min="0"
+                max="100"
+                placeholder="50"
+              />
+              <span class="field-hint">Stop processing if error rate exceeds this percentage</span>
+            </div>
+          </div>
+        }
+
+        <!-- Error/Success Messages -->
+        @if (errorMessage()) {
+          <div class="message error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="message success">{{ successMessage() }}</div>
+        }
+      </div>
+
+      <!-- Wizard Footer -->
+      <div class="modal-footer wizard-footer">
+        <div class="wizard-nav-left">
+          @if (currentStep() > 1) {
+            <button class="btn-secondary" (click)="prevStep()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              Back
+            </button>
+          }
+        </div>
+        <div class="wizard-nav-right">
+          @if (currentStep() < wizardSteps.length) {
+            <button class="btn-primary" (click)="nextStep()">
+              Next
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          } @else {
+            <button class="btn-primary" (click)="saveLoader()" [disabled]="isLoading()">
+              @if (isLoading()) {
+                Saving...
+              } @else {
+                {{ isEditMode() ? 'Save Changes' : 'Create Loader' }}
+              }
+            </button>
+          }
+          <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- CSV Upload Panel -->
+@if (showUploadPanel() && uploadLoader()) {
+  <div class="modal-overlay" (click)="closeUploadPanel()">
+    <div class="modal upload-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Upload CSV - {{ uploadLoader()?.name }}</h2>
+        <button class="btn-icon" (click)="closeUploadPanel()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Help Text -->
+        <div class="upload-help">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <p>
+            Upload a CSV file to create tasks using this loader's field mappings.
+            The data will be processed according to the configured mappings and
+            dynamic URLs will be generated using placeholders like <code>{{ '{' }}externalId{{ '}' }}</code>.
+          </p>
+        </div>
+
+        <!-- File Input -->
+        <div class="upload-zone">
+          <input
+            #csvFileInput
+            type="file"
+            accept=".csv"
+            (change)="onCsvFileSelected($event)"
+            style="display: none"
+          />
+          <button class="upload-btn" (click)="triggerFileInput()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>Choose CSV File</span>
+          </button>
+          <span class="upload-or">or paste CSV content below</span>
+        </div>
+
+        <!-- CSV Content Textarea -->
+        <div class="form-group">
+          <label for="csvContent">CSV Content</label>
+          <textarea
+            id="csvContent"
+            [(ngModel)]="csvContent"
+            (paste)="onCsvPaste()"
+            rows="10"
+            placeholder="Paste CSV content here or upload a file...
+
+Example:
+order_id,customer_name,priority,work_type
+ORD-001,John Doe,5,ORDERS
+ORD-002,Jane Smith,3,RETURNS"
+          ></textarea>
+        </div>
+
+        <!-- Preview/Result -->
+        @if (uploadResult()) {
+          <div class="upload-result" [class.success]="uploadResult()?.success" [class.error]="!uploadResult()?.success">
+            <div class="result-summary">
+              <div class="result-stat">
+                <span class="stat-value">{{ uploadResult()?.recordsFound }}</span>
+                <span class="stat-label">Records Found</span>
+              </div>
+              <div class="result-stat success">
+                <span class="stat-value">{{ uploadResult()?.recordsProcessed }}</span>
+                <span class="stat-label">Valid</span>
+              </div>
+              @if (uploadResult()?.recordsFailed) {
+                <div class="result-stat error">
+                  <span class="stat-value">{{ uploadResult()?.recordsFailed }}</span>
+                  <span class="stat-label">Errors</span>
+                </div>
+              }
+              @if (uploadResult()?.recordsSkipped) {
+                <div class="result-stat warning">
+                  <span class="stat-value">{{ uploadResult()?.recordsSkipped }}</span>
+                  <span class="stat-label">Skipped</span>
+                </div>
+              }
+            </div>
+
+            <!-- Sample URLs -->
+            @if (uploadResult()?.samplePayloadUrls?.length) {
+              <div class="sample-urls">
+                <h4>Sample Generated URLs:</h4>
+                <ul>
+                  @for (url of uploadResult()?.samplePayloadUrls; track $index) {
+                    <li><a [href]="url" target="_blank">{{ url }}</a></li>
+                  }
+                </ul>
+              </div>
+            }
+
+            <!-- Errors -->
+            @if (uploadResult()?.errors?.length) {
+              <div class="upload-errors">
+                <h4>Errors:</h4>
+                <ul>
+                  @for (error of uploadResult()?.errors?.slice(0, 5); track $index) {
+                    <li>Row {{ error.row }}: {{ error.error }}</li>
+                  }
+                  @if (uploadResult()?.errors && uploadResult()!.errors.length > 5) {
+                    <li class="more">... and {{ uploadResult()!.errors.length - 5 }} more errors</li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeUploadPanel()">Cancel</button>
+        <button
+          class="btn-secondary"
+          (click)="uploadCsv(true)"
+          [disabled]="isUploading() || !csvContent()"
+        >
+          Preview
+        </button>
+        <button
+          class="btn-primary"
+          (click)="uploadCsv(false)"
+          [disabled]="isUploading() || !csvContent() || !uploadResult()?.success"
+        >
+          @if (isUploading()) {
+            <span>Processing...</span>
+          } @else {
+            <span>Create {{ uploadResult()?.recordsProcessed || 0 }} Tasks</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

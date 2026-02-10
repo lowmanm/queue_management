@@ -1,0 +1,385 @@
+@use 'styles/variables' as *;
+
+.queue-monitor {
+  padding: $spacing-6;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: $spacing-6;
+
+  h1 {
+    margin: 0;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-gray-900;
+  }
+
+  .subtitle {
+    margin: $spacing-1 0 0;
+    color: $color-gray-500;
+    font-size: $font-size-sm;
+  }
+}
+
+// Summary Cards
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: $spacing-4;
+  margin-bottom: $spacing-6;
+}
+
+.summary-card {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-4;
+  text-align: center;
+  box-shadow: $shadow-sm;
+  border: 1px solid $color-gray-200;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    transform: translateY(-2px);
+  }
+
+  .card-value {
+    display: block;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $color-gray-900;
+  }
+
+  .card-label {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    margin-top: $spacing-1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &.total {
+    border-left: 3px solid $color-gray-500;
+  }
+
+  &.waiting {
+    border-left: 3px solid $color-warning;
+
+    .card-value {
+      color: $color-warning;
+    }
+  }
+
+  &.in-progress {
+    border-left: 3px solid $color-info;
+
+    .card-value {
+      color: $color-info;
+    }
+  }
+
+  &.service-level {
+    border-left: 3px solid $color-primary;
+
+    &.sl-good .card-value {
+      color: $color-success;
+    }
+
+    &.sl-warning .card-value {
+      color: $color-warning;
+    }
+
+    &.sl-critical .card-value {
+      color: $color-error;
+    }
+  }
+
+  &.healthy {
+    border-left: 3px solid $color-success;
+
+    .card-value {
+      color: $color-success;
+    }
+  }
+
+  &.warning {
+    border-left: 3px solid $color-warning;
+
+    .card-value {
+      color: $color-warning;
+    }
+  }
+
+  &.critical {
+    border-left: 3px solid $color-error;
+
+    .card-value {
+      color: $color-error;
+    }
+  }
+}
+
+// Filter Tabs
+.filter-tabs {
+  display: flex;
+  gap: $spacing-2;
+  margin-bottom: $spacing-5;
+  border-bottom: 1px solid $color-gray-200;
+  padding-bottom: $spacing-3;
+}
+
+.filter-tab {
+  padding: $spacing-2 $spacing-4;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-gray-600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: $color-gray-100;
+    color: $color-gray-900;
+  }
+
+  &.active {
+    background: $color-primary;
+    color: $color-white;
+    border-color: $color-primary;
+  }
+
+  &.healthy.active {
+    background: $color-success;
+    border-color: $color-success;
+  }
+
+  &.warning.active {
+    background: $color-warning;
+    border-color: $color-warning;
+  }
+
+  &.critical.active {
+    background: $color-error;
+    border-color: $color-error;
+  }
+}
+
+// Queue List
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
+.queue-card {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-5;
+  box-shadow: $shadow-sm;
+  border: 1px solid $color-gray-200;
+  transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  &.status-healthy {
+    border-left: 4px solid $color-success;
+  }
+
+  &.status-warning {
+    border-left: 4px solid $color-warning;
+  }
+
+  &.status-critical {
+    border-left: 4px solid $color-error;
+    background: #fff5f5;
+  }
+}
+
+.queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-4;
+}
+
+.queue-info {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-3;
+}
+
+.status-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: $border-radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  flex-shrink: 0;
+
+  &.healthy {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+
+  &.warning {
+    background: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &.critical {
+    background: $color-error-bg;
+    color: $color-error;
+  }
+}
+
+.queue-name-block {
+  .queue-name {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .queue-description {
+    margin: $spacing-1 0 0;
+    font-size: $font-size-sm;
+    color: $color-gray-500;
+  }
+}
+
+.queue-service-level {
+  text-align: center;
+  padding: $spacing-2 $spacing-4;
+  border-radius: $border-radius-md;
+
+  &.sl-good {
+    background: $color-success-bg;
+
+    .sl-value {
+      color: $color-success;
+    }
+  }
+
+  &.sl-warning {
+    background: $color-warning-bg;
+
+    .sl-value {
+      color: $color-warning;
+    }
+  }
+
+  &.sl-critical {
+    background: $color-error-bg;
+
+    .sl-value {
+      color: $color-error;
+    }
+  }
+
+  .sl-value {
+    display: block;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+  }
+
+  .sl-label {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    text-transform: uppercase;
+  }
+}
+
+.queue-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  margin-bottom: $spacing-4;
+}
+
+.metric-group {
+  display: flex;
+  gap: $spacing-6;
+  flex-wrap: wrap;
+
+  &.secondary {
+    padding-top: $spacing-3;
+    border-top: 1px solid $color-gray-100;
+  }
+}
+
+.metric {
+  flex: 1;
+  min-width: 100px;
+
+  .metric-value {
+    display: block;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .metric-label {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    text-transform: uppercase;
+  }
+
+  &.waiting .metric-value {
+    color: $color-warning;
+  }
+
+  &.oldest {
+    .metric-value {
+      font-family: $font-family-mono;
+    }
+  }
+}
+
+.sl-progress {
+  height: 4px;
+  background: $color-gray-200;
+  border-radius: $border-radius-full;
+  overflow: hidden;
+
+  .sl-fill {
+    height: 100%;
+    border-radius: $border-radius-full;
+    transition: width 0.3s ease;
+
+    &.sl-good {
+      background: $color-success;
+    }
+
+    &.sl-warning {
+      background: $color-warning;
+    }
+
+    &.sl-critical {
+      background: $color-error;
+    }
+  }
+}
+
+.no-queues {
+  text-align: center;
+  padding: $spacing-8;
+  color: $color-gray-500;
+
+  p {
+    margin: 0;
+  }
+}

@@ -1,4 +1,9 @@
 <aside class="workspace-sidebar">
+  <!-- Agent Stats Panel -->
+  <div class="sidebar-section stats-section">
+    <app-agent-stats></app-agent-stats>
+  </div>
+
   <div class="sidebar-header">
     <h2>Task Info</h2>
   </div>
@@ -6,6 +11,24 @@
   <div class="sidebar-content">
     @if (currentTask$ | async; as task) {
       <div class="task-details">
+        <!-- Open Task URL Button -->
+        @if (task.payloadUrl) {
+          <div class="section task-url-section">
+            <button class="open-url-btn" (click)="openTaskUrl(task.payloadUrl)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+              Open Task in New Tab
+            </button>
+            <div class="url-display">
+              <span class="field-label">Task URL</span>
+              <span class="field-value url monospace">{{ task.payloadUrl }}</span>
+            </div>
+          </div>
+        }
+
         <!-- Identity Section -->
         <div class="section">
           <div class="task-field">

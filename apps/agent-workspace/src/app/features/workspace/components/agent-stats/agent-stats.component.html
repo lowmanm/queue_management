@@ -1,0 +1,93 @@
+<div class="agent-stats-panel" [class.collapsed]="!expanded">
+  <div class="panel-header" (click)="toggleExpanded()">
+    <h3>Session Stats</h3>
+    <button class="toggle-btn" [attr.aria-label]="expanded ? 'Collapse' : 'Expand'">
+      {{ expanded ? '−' : '+' }}
+    </button>
+  </div>
+
+  @if (expanded && (stats$ | async); as stats) {
+    <div class="panel-content">
+      <!-- Primary Metrics -->
+      <div class="stats-grid primary">
+        <div class="stat-card highlight">
+          <span class="stat-value">{{ stats.tasksCompleted }}</span>
+          <span class="stat-label">Tasks Completed</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ stats.tasksPerHour }}</span>
+          <span class="stat-label">Tasks/Hour</span>
+        </div>
+      </div>
+
+      <!-- Time Metrics -->
+      <div class="stats-section">
+        <h4>Average Times</h4>
+        <div class="stats-row">
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.avgHandleTime }}</span>
+            <span class="stat-label">Handle Time</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.avgWrapUpTime }}</span>
+            <span class="stat-label">Wrap-Up Time</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Time Breakdown -->
+      <div class="stats-section">
+        <h4>Session Time</h4>
+        <div class="time-breakdown">
+          <div class="time-item">
+            <span class="time-indicator logged-in"></span>
+            <span class="time-label">Logged In</span>
+            <span class="time-value">{{ stats.totalLoggedInTime }}</span>
+          </div>
+          <div class="time-item">
+            <span class="time-indicator active"></span>
+            <span class="time-label">Active</span>
+            <span class="time-value">{{ stats.totalActiveTime }}</span>
+          </div>
+          <div class="time-item">
+            <span class="time-indicator idle"></span>
+            <span class="time-label">Idle</span>
+            <span class="time-value">{{ stats.totalIdleTime }}</span>
+          </div>
+          @if (stats.totalPausedTime !== '0:00') {
+            <div class="time-item">
+              <span class="time-indicator paused"></span>
+              <span class="time-label">Paused</span>
+              <span class="time-value">{{ stats.totalPausedTime }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Occupancy Rate -->
+      <div class="stats-section">
+        <h4>Occupancy</h4>
+        <div class="progress-bar">
+          <div
+            class="progress-fill"
+            [style.width.%]="stats.occupancyRate"
+            [class.low]="stats.occupancyRate < 50"
+            [class.medium]="stats.occupancyRate >= 50 && stats.occupancyRate < 75"
+            [class.high]="stats.occupancyRate >= 75"
+          ></div>
+          <span class="progress-label">{{ stats.occupancyRate }}%</span>
+        </div>
+      </div>
+
+      <!-- Transfers (if any) -->
+      @if (stats.tasksTransferred > 0) {
+        <div class="stats-section transfers">
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.tasksTransferred }}</span>
+            <span class="stat-label">Transferred</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

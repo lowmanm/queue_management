@@ -1,9 +1,36 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AgentManagerService } from './agent-manager.service';
 import { TaskDistributorService } from './task-distributor.service';
+import { RuleEngineService } from './rule-engine.service';
+import { TaskSourceService } from './task-source.service';
+import { DispositionService } from './disposition.service';
+import { RbacService } from './rbac.service';
+import { AgentSessionService } from './agent-session.service';
+import { QueuesService } from '../queues/queues.service';
+import { RoutingService } from '../routing/routing.service';
 
 @Module({
-  providers: [AgentManagerService, TaskDistributorService],
-  exports: [AgentManagerService, TaskDistributorService],
+  providers: [
+    AgentManagerService,
+    TaskDistributorService,
+    RuleEngineService,
+    TaskSourceService,
+    DispositionService,
+    RbacService,
+    AgentSessionService,
+    QueuesService,
+    RoutingService,
+  ],
+  exports: [
+    AgentManagerService,
+    TaskDistributorService,
+    RuleEngineService,
+    TaskSourceService,
+    DispositionService,
+    RbacService,
+    AgentSessionService,
+    QueuesService,
+    RoutingService,
+  ],
 })
 export class ServicesModule {}

@@ -1,0 +1,465 @@
+@use '../../../../../styles/variables' as *;
+@use '../../../../../styles/admin-shared';
+
+.pipelines-container {
+  padding: 0;
+}
+
+// Loading state - messages and empty-state handled by admin-shared
+
+// Pipeline Grid
+.pipelines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: $spacing-6;
+}
+
+.pipeline-card {
+  background: $color-white;
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-lg;
+  padding: $spacing-5;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $color-primary;
+    box-shadow: $shadow-md;
+  }
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+.pipeline-header {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-4;
+  margin-bottom: $spacing-3;
+}
+
+.pipeline-icon {
+  width: 40px;
+  height: 40px;
+  background: $color-primary;
+  border-radius: $border-radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-white;
+  flex-shrink: 0;
+}
+
+.pipeline-info {
+  flex: 1;
+  min-width: 0;
+
+  h3 {
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    margin: 0 0 $spacing-1;
+    color: $color-gray-900;
+  }
+}
+
+.pipeline-status {
+  font-size: $font-size-xs;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-sm;
+  background: $color-error-bg;
+  color: $color-error;
+
+  &.enabled {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+}
+
+.pipeline-description {
+  font-size: $font-size-sm;
+  color: $color-gray-600;
+  margin: 0 0 $spacing-4;
+  line-height: $line-height-normal;
+}
+
+.pipeline-stats {
+  display: flex;
+  gap: $spacing-6;
+  padding: $spacing-3 0;
+  border-top: 1px solid $color-gray-200;
+  border-bottom: 1px solid $color-gray-200;
+  margin-bottom: $spacing-3;
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-value {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .stat-label {
+    font-size: $font-size-xs;
+    color: $color-gray-600;
+  }
+}
+
+.work-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.work-type-tag {
+  font-size: $font-size-xs;
+  padding: $spacing-1 $spacing-2;
+  background: $color-info-bg;
+  color: $color-info;
+  border-radius: $border-radius-sm;
+  font-weight: $font-weight-medium;
+}
+
+.pipeline-actions {
+  display: flex;
+  gap: $spacing-2;
+  justify-content: flex-end;
+}
+
+// Detail View
+.pipeline-detail {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-8;
+}
+
+.detail-section {
+  background: $color-white;
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-lg;
+  padding: $spacing-6;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-4;
+
+  h2 {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    margin: 0;
+    color: $color-gray-900;
+  }
+}
+
+.section-help {
+  font-size: $font-size-sm;
+  color: $color-gray-600;
+  margin-bottom: $spacing-4;
+}
+
+.empty-section {
+  text-align: center;
+  padding: $spacing-8;
+  color: $color-gray-500;
+  background: $color-gray-50;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+}
+
+// Queue List
+.queues-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  padding: $spacing-4;
+  background: $color-gray-50;
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-md;
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+.queue-priority {
+  width: 28px;
+  height: 28px;
+  background: $color-primary;
+  color: $color-white;
+  border-radius: $border-radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.queue-info {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-details {
+  flex: 1;
+  min-width: 0;
+
+  h4 {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    margin: 0 0 $spacing-1;
+    color: $color-gray-900;
+  }
+
+  p {
+    font-size: $font-size-xs;
+    color: $color-gray-600;
+    margin: 0 0 $spacing-2;
+  }
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+}
+
+.skill-tag {
+  font-size: $font-size-xs;
+  padding: $spacing-1 $spacing-2;
+  background: $color-success-bg;
+  color: $color-success;
+  border-radius: $border-radius-sm;
+}
+
+.queue-stats {
+  display: flex;
+  gap: $spacing-4;
+  color: $color-gray-600;
+  font-size: $font-size-xs;
+}
+
+.stat-inline strong {
+  color: $color-gray-900;
+}
+
+.queue-actions {
+  display: flex;
+  gap: $spacing-1;
+}
+
+// Rules List
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  padding: $spacing-4;
+  background: $color-gray-50;
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-md;
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+.rule-priority {
+  width: 28px;
+  height: 28px;
+  background: $color-info;
+  color: $color-white;
+  border-radius: $border-radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  flex-shrink: 0;
+}
+
+.rule-info {
+  flex: 1;
+  min-width: 0;
+
+  h4 {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    margin: 0 0 $spacing-1;
+    color: $color-gray-900;
+  }
+
+  p {
+    font-size: $font-size-xs;
+    color: $color-gray-600;
+    margin: 0 0 $spacing-2;
+  }
+}
+
+.rule-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.condition {
+  font-size: $font-size-xs;
+  padding: $spacing-1 $spacing-2;
+  background: $color-info-bg;
+  color: $color-info;
+  border-radius: $border-radius-sm;
+  font-family: $font-family-mono;
+}
+
+.condition-logic {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-500;
+}
+
+.rule-target {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  background: $color-success-bg;
+  color: $color-success;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+
+  svg {
+    opacity: 0.7;
+  }
+}
+
+.rule-stats {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}
+
+.match-count {
+  background: $color-white;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-sm;
+}
+
+.rule-actions {
+  display: flex;
+  gap: $spacing-1;
+}
+
+// Buttons - extending shared styles for component-specific adjustments
+
+// Modal - uses shared modal styles, only extend if needed
+.modal.large {
+  max-width: 640px;
+}
+
+// Forms - uses shared form styles, specific overrides below
+.form-group.small {
+  flex: 0 0 100px;
+}
+
+// Tag Input - uses shared tag-input styles
+
+// Condition Builder
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.condition-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-2 $spacing-3;
+  background: $color-gray-50;
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-md;
+}
+
+.condition-text {
+  font-size: $font-size-sm;
+  font-family: $font-family-mono;
+  color: $color-gray-900;
+}
+
+.logic-selector {
+  text-align: center;
+  padding: $spacing-1 0;
+
+  select {
+    padding: $spacing-1 $spacing-2;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    background: $color-white;
+    border: 1px solid $color-gray-200;
+    border-radius: $border-radius-sm;
+    color: $color-gray-600;
+  }
+}
+
+.condition-builder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  align-items: center;
+  padding: $spacing-3;
+  background: $color-gray-50;
+  border: 1px dashed $color-gray-300;
+  border-radius: $border-radius-md;
+
+  select,
+  input {
+    padding: $spacing-2 $spacing-3;
+    background: $color-white;
+    border: 1px solid $color-gray-200;
+    border-radius: $border-radius-md;
+    font-size: $font-size-sm;
+    color: $color-gray-900;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+    }
+  }
+
+  select {
+    min-width: 120px;
+  }
+
+  .custom-field-input {
+    width: 120px;
+  }
+
+  .value-input {
+    flex: 1;
+    min-width: 100px;
+  }
+}

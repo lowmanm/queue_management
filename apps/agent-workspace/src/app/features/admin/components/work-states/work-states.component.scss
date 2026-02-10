@@ -1,0 +1,338 @@
+@use '../../../../../styles/variables' as *;
+@use '../../../../../styles/admin-shared';
+
+.work-states-container {
+  padding: $spacing-6;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: $spacing-8;
+
+  h1 {
+    margin: 0 0 $spacing-2;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: $color-gray-600;
+    font-size: $font-size-sm;
+  }
+}
+
+// Messages - handled by admin-shared
+
+// Sections
+.states-section {
+  background: $color-white;
+  border-radius: $border-radius-xl;
+  padding: $spacing-6;
+  margin-bottom: $spacing-6;
+  box-shadow: $shadow-sm;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+
+  h2 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+  }
+
+  .badge {
+    font-size: $font-size-xs;
+    padding: $spacing-1 $spacing-2;
+    background: $color-gray-200;
+    color: $color-gray-600;
+    border-radius: $border-radius-sm;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.section-description {
+  color: $color-gray-600;
+  font-size: $font-size-sm;
+  margin: 0 0 $spacing-5;
+}
+
+// System States Grid
+.states-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: $spacing-3;
+}
+
+.state-card {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3;
+  background: $color-gray-50;
+  border-radius: $border-radius-lg;
+  border: 1px solid $color-gray-200;
+
+  &.system-state {
+    opacity: 0.85;
+  }
+}
+
+.state-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    color: $color-white;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.state-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+
+  .state-name {
+    font-weight: $font-weight-medium;
+    color: $color-gray-900;
+    font-size: $font-size-sm;
+  }
+
+  .state-category {
+    font-size: $font-size-xs;
+    color: $color-gray-600;
+  }
+}
+
+.state-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+
+  .meta-badge {
+    font-size: 10px;
+    padding: $spacing-1 $spacing-2;
+    background: $color-gray-200;
+    color: $color-gray-600;
+    border-radius: $border-radius-sm;
+
+    &.productive {
+      background: $color-success-bg;
+      color: $color-success;
+    }
+  }
+}
+
+// Custom States List
+.states-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+
+  &.inactive {
+    opacity: 0.6;
+  }
+}
+
+.state-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  padding: $spacing-3 $spacing-4;
+  background: $color-gray-50;
+  border-radius: $border-radius-lg;
+  border: 1px solid $color-gray-200;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $color-gray-300;
+    background: $color-gray-100;
+  }
+}
+
+.state-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+
+  .state-name {
+    font-weight: $font-weight-medium;
+    color: $color-gray-900;
+  }
+
+  .disabled-badge {
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+  }
+}
+
+.state-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+
+  .config-item {
+    font-size: $font-size-xs;
+    padding: $spacing-1 $spacing-2;
+    background: $color-gray-200;
+    color: $color-gray-600;
+    border-radius: $border-radius-sm;
+
+    &.warning {
+      background: $color-warning-bg;
+      color: $color-warning;
+    }
+  }
+}
+
+.state-actions {
+  display: flex;
+  gap: $spacing-1;
+}
+
+// btn-icon handled by admin-shared
+
+// Empty State - handled by admin-shared
+
+// Inactive Section
+.inactive-section {
+  margin-top: $spacing-6;
+  padding-top: $spacing-6;
+  border-top: 1px solid $color-gray-200;
+
+  h3 {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-gray-600;
+    margin: 0 0 $spacing-3;
+  }
+}
+
+// Buttons - use shared btn-primary and btn-secondary
+
+// Loading - handled by admin-shared
+
+// Modal - handled by admin-shared
+
+// Form - handled by admin-shared
+
+// Color Picker
+.color-picker {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+
+  input[type='color'] {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: $border-radius-md;
+    cursor: pointer;
+    padding: 0;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+      border: 2px solid $color-gray-200;
+      border-radius: $border-radius-md;
+    }
+  }
+}
+
+.color-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+}
+
+.color-preset {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &.selected {
+    border-color: $color-gray-900;
+    box-shadow: 0 0 0 2px $color-white, 0 0 0 4px $color-primary;
+  }
+}
+
+// Icon Picker
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: $spacing-1;
+  background: $color-gray-50;
+  border-radius: $border-radius-md;
+}
+
+.icon-option {
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-gray-600;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-white;
+    border-color: $color-gray-200;
+    color: $color-gray-900;
+  }
+
+  &.selected {
+    background: $color-primary;
+    border-color: $color-primary;
+    color: $color-white;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// Checkboxes - handled by admin-shared with specific overrides
+.checkbox-label {
+  .checkbox-hint {
+    width: 100%;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
+    padding-left: 26px;
+  }
+}

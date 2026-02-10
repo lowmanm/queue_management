@@ -44,24 +44,73 @@
         </div>
       }
 
-      <!-- Wrap-up State: Disposition buttons -->
+      <!-- Wrap-up State: Disposition buttons (from backend) -->
       @if (state === 'WRAP_UP') {
         <div class="disposition-actions">
           <span class="disposition-prompt">Select disposition:</span>
           <div class="disposition-buttons">
-            @for (action of actions$ | async; track action.id) {
-              @if (action.type === 'COMPLETE') {
-                <button
-                  [class]="getButtonClass(action)"
-                  (click)="onActionClick(action)"
-                >
-                  {{ action.label }}
-                </button>
+            @for (disposition of dispositions$ | async; track disposition.id) {
+              <button
+                [class]="getDispositionButtonClass(disposition)"
+                [title]="disposition.description || disposition.name"
+                (click)="onDispositionSelect(disposition)"
+              >
+                @if (disposition.requiresNote) {
+                  <span class="note-indicator" title="Note required">*</span>
+                }
+                {{ disposition.name }}
+              </button>
+            } @empty {
+              <!-- Fallback to legacy actions if no dispositions configured -->
+              @for (action of actions$ | async; track action.id) {
+                @if (action.type === 'COMPLETE') {
+                  <button
+                    [class]="getButtonClass(action)"
+                    (click)="onActionClick(action)"
+                  >
+                    {{ action.label }}
+                  </button>
+                }
               }
             }
           </div>
         </div>
       }
     }
+  </div>
+}
+
+<!-- Note Modal -->
+@if (showNoteModal && selectedDisposition) {
+  <div class="modal-overlay" (click)="closeNoteModal()">
+    <div class="note-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Add Note</h3>
+        <button class="close-btn" (click)="closeNoteModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="disposition-info">
+          Disposition: <strong>{{ selectedDisposition.name }}</strong>
+        </p>
+        <label for="note-input">Note <span class="required">*</span></label>
+        <textarea
+          id="note-input"
+          [(ngModel)]="noteText"
+          placeholder="Enter a note for this disposition..."
+          rows="4"
+          class="note-input"
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" (click)="closeNoteModal()">Cancel</button>
+        <button
+          class="action-btn primary"
+          [disabled]="!noteText.trim()"
+          (click)="onSubmitNote()"
+        >
+          Submit
+        </button>
+      </div>
+    </div>
   </div>
 }

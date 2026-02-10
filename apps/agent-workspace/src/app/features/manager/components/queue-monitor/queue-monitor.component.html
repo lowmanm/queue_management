@@ -1,0 +1,143 @@
+<div class="queue-monitor">
+  <header class="dashboard-header">
+    <h1>Queue Monitor</h1>
+    <p class="subtitle">Real-time queue status and metrics</p>
+  </header>
+
+  <!-- Summary Cards -->
+  @if (summary$ | async; as summary) {
+    <div class="summary-cards">
+      <div class="summary-card total">
+        <span class="card-value">{{ summary.totalQueues }}</span>
+        <span class="card-label">Total Queues</span>
+      </div>
+      <div class="summary-card waiting">
+        <span class="card-value">{{ summary.totalWaiting }}</span>
+        <span class="card-label">Tasks Waiting</span>
+      </div>
+      <div class="summary-card in-progress">
+        <span class="card-value">{{ summary.totalInProgress }}</span>
+        <span class="card-label">In Progress</span>
+      </div>
+      <div class="summary-card service-level" [class]="getServiceLevelClass(summary.avgServiceLevel)">
+        <span class="card-value">{{ summary.avgServiceLevel }}%</span>
+        <span class="card-label">Avg Service Level</span>
+      </div>
+      <div class="summary-card healthy" (click)="setFilter('healthy')">
+        <span class="card-value">{{ summary.healthyQueues }}</span>
+        <span class="card-label">Healthy</span>
+      </div>
+      <div class="summary-card warning" (click)="setFilter('warning')">
+        <span class="card-value">{{ summary.warningQueues }}</span>
+        <span class="card-label">Warning</span>
+      </div>
+      <div class="summary-card critical" (click)="setFilter('critical')">
+        <span class="card-value">{{ summary.criticalQueues }}</span>
+        <span class="card-label">Critical</span>
+      </div>
+    </div>
+  }
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs">
+    <button
+      class="filter-tab"
+      [class.active]="selectedFilter === 'all'"
+      (click)="setFilter('all')"
+    >
+      All Queues
+    </button>
+    <button
+      class="filter-tab healthy"
+      [class.active]="selectedFilter === 'healthy'"
+      (click)="setFilter('healthy')"
+    >
+      Healthy
+    </button>
+    <button
+      class="filter-tab warning"
+      [class.active]="selectedFilter === 'warning'"
+      (click)="setFilter('warning')"
+    >
+      Warning
+    </button>
+    <button
+      class="filter-tab critical"
+      [class.active]="selectedFilter === 'critical'"
+      (click)="setFilter('critical')"
+    >
+      Critical
+    </button>
+  </div>
+
+  <!-- Queue List -->
+  <div class="queue-list">
+    @for (queue of queues$ | async; track queue.id) {
+      <div class="queue-card" [class]="'status-' + queue.status">
+        <div class="queue-header">
+          <div class="queue-info">
+            <span class="status-indicator" [class]="queue.status">
+              {{ getStatusIcon(queue.status) }}
+            </span>
+            <div class="queue-name-block">
+              <h3 class="queue-name">{{ queue.name }}</h3>
+            </div>
+          </div>
+          <div class="queue-service-level" [class]="getServiceLevelClass(queue.serviceLevelPercent)">
+            <span class="sl-value">{{ queue.serviceLevelPercent }}%</span>
+            <span class="sl-label">SL</span>
+          </div>
+        </div>
+
+        <div class="queue-metrics">
+          <div class="metric-group primary">
+            <div class="metric waiting">
+              <span class="metric-value">{{ queue.tasksWaiting }}</span>
+              <span class="metric-label">Waiting</span>
+            </div>
+            <div class="metric in-progress">
+              <span class="metric-value">{{ queue.tasksInProgress }}</span>
+              <span class="metric-label">In Progress</span>
+            </div>
+            <div class="metric oldest">
+              <span class="metric-value">{{ formatDuration(queue.oldestTaskAge) }}</span>
+              <span class="metric-label">Oldest Task</span>
+            </div>
+            <div class="metric avg-wait">
+              <span class="metric-value">{{ formatDuration(queue.avgWaitTime) }}</span>
+              <span class="metric-label">Avg Wait</span>
+            </div>
+          </div>
+
+          <div class="metric-group secondary">
+            <div class="metric completed">
+              <span class="metric-value">{{ queue.completedToday }}</span>
+              <span class="metric-label">Completed Today</span>
+            </div>
+            <div class="metric sla-target">
+              <span class="metric-value">{{ formatDuration(queue.slaTarget) }}</span>
+              <span class="metric-label">SLA Target</span>
+            </div>
+            <div class="metric agents">
+              <span class="metric-value">{{ queue.agentsAvailable }}/{{ queue.agentsAssigned }}</span>
+              <span class="metric-label">Agents Available</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress bar for service level -->
+        <div class="sl-progress">
+          <div
+            class="sl-fill"
+            [style.width.%]="queue.serviceLevelPercent"
+            [class]="getServiceLevelClass(queue.serviceLevelPercent)"
+          ></div>
+        </div>
+      </div>
+    } @empty {
+      <div class="no-queues">
+        <p>No queues match the selected filter</p>
+      </div>
+    }
+  </div>
+</div>

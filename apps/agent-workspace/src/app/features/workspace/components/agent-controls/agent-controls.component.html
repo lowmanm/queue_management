@@ -1,0 +1,118 @@
+<div class="agent-controls">
+  <!-- Current State Display -->
+  <div class="current-state" [class]="'state-' + currentState().toLowerCase()">
+    <div class="state-indicator">
+      <span class="state-dot"></span>
+      <span class="state-name">{{ currentStateConfig()?.name || currentState() }}</span>
+    </div>
+    <span class="state-timer">{{ formattedTimeInState() }}</span>
+  </div>
+
+  <!-- Control Buttons -->
+  <div class="control-buttons">
+    @if (!isLoggedIn()) {
+      <!-- Login Button -->
+      <button
+        class="control-btn login-btn"
+        (click)="login()"
+        [disabled]="loading()"
+      >
+        <span class="btn-icon">login</span>
+        <span class="btn-label">Login</span>
+      </button>
+    } @else {
+      <!-- Ready Button -->
+      @if (currentState() !== 'READY' && currentState() !== 'RESERVED' && currentState() !== 'ACTIVE' && currentState() !== 'WRAP_UP') {
+        <button
+          class="control-btn ready-btn"
+          (click)="setReady()"
+          [disabled]="loading()"
+        >
+          <span class="btn-icon">check_circle</span>
+          <span class="btn-label">Ready</span>
+        </button>
+      }
+
+      <!-- State Menu Toggle -->
+      <div class="state-menu-wrapper">
+        <button
+          class="control-btn menu-btn"
+          [class.active]="showStateMenu()"
+          (click)="toggleStateMenu()"
+          [disabled]="loading() || currentState() === 'ACTIVE' || currentState() === 'RESERVED'"
+        >
+          <span class="btn-icon">more_horiz</span>
+          <span class="btn-label">Status</span>
+        </button>
+
+        @if (showStateMenu()) {
+          <div class="state-menu">
+            <div class="menu-header">Change Status</div>
+
+            <!-- Ready option if not in task states -->
+            @if (currentState() !== 'READY') {
+              <button
+                class="menu-item ready"
+                (click)="setReady()"
+                [disabled]="currentState() === 'ACTIVE' || currentState() === 'RESERVED'"
+              >
+                <span class="item-icon">check_circle</span>
+                <span class="item-label">Ready</span>
+              </button>
+            }
+
+            <div class="menu-divider"></div>
+            <div class="menu-section-label">Unavailable</div>
+
+            @for (btn of stateButtons(); track btn.state) {
+              <button
+                class="menu-item"
+                [class.selected]="btn.selected"
+                [class]="'state-' + btn.state.toLowerCase()"
+                (click)="changeState(btn.state)"
+                [disabled]="btn.disabled"
+              >
+                <span class="item-icon">{{ getStateIcon(btn.state) }}</span>
+                <span class="item-label">{{ btn.config.name }}</span>
+                @if (btn.config.maxDurationMinutes > 0) {
+                  <span class="item-duration">{{ btn.config.maxDurationMinutes }}m max</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Logout Button -->
+      <button
+        class="control-btn logout-btn"
+        (click)="logout()"
+        [disabled]="loading() || currentState() === 'ACTIVE' || currentState() === 'RESERVED'"
+        title="Logout"
+      >
+        <span class="btn-icon">logout</span>
+      </button>
+    }
+  </div>
+
+  <!-- Error Message -->
+  @if (error()) {
+    <div class="error-message">
+      {{ error() }}
+      <button class="dismiss-btn" (click)="error.set(null)">dismiss</button>
+    </div>
+  }
+
+  <!-- Session Summary (collapsible) -->
+  @if (sessionSummary(); as summary) {
+    <div class="session-summary">
+      <div class="summary-row">
+        <span class="summary-label">Productive</span>
+        <span class="summary-value">{{ summary.utilizationPercent }}%</span>
+      </div>
+      <div class="summary-bar">
+        <div class="bar-segment productive" [style.width.%]="summary.utilizationPercent"></div>
+      </div>
+    </div>
+  }
+</div>
