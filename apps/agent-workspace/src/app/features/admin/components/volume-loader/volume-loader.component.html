@@ -1399,7 +1399,50 @@ ORD-002,Jane Smith,3,RETURNS"
                   <span class="stat-label">Skipped</span>
                 </div>
               }
+              @if (uploadResult()?.recordsRouted !== undefined) {
+                <div class="result-stat routed">
+                  <span class="stat-value">{{ uploadResult()?.recordsRouted }}</span>
+                  <span class="stat-label">Routed</span>
+                </div>
+              }
+              @if (uploadResult()?.recordsUnrouted) {
+                <div class="result-stat warning">
+                  <span class="stat-value">{{ uploadResult()?.recordsUnrouted }}</span>
+                  <span class="stat-label">Unrouted</span>
+                </div>
+              }
             </div>
+
+            <!-- Routing Summary -->
+            @if (uploadResult()?.routingSummary && getRoutingSummaryEntries().length > 0) {
+              <div class="routing-summary">
+                <h4>Routing Breakdown:</h4>
+                <div class="routing-entries">
+                  @for (entry of getRoutingSummaryEntries(); track entry.ruleId) {
+                    <div class="routing-entry">
+                      <span class="rule-name">{{ entry.ruleName }}</span>
+                      <span class="rule-count">{{ entry.count }} record(s)</span>
+                      <span class="rule-queue">&#8594; {{ getQueueName(entry.queueId) }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Routing Diagnostics -->
+            @if (uploadResult()?.recordsUnrouted && uploadResult()?.routingDiagnostics) {
+              <div class="routing-diagnostics">
+                <h4>Routing Diagnostics:</h4>
+                @if (uploadResult()?.routingDiagnostics?.firstUnmatchedReason) {
+                  <p class="diagnostic-reason">{{ uploadResult()?.routingDiagnostics?.firstUnmatchedReason }}</p>
+                }
+                @if (uploadResult()?.routingDiagnostics?.sampleAvailableFields?.length) {
+                  <p class="diagnostic-fields">
+                    Available fields: {{ uploadResult()?.routingDiagnostics?.sampleAvailableFields?.join(', ') }}
+                  </p>
+                }
+              </div>
+            }
 
             <!-- Sample URLs -->
             @if (uploadResult()?.samplePayloadUrls?.length) {
@@ -1450,6 +1493,79 @@ ORD-002,Jane Smith,3,RETURNS"
           } @else {
             <span>Create {{ uploadResult()?.recordsProcessed || 0 }} Tasks</span>
           }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirmation()) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal-content delete-confirm-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Delete Data Source</h3>
+        <button class="close-btn" (click)="cancelDelete()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="delete-warning">
+          Are you sure you want to delete <strong>"{{ deleteTarget()?.name }}"</strong>?
+        </p>
+
+        @if (deleteImpact()) {
+          <div class="impact-summary">
+            <h4>Impact Summary</h4>
+            <div class="impact-items">
+              @if (deleteImpact()?.runCount) {
+                <div class="impact-item">
+                  <span class="impact-count">{{ deleteImpact()?.runCount }}</span>
+                  <span class="impact-label">run history record(s) will be removed</span>
+                </div>
+              }
+              @if (deleteImpact()?.pipelineName) {
+                <div class="impact-item">
+                  <span class="impact-label">
+                    Associated pipeline: <strong>{{ deleteImpact()?.pipelineName }}</strong>
+                  </span>
+                </div>
+                @if (deleteImpact()?.queueCount) {
+                  <div class="impact-item nested">
+                    <span class="impact-count">{{ deleteImpact()?.queueCount }}</span>
+                    <span class="impact-label">queue(s)</span>
+                  </div>
+                }
+                @if (deleteImpact()?.routingRuleCount) {
+                  <div class="impact-item nested">
+                    <span class="impact-count">{{ deleteImpact()?.routingRuleCount }}</span>
+                    <span class="impact-label">routing rule(s)</span>
+                  </div>
+                }
+
+                <label class="cascade-toggle">
+                  <input
+                    type="checkbox"
+                    [checked]="deleteCascade()"
+                    (change)="deleteCascade.set(!deleteCascade())"
+                  />
+                  <span>Also delete pipeline "{{ deleteImpact()?.pipelineName }}" and all its queues/rules</span>
+                </label>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="impact-loading">Loading impact summary...</div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cancelDelete()">Cancel</button>
+        <button
+          class="btn-danger"
+          (click)="confirmDelete()"
+          [disabled]="!deleteImpact()"
+        >
+          Delete{{ deleteCascade() ? ' with Pipeline' : '' }}
         </button>
       </div>
     </div>

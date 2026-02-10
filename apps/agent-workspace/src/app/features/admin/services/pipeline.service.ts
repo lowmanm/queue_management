@@ -86,10 +86,23 @@ export class PipelineApiService {
   }
 
   /**
-   * Delete a pipeline
+   * Get delete impact summary for a pipeline
    */
-  deletePipeline(id: string): Observable<{ success: boolean }> {
-    return this.http.delete<{ success: boolean }>(`${API_BASE}/${id}`);
+  getPipelineDeleteImpact(id: string): Observable<PipelineDeleteImpact> {
+    return this.http.get<PipelineDeleteImpact>(`${API_BASE}/${id}/delete-impact`).pipe(
+      catchError(() => of({
+        found: false, queueCount: 0, routingRuleCount: 0, agentAccessCount: 0,
+        queueNames: [], routingRuleNames: [],
+      } as PipelineDeleteImpact))
+    );
+  }
+
+  /**
+   * Delete a pipeline. Use cascade=true to also delete all queues and routing rules.
+   */
+  deletePipeline(id: string, cascade = false): Observable<{ success: boolean }> {
+    const url = cascade ? `${API_BASE}/${id}?cascade=true` : `${API_BASE}/${id}`;
+    return this.http.delete<{ success: boolean }>(url);
   }
 
   /**
@@ -152,10 +165,13 @@ export class PipelineApiService {
   }
 
   /**
-   * Delete a queue
+   * Delete a queue. Use cascade=true to also remove routing rules targeting it.
    */
-  deleteQueue(pipelineId: string, queueId: string): Observable<{ success: boolean }> {
-    return this.http.delete<{ success: boolean }>(`${API_BASE}/${pipelineId}/queues/${queueId}`);
+  deleteQueue(pipelineId: string, queueId: string, cascade = false): Observable<{ success: boolean }> {
+    const url = cascade
+      ? `${API_BASE}/${pipelineId}/queues/${queueId}?cascade=true`
+      : `${API_BASE}/${pipelineId}/queues/${queueId}`;
+    return this.http.delete<{ success: boolean }>(url);
   }
 
   // ===========================================================================
@@ -234,4 +250,17 @@ export class PipelineApiService {
   revokeAgentAccess(pipelineId: string, agentId: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`${API_BASE}/${pipelineId}/agents/${agentId}`);
   }
+}
+
+/**
+ * Impact summary for deleting a pipeline
+ */
+export interface PipelineDeleteImpact {
+  found: boolean;
+  pipelineName?: string;
+  queueCount: number;
+  routingRuleCount: number;
+  agentAccessCount: number;
+  queueNames: string[];
+  routingRuleNames: string[];
 }

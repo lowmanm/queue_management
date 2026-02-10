@@ -114,8 +114,8 @@ export class PipelineService {
       },
       sla: request.sla,
       routingRules: [],
-      defaultRouting: {
-        behavior: 'hold',
+      defaultRouting: request.defaultRouting || {
+        behavior: 'route_to_queue',
         holdTimeoutSeconds: 300,
         holdTimeoutAction: 'reject',
       },
@@ -169,19 +169,30 @@ export class PipelineService {
     return { success: true, pipeline: updated };
   }
 
-  deletePipeline(id: string): { success: boolean; error?: string } {
+  deletePipeline(id: string, cascade = false): { success: boolean; error?: string } {
     const pipeline = this.pipelines.get(id);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
     }
 
-    // Check for queues
     const queues = this.getQueuesByPipeline(id);
-    if (queues.length > 0) {
+
+    if (!cascade && queues.length > 0) {
       return {
         success: false,
-        error: `Cannot delete pipeline with ${queues.length} queue(s). Delete queues first.`,
+        error: `Cannot delete pipeline with ${queues.length} queue(s). Delete queues first or use cascade delete.`,
       };
+    }
+
+    if (cascade) {
+      // Remove all queues belonging to this pipeline
+      for (const queue of queues) {
+        this.queues.delete(queue.id);
+      }
+      // Routing rules are stored on the pipeline object — they go away with it
+      this.logger.log(
+        `Cascade deleted ${queues.length} queue(s) and ${pipeline.routingRules.length} routing rule(s) for pipeline ${pipeline.name}`
+      );
     }
 
     this.pipelines.delete(id);
@@ -189,6 +200,37 @@ export class PipelineService {
     this.logger.log(`Deleted pipeline: ${pipeline.name} (${id})`);
 
     return { success: true };
+  }
+
+  /**
+   * Get an impact summary describing what would be deleted if a pipeline is cascade-deleted.
+   */
+  getPipelineDeleteImpact(id: string): {
+    found: boolean;
+    pipelineName?: string;
+    queueCount: number;
+    routingRuleCount: number;
+    agentAccessCount: number;
+    queueNames: string[];
+    routingRuleNames: string[];
+  } {
+    const pipeline = this.pipelines.get(id);
+    if (!pipeline) {
+      return { found: false, queueCount: 0, routingRuleCount: 0, agentAccessCount: 0, queueNames: [], routingRuleNames: [] };
+    }
+
+    const queues = this.getQueuesByPipeline(id);
+    const agentAccess = this.agentAccess.get(id) || [];
+
+    return {
+      found: true,
+      pipelineName: pipeline.name,
+      queueCount: queues.length,
+      routingRuleCount: pipeline.routingRules.length,
+      agentAccessCount: agentAccess.length,
+      queueNames: queues.map((q) => q.name),
+      routingRuleNames: pipeline.routingRules.map((r) => r.name),
+    };
   }
 
   // ===========================================================================
@@ -258,6 +300,16 @@ export class PipelineService {
     this.queues.set(queue.id, queue);
     this.logger.log(`Created queue: ${queue.name} (${queue.id}) in pipeline ${pipeline.name}`);
 
+    // Auto-set as default queue if pipeline has route_to_queue behavior but no default yet
+    if (
+      pipeline.defaultRouting.behavior === 'route_to_queue' &&
+      !pipeline.defaultRouting.defaultQueueId
+    ) {
+      pipeline.defaultRouting.defaultQueueId = queue.id;
+      this.pipelines.set(pipeline.id, pipeline);
+      this.logger.log(`Auto-set default queue for pipeline ${pipeline.name}: ${queue.name}`);
+    }
+
     return { success: true, queue };
   }
 
@@ -303,31 +355,48 @@ export class PipelineService {
     return { success: true, queue: updated };
   }
 
-  deleteQueue(id: string): { success: boolean; error?: string } {
+  deleteQueue(id: string, cascade = false): { success: boolean; error?: string } {
     const queue = this.queues.get(id);
     if (!queue) {
       return { success: false, error: 'Queue not found' };
     }
 
-    // Check if queue is used in routing rules
     const pipeline = this.pipelines.get(queue.pipelineId);
     if (pipeline) {
       const usedInRules = pipeline.routingRules.filter(
         (r) => r.targetQueueId === id
       );
-      if (usedInRules.length > 0) {
-        return {
-          success: false,
-          error: `Queue is used by ${usedInRules.length} routing rule(s). Update rules first.`,
-        };
-      }
 
-      // Check if it's the default queue
-      if (pipeline.defaultRouting?.defaultQueueId === id) {
-        return {
-          success: false,
-          error: 'Queue is set as the default routing target. Update default routing first.',
-        };
+      if (!cascade) {
+        if (usedInRules.length > 0) {
+          return {
+            success: false,
+            error: `Queue is used by ${usedInRules.length} routing rule(s). Update rules first or use cascade delete.`,
+          };
+        }
+        if (pipeline.defaultRouting?.defaultQueueId === id) {
+          return {
+            success: false,
+            error: 'Queue is set as the default routing target. Update default routing first.',
+          };
+        }
+      } else {
+        // Cascade: remove routing rules targeting this queue
+        if (usedInRules.length > 0) {
+          pipeline.routingRules = pipeline.routingRules.filter(
+            (r) => r.targetQueueId !== id
+          );
+          this.logger.log(
+            `Cascade removed ${usedInRules.length} routing rule(s) targeting queue ${queue.name}`
+          );
+        }
+        // Clear default queue reference if it points here
+        if (pipeline.defaultRouting?.defaultQueueId === id) {
+          pipeline.defaultRouting.defaultQueueId = undefined;
+          this.logger.log(`Cleared default queue reference for pipeline ${pipeline.name}`);
+        }
+        pipeline.updatedAt = new Date().toISOString();
+        this.pipelines.set(pipeline.id, pipeline);
       }
     }
 
