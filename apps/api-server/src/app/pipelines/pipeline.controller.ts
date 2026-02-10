@@ -9,8 +9,12 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  Optional,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PipelineService } from './pipeline.service';
+import { QueueManagerService } from '../services/queue-manager.service';
 import {
   CreatePipelineRequest,
   UpdatePipelineRequest,
@@ -255,7 +259,11 @@ export class PipelineController {
 
 @Controller('queues')
 export class QueueController {
-  constructor(private readonly pipelineService: PipelineService) {}
+  constructor(
+    private readonly pipelineService: PipelineService,
+    @Optional() @Inject(forwardRef(() => QueueManagerService))
+    private readonly queueManager?: QueueManagerService,
+  ) {}
 
   @Get()
   getAllQueues(@Query('pipelineId') pipelineId?: string) {
@@ -272,5 +280,29 @@ export class QueueController {
       throw new HttpException('Queue not found', HttpStatus.NOT_FOUND);
     }
     return queue;
+  }
+
+  /**
+   * Get the current depth (number of waiting tasks) for a queue.
+   * Returns task summaries so admins can see what's in the queue.
+   */
+  @Get(':id/tasks')
+  getQueueTasks(@Param('id') id: string) {
+    if (!this.queueManager) {
+      return { depth: 0, tasks: [] };
+    }
+    const tasks = this.queueManager.getQueueTasks(id);
+    return {
+      depth: tasks.length,
+      tasks: tasks.map((t) => ({
+        taskId: t.task.id,
+        externalId: t.task.externalId,
+        title: t.task.title,
+        priority: t.priority,
+        enqueuedAt: t.enqueuedAt,
+        payloadUrl: t.task.payloadUrl,
+        status: t.task.status,
+      })),
+    };
   }
 }

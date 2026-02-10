@@ -1656,16 +1656,42 @@ export class VolumeLoaderComponent implements OnInit {
               `${result.recordsFailed} errors`
             );
           } else {
-            this.successMessage.set(
-              `Uploaded: ${result.recordsProcessed} tasks created, ${result.recordsFailed} failed, ` +
-              `${result.recordsSkipped} skipped`
-            );
-            // Clear the content and auto-close after successful upload
+            // Build detailed routing summary message
+            const routed = result.recordsRouted || 0;
+            const unrouted = result.recordsUnrouted || 0;
+            let msg = `Uploaded: ${result.recordsProcessed} tasks created`;
+            if (routed > 0 || unrouted > 0) {
+              msg += ` — ${routed} routed to queues`;
+              if (unrouted > 0) {
+                msg += `, ${unrouted} unrouted (no matching rules)`;
+              }
+            }
+            if (result.recordsFailed > 0) {
+              msg += `, ${result.recordsFailed} failed`;
+            }
+            if (result.recordsSkipped > 0) {
+              msg += `, ${result.recordsSkipped} skipped`;
+            }
+            this.successMessage.set(msg);
+
+            // Show routing diagnostics as a warning if records went unrouted
+            const diagnostics = result.routingDiagnostics;
+            if (unrouted > 0 && diagnostics) {
+              let diagMsg = `${unrouted} record(s) did not match any routing rules.`;
+              if (diagnostics.firstUnmatchedReason) {
+                diagMsg += ` Reason: ${diagnostics.firstUnmatchedReason}`;
+              }
+              if (diagnostics.sampleAvailableFields?.length > 0) {
+                diagMsg += ` Available fields: [${diagnostics.sampleAvailableFields.join(', ')}]`;
+              }
+              this.errorMessage.set(diagMsg);
+            }
+
+            // Clear content but don't auto-close so user can read routing results
             this.csvContent.set('');
             setTimeout(() => {
-              this.closeUploadPanel();
               this.loadData();
-            }, 1500);
+            }, 2000);
           }
         } else {
           this.errorMessage.set(result.error || 'Upload failed');

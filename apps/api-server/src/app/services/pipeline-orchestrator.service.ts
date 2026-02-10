@@ -31,8 +31,11 @@ export interface OrchestrationResult {
   success: boolean;
   taskId?: string;
   queueId?: string;
+  ruleId?: string;
+  ruleName?: string;
   status: 'QUEUED' | 'DLQ' | 'REJECTED' | 'HELD' | 'DUPLICATE';
   error?: string;
+  diagnostics?: any;
 }
 
 /**
@@ -219,6 +222,7 @@ export class PipelineOrchestratorService {
         taskId,
         status: 'DLQ',
         error: routingResult.error,
+        diagnostics: routingResult.diagnostics,
       };
     }
 
@@ -228,6 +232,7 @@ export class PipelineOrchestratorService {
         success: true,
         taskId,
         status: 'HELD',
+        diagnostics: routingResult.diagnostics,
       };
     }
 
@@ -275,7 +280,10 @@ export class PipelineOrchestratorService {
       success: true,
       taskId,
       queueId: targetQueueId,
+      ruleId: routingResult.ruleId,
+      ruleName: routingResult.ruleName,
       status: 'QUEUED',
+      diagnostics: routingResult.diagnostics,
     };
   }
 
