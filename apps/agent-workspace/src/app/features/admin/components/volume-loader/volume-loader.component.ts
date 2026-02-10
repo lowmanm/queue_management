@@ -123,6 +123,8 @@ export class VolumeLoaderComponent implements OnInit {
   showAddRuleForm = signal(false);
   newRuleName = signal('');
   newRuleField = signal<RoutingConditionField>('workType');
+  newRuleCustomField = signal('');
+  newRuleFieldSelection = signal('workType');
   newRuleOperator = signal<RoutingOperator>('equals');
   newRuleValue = signal('');
   newRuleTargetQueue = signal('');
@@ -143,8 +145,11 @@ export class VolumeLoaderComponent implements OnInit {
   readonly fieldTypeLabels: Record<DetectedFieldType, string> = {
     string: 'Text',
     number: 'Number',
-    boolean: 'Yes/No',
+    integer: 'Integer',
+    boolean: 'Boolean',
     date: 'Date',
+    datetime: 'Date/Time',
+    timestamp: 'Timestamp',
     email: 'Email',
     url: 'URL',
     phone: 'Phone',
@@ -172,8 +177,11 @@ export class VolumeLoaderComponent implements OnInit {
   readonly fieldTypeOptions: { value: DetectedFieldType; label: string }[] = [
     { value: 'string', label: 'Text' },
     { value: 'number', label: 'Number' },
-    { value: 'boolean', label: 'Yes/No' },
+    { value: 'integer', label: 'Integer' },
+    { value: 'boolean', label: 'Boolean' },
     { value: 'date', label: 'Date' },
+    { value: 'datetime', label: 'Date/Time' },
+    { value: 'timestamp', label: 'Timestamp' },
     { value: 'email', label: 'Email' },
     { value: 'url', label: 'URL' },
     { value: 'phone', label: 'Phone' },
@@ -279,6 +287,24 @@ export class VolumeLoaderComponent implements OnInit {
       // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
       pipelineId: loader.pipelineId,
     });
+
+    // Reconstruct schema state from saved field mappings
+    this.reconstructSchemaFromMappings(loader.fieldMappings);
+
+    // Set the primary ID field
+    const primaryMapping = loader.fieldMappings.find((m) => m.isPrimaryId);
+    if (primaryMapping) {
+      this.selectedPrimaryIdField.set(primaryMapping.sourceField);
+    }
+
+    // Load pipeline queues/routing rules if pipeline is assigned
+    if (loader.pipelineId) {
+      this.pipelineQueues.set([]);
+      this.pipelineRoutingRules.set([]);
+      this.loadPipelineQueuesAndRules();
+    }
+
+    this.currentStep.set(1);
     this.showEditor.set(true);
     this.clearMessages();
   }
@@ -1080,17 +1106,23 @@ export class VolumeLoaderComponent implements OnInit {
 
     // Check patterns
     let numberCount = 0;
+    let integerCount = 0;
     let booleanCount = 0;
     let emailCount = 0;
     let urlCount = 0;
     let phoneCount = 0;
     let dateCount = 0;
+    let timestampCount = 0;
     let currencyCount = 0;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const urlRegex = /^https?:\/\/.+/i;
     const phoneRegex = /^[\d\s\-+().]{7,}$/;
+    const dateOnlyRegex = /^\d{4}[-/]\d{2}[-/]\d{2}$|^\d{2}[-/]\d{2}[-/]\d{4}$|^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
     const dateRegex = /^\d{4}[-/]\d{2}[-/]\d{2}|^\d{2}[-/]\d{2}[-/]\d{4}|^\d{1,2}\/\d{1,2}\/\d{2,4}/;
+    const timestampRegex = /^\d{4}[-/]\d{2}[-/]\d{2}[T ]\d{2}:\d{2}/;
+    const isoTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+    const unixTimestampRegex = /^1[3-9]\d{8,11}$/;
     const currencyRegex = /^[$€£¥]?\s*[\d,]+\.?\d*$/;
     const booleanValues = ['true', 'false', 'yes', 'no', '1', '0', 'y', 'n'];
 
@@ -1105,12 +1137,17 @@ export class VolumeLoaderComponent implements OnInit {
         const num = Number(value);
         minNum = Math.min(minNum, num);
         maxNum = Math.max(maxNum, num);
+        if (Number.isInteger(num)) integerCount++;
       }
       if (booleanValues.includes(trimmed)) booleanCount++;
       if (emailRegex.test(value)) emailCount++;
       if (urlRegex.test(value)) urlCount++;
       if (phoneRegex.test(value) && !emailRegex.test(value)) phoneCount++;
-      if (dateRegex.test(value)) dateCount++;
+      if (timestampRegex.test(value) || isoTimestampRegex.test(value) || unixTimestampRegex.test(value)) {
+        timestampCount++;
+      } else if (dateRegex.test(value)) {
+        dateCount++;
+      }
       if (currencyRegex.test(value)) currencyCount++;
     }
 
@@ -1127,6 +1164,9 @@ export class VolumeLoaderComponent implements OnInit {
     if (phoneCount / total >= threshold) {
       return { type: 'phone', confidence: phoneCount / total };
     }
+    if (timestampCount / total >= threshold) {
+      return { type: 'timestamp', confidence: timestampCount / total };
+    }
     if (dateCount / total >= threshold) {
       return { type: 'date', confidence: dateCount / total };
     }
@@ -1137,6 +1177,14 @@ export class VolumeLoaderComponent implements OnInit {
       return { type: 'boolean', confidence: booleanCount / total };
     }
     if (numberCount / total >= threshold) {
+      // Distinguish integer from number (all values are whole numbers)
+      if (integerCount === numberCount) {
+        return {
+          type: 'integer',
+          confidence: numberCount / total,
+          numericRange: { min: minNum, max: maxNum },
+        };
+      }
       return {
         type: 'number',
         confidence: numberCount / total,
@@ -1229,6 +1277,48 @@ export class VolumeLoaderComponent implements OnInit {
     }));
 
     this.updateFormField('fieldMappings', mappings);
+  }
+
+  /**
+   * Reconstruct detected fields and parse result from saved field mappings
+   * Used when opening an existing loader for editing
+   */
+  reconstructSchemaFromMappings(mappings: VolumeFieldMapping[]): void {
+    if (!mappings || mappings.length === 0) {
+      this.detectedFields.set([]);
+      this.sampleParseResult.set(null);
+      this.sampleFileName.set('');
+      this.sampleFileContent.set('');
+      return;
+    }
+
+    // Reconstruct detected fields from the saved mappings
+    const fields: DetectedField[] = mappings.map((m) => ({
+      name: m.sourceField,
+      detectedType: m.detectedType || 'string',
+      typeConfidence: 1,
+      isRequired: m.required,
+      uniqueValueCount: 0,
+      nonEmptyCount: 0,
+      sampleValues: [],
+      looksLikeId: m.isPrimaryId,
+      suggestedLabel: this.formatFieldLabel(m.sourceField),
+    }));
+
+    this.detectedFields.set(fields);
+
+    // Create a synthetic parse result so step 5 validation passes
+    this.sampleParseResult.set({
+      success: true,
+      detectedFields: fields,
+      sampleData: [],
+      totalRows: 0,
+      failedRows: 0,
+    });
+
+    // Indicate this is from a saved configuration
+    this.sampleFileName.set('(from saved configuration)');
+    this.sampleFileContent.set('');
   }
 
   /**
@@ -1659,6 +1749,23 @@ export class VolumeLoaderComponent implements OnInit {
   // ============ Routing Rules (Step 9) ============
 
   /**
+   * Handle routing rule field selection change
+   * Maps 'schema:fieldName' selections to metadata field + customField
+   */
+  onRuleFieldChange(selection: string): void {
+    this.newRuleFieldSelection.set(selection);
+
+    if (selection.startsWith('schema:')) {
+      const customField = selection.substring(7);
+      this.newRuleField.set('metadata');
+      this.newRuleCustomField.set(customField);
+    } else {
+      this.newRuleField.set(selection as RoutingConditionField);
+      this.newRuleCustomField.set('');
+    }
+  }
+
+  /**
    * Create a routing rule within the selected pipeline
    */
   createRoutingRule(): void {
@@ -1667,14 +1774,32 @@ export class VolumeLoaderComponent implements OnInit {
     const targetQueueId = this.newRuleTargetQueue();
     if (!pipelineId || !name?.trim() || !targetQueueId) return;
 
+    const condition: {
+      id: string;
+      field: RoutingConditionField;
+      customField?: string;
+      operator: RoutingOperator;
+      value: string | string[];
+    } = {
+      id: `cond-${Date.now()}`,
+      field: this.newRuleField(),
+      operator: this.newRuleOperator(),
+      value: this.newRuleValue(),
+    };
+
+    // Add customField for schema-based fields
+    if (this.newRuleCustomField()) {
+      condition.customField = this.newRuleCustomField();
+    }
+
+    // Handle 'in' operator: split comma-separated values into array
+    if (this.newRuleOperator() === 'in' || this.newRuleOperator() === 'not_in') {
+      condition.value = this.newRuleValue().split(',').map((v) => v.trim()).filter((v) => v);
+    }
+
     this.pipelineService.createRoutingRule(pipelineId, {
       name: name.trim(),
-      conditions: [{
-        id: `cond-${Date.now()}`,
-        field: this.newRuleField(),
-        operator: this.newRuleOperator(),
-        value: this.newRuleValue(),
-      }],
+      conditions: [condition],
       conditionLogic: 'AND',
       targetQueueId,
     }).subscribe({
@@ -1683,6 +1808,8 @@ export class VolumeLoaderComponent implements OnInit {
         this.showAddRuleForm.set(false);
         this.newRuleName.set('');
         this.newRuleField.set('workType');
+        this.newRuleCustomField.set('');
+        this.newRuleFieldSelection.set('workType');
         this.newRuleOperator.set('equals');
         this.newRuleValue.set('');
         this.newRuleTargetQueue.set('');
