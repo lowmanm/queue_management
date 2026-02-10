@@ -102,15 +102,27 @@ export class VolumeLoaderController {
   }
 
   /**
-   * Delete a volume loader
+   * Get delete impact summary for a volume loader
+   */
+  @Get(':id/delete-impact')
+  getDeleteImpact(@Param('id') id: string) {
+    const impact = this.volumeLoaderService.getLoaderDeleteImpact(id);
+    if (!impact.found) {
+      throw new HttpException('Loader not found', HttpStatus.NOT_FOUND);
+    }
+    return impact;
+  }
+
+  /**
+   * Delete a volume loader. Use ?cascade=true to also delete the associated pipeline.
    */
   @Delete(':id')
-  deleteLoader(@Param('id') id: string) {
-    const result = this.volumeLoaderService.deleteLoader(id);
+  deleteLoader(@Param('id') id: string, @Query('cascade') cascade?: string) {
+    const result = this.volumeLoaderService.deleteLoader(id, cascade === 'true');
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete loader', HttpStatus.BAD_REQUEST);
     }
-    return { success: true, message: 'Loader deleted' };
+    return { success: true, message: 'Loader deleted', cascadeResults: result.cascadeResults };
   }
 
   // ==========================================================================

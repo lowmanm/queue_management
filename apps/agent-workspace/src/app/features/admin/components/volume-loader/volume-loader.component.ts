@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, computed, ViewChild, ElementRef } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { VolumeLoaderApiService, CsvUploadResult } from '../../services/volume-loader.service';
+import { VolumeLoaderApiService, CsvUploadResult, LoaderDeleteImpact } from '../../services/volume-loader.service';
 import { PipelineApiService } from '../../services/pipeline.service';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import {
@@ -131,6 +131,12 @@ export class VolumeLoaderComponent implements OnInit {
   ]);
   newRuleConditionLogic = signal<'AND' | 'OR'>('AND');
   newRuleTargetQueue = signal('');
+
+  // Cascade delete state
+  showDeleteConfirmation = signal(false);
+  deleteTarget = signal<VolumeLoader | null>(null);
+  deleteImpact = signal<LoaderDeleteImpact | null>(null);
+  deleteCascade = signal(false);
 
   // Convenience accessors for the "active" condition (used by availableOperators computed)
   activeConditionIndex = signal(0);
@@ -635,23 +641,63 @@ export class VolumeLoaderComponent implements OnInit {
     }, 500);
   }
 
+  /**
+   * Show delete confirmation dialog with impact summary.
+   */
   deleteLoader(loader: VolumeLoader): void {
-    if (!confirm(`Are you sure you want to delete "${loader.name}"?`)) {
-      return;
-    }
+    this.deleteTarget.set(loader);
+    this.deleteImpact.set(null);
+    this.deleteCascade.set(false);
+    this.showDeleteConfirmation.set(true);
+
+    // Fetch impact summary
+    this.loaderService.getDeleteImpact(loader.id).subscribe({
+      next: (impact) => this.deleteImpact.set(impact),
+    });
+  }
+
+  /**
+   * Execute the delete after user confirmation.
+   */
+  confirmDelete(): void {
+    const loader = this.deleteTarget();
+    if (!loader) return;
 
     this.isLoading.set(true);
-    this.loaderService.deleteLoader(loader.id).subscribe({
-      next: () => {
+    this.showDeleteConfirmation.set(false);
+
+    this.loaderService.deleteLoader(loader.id, this.deleteCascade()).subscribe({
+      next: (result) => {
         this.loaders.set(this.loaders().filter((l) => l.id !== loader.id));
-        this.successMessage.set('Loader deleted');
+        let msg = `Data source "${loader.name}" deleted`;
+        if (result.cascadeResults?.length) {
+          msg += `. ${result.cascadeResults.join('. ')}`;
+        }
+        this.successMessage.set(msg);
         this.isLoading.set(false);
+        this.deleteTarget.set(null);
+        this.deleteImpact.set(null);
+        // Refresh pipelines list since cascade may have removed one
+        if (this.deleteCascade()) {
+          this.pipelineService.getAllPipelines().subscribe({
+            next: (pipelines) => this.pipelines.set(pipelines),
+          });
+        }
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to delete loader');
+        this.errorMessage.set(err.error?.message || 'Failed to delete data source');
         this.isLoading.set(false);
       },
     });
+  }
+
+  /**
+   * Cancel the delete confirmation dialog.
+   */
+  cancelDelete(): void {
+    this.showDeleteConfirmation.set(false);
+    this.deleteTarget.set(null);
+    this.deleteImpact.set(null);
   }
 
   testConnection(): void {
@@ -1709,6 +1755,20 @@ export class VolumeLoaderComponent implements OnInit {
    */
   triggerFileInput(): void {
     this.csvFileInput?.nativeElement?.click();
+  }
+
+  /**
+   * Convert routing summary map into an array for template iteration.
+   */
+  getRoutingSummaryEntries(): { ruleId: string; ruleName: string; count: number; queueId: string }[] {
+    const summary = this.uploadResult()?.routingSummary;
+    if (!summary) return [];
+    return Object.entries(summary).map(([ruleId, entry]) => ({
+      ruleId,
+      ruleName: entry.ruleName,
+      count: entry.count,
+      queueId: entry.queueId,
+    }));
   }
 
   clearMessages(): void {

@@ -87,10 +87,20 @@ export class VolumeLoaderApiService {
   }
 
   /**
-   * Delete a volume loader
+   * Get impact summary for deleting a volume loader
    */
-  deleteLoader(id: string): Observable<{ success: boolean; message: string }> {
-    return this.http.delete<{ success: boolean; message: string }>(`${API_BASE}/${id}`);
+  getDeleteImpact(id: string): Observable<LoaderDeleteImpact> {
+    return this.http.get<LoaderDeleteImpact>(`${API_BASE}/${id}/delete-impact`).pipe(
+      catchError(() => of({ found: false, runCount: 0, queueCount: 0, routingRuleCount: 0 } as LoaderDeleteImpact))
+    );
+  }
+
+  /**
+   * Delete a volume loader. Use cascade=true to also delete the associated pipeline.
+   */
+  deleteLoader(id: string, cascade = false): Observable<{ success: boolean; message: string; cascadeResults?: string[] }> {
+    const url = cascade ? `${API_BASE}/${id}?cascade=true` : `${API_BASE}/${id}`;
+    return this.http.delete<{ success: boolean; message: string; cascadeResults?: string[] }>(url);
   }
 
   // ==========================================================================
@@ -221,4 +231,16 @@ export interface CsvUploadResult {
     sampleAvailableFields: string[];
     firstUnmatchedReason?: string;
   };
+}
+
+/**
+ * Impact summary for deleting a data source
+ */
+export interface LoaderDeleteImpact {
+  found: boolean;
+  loaderName?: string;
+  runCount: number;
+  pipelineName?: string;
+  queueCount: number;
+  routingRuleCount: number;
 }

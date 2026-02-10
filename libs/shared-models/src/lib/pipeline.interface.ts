@@ -453,6 +453,7 @@ export interface CreatePipelineRequest {
   allowedWorkTypes?: string[];
   defaults?: Partial<PipelineDefaults>;
   sla?: PipelineSLA;
+  defaultRouting?: DefaultRoutingConfig;
 }
 
 /**

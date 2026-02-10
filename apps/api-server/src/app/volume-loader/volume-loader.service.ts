@@ -225,7 +225,7 @@ export class VolumeLoaderService {
     return { success: true, loader: updated };
   }
 
-  deleteLoader(id: string): { success: boolean; error?: string } {
+  deleteLoader(id: string, cascade = false): { success: boolean; error?: string; cascadeResults?: string[] } {
     const loader = this.loaders.get(id);
     if (!loader) {
       return { success: false, error: 'Loader not found' };
@@ -235,11 +235,77 @@ export class VolumeLoaderService {
       return { success: false, error: 'Cannot delete loader while it is running' };
     }
 
+    const cascadeResults: string[] = [];
+
+    // Cascade: also delete the associated pipeline (and its children)
+    if (cascade && loader.pipelineId && this.pipelineService) {
+      const impact = this.pipelineService.getPipelineDeleteImpact(loader.pipelineId);
+      if (impact.found) {
+        const pipelineResult = this.pipelineService.deletePipeline(loader.pipelineId, true);
+        if (pipelineResult.success) {
+          cascadeResults.push(
+            `Deleted pipeline "${impact.pipelineName}" with ${impact.queueCount} queue(s) and ${impact.routingRuleCount} routing rule(s)`
+          );
+        } else {
+          cascadeResults.push(`Failed to delete pipeline: ${pipelineResult.error}`);
+        }
+      }
+    }
+
+    // Remove associated run history
+    const runsBefore = this.runs.length;
+    this.runs = this.runs.filter((r) => r.loaderId !== id);
+    const runsRemoved = runsBefore - this.runs.length;
+    if (runsRemoved > 0) {
+      cascadeResults.push(`Removed ${runsRemoved} run history record(s)`);
+    }
+
     this.unscheduleLoader(id);
     this.loaders.delete(id);
-    this.logger.log(`Deleted volume loader: ${id}`);
+    this.logger.log(`Deleted volume loader: ${id}${cascade ? ' (cascade)' : ''}`);
 
-    return { success: true };
+    return { success: true, cascadeResults };
+  }
+
+  /**
+   * Get an impact summary for cascade-deleting a data source (loader).
+   */
+  getLoaderDeleteImpact(id: string): {
+    found: boolean;
+    loaderName?: string;
+    runCount: number;
+    pipelineName?: string;
+    queueCount: number;
+    routingRuleCount: number;
+  } {
+    const loader = this.loaders.get(id);
+    if (!loader) {
+      return { found: false, runCount: 0, queueCount: 0, routingRuleCount: 0 };
+    }
+
+    const runCount = this.runs.filter((r) => r.loaderId === id).length;
+
+    let pipelineName: string | undefined;
+    let queueCount = 0;
+    let routingRuleCount = 0;
+
+    if (loader.pipelineId && this.pipelineService) {
+      const impact = this.pipelineService.getPipelineDeleteImpact(loader.pipelineId);
+      if (impact.found) {
+        pipelineName = impact.pipelineName;
+        queueCount = impact.queueCount;
+        routingRuleCount = impact.routingRuleCount;
+      }
+    }
+
+    return {
+      found: true,
+      loaderName: loader.name,
+      runCount,
+      pipelineName,
+      queueCount,
+      routingRuleCount,
+    };
   }
 
   // ==========================================================================
@@ -516,33 +582,107 @@ export class VolumeLoaderService {
   }
 
   /**
-   * Simulated processing for unimplemented loader types
+   * Simulated processing for unimplemented loader types.
+   * Generates mock records from the loader's field mappings and routes them
+   * through the pipeline so tasks actually reach queues.
    */
   private processSimulated(
     loader: VolumeLoader,
     run: VolumeLoaderRun,
     isDryRun: boolean
   ): void {
-    // Generate mock results for demonstration
-    const totalRecords = Math.floor(Math.random() * 30) + 10;
-    const failedRecords = Math.floor(Math.random() * 2);
-    const skippedRecords = Math.floor(Math.random() * 3);
-
-    run.recordsFound = totalRecords;
-    run.recordsProcessed = isDryRun ? 0 : totalRecords - failedRecords - skippedRecords;
-    run.recordsFailed = isDryRun ? 0 : failedRecords;
-    run.recordsSkipped = isDryRun ? totalRecords : skippedRecords;
+    const recordCount = Math.floor(Math.random() * 20) + 10;
+    run.recordsFound = recordCount;
     run.filesProcessed = ['simulated_data.csv'];
 
-    if (failedRecords > 0 && !isDryRun) {
+    if (!loader.fieldMappings || loader.fieldMappings.length === 0) {
+      // No schema configured — fall back to counts-only simulation
+      run.recordsProcessed = isDryRun ? 0 : recordCount;
+      run.recordsSkipped = isDryRun ? recordCount : 0;
+      run.status = 'COMPLETED';
+      this.logger.log(
+        `Simulated processing for ${loader.type} loader (no field mappings configured)`
+      );
+      return;
+    }
+
+    // Generate mock records from the loader's field mappings
+    for (let i = 0; i < recordCount; i++) {
+      const rawData: Record<string, string> = {};
+      for (const mapping of loader.fieldMappings) {
+        rawData[mapping.sourceField] = this.generateMockValue(
+          mapping.sourceField,
+          mapping.detectedType || 'string',
+          i
+        );
+      }
+
+      try {
+        const mappedData = this.applyFieldMappings(rawData, loader);
+
+        if (!isDryRun) {
+          this.createTaskFromRecord(loader, mappedData, i + 1);
+          if (mappedData.externalId) {
+            this.processedExternalIds.add(mappedData.externalId);
+          }
+        }
+
+        run.recordsProcessed++;
+      } catch (err) {
+        run.recordsFailed++;
+        run.errorLog.push({
+          recordId: `mock-${i + 1}`,
+          rowNumber: i + 1,
+          message: err instanceof Error ? err.message : 'Mock record error',
+          field: 'mapping',
+          value: '',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Determine status
+    if (run.recordsFailed > 0 && run.recordsProcessed > 0) {
       run.status = 'PARTIAL';
+    } else if (run.recordsFailed > 0 && run.recordsProcessed === 0) {
+      run.status = 'FAILED';
     } else {
       run.status = 'COMPLETED';
     }
 
     this.logger.log(
-      `Simulated processing for ${loader.type} loader (not yet implemented)`
+      `Simulated ${loader.type} loader: ${run.recordsProcessed}/${run.recordsFound} records routed through pipeline`
     );
+  }
+
+  /**
+   * Generate a plausible mock value for a field based on its detected type.
+   */
+  private generateMockValue(
+    fieldName: string,
+    fieldType: string,
+    index: number
+  ): string {
+    switch (fieldType) {
+      case 'number':
+      case 'integer':
+      case 'currency':
+        return String(Math.floor(Math.random() * 1000) + 1);
+      case 'boolean':
+        return index % 2 === 0 ? 'true' : 'false';
+      case 'email':
+        return `user${index + 1}@example.com`;
+      case 'url':
+        return `https://example.com/item/${index + 1}`;
+      case 'date':
+        return new Date(Date.now() - index * 86400000).toISOString().split('T')[0];
+      case 'datetime':
+      case 'timestamp':
+        return new Date(Date.now() - index * 86400000).toISOString();
+      default:
+        // For string fields, use field name as prefix for identifiable mock data
+        return `${fieldName.replace(/[_-]/g, '')}-${String(index + 1).padStart(4, '0')}`;
+    }
   }
 
   /**

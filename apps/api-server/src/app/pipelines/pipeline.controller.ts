@@ -75,9 +75,18 @@ export class PipelineController {
     return result.pipeline;
   }
 
+  @Get(':id/delete-impact')
+  getPipelineDeleteImpact(@Param('id') id: string) {
+    const impact = this.pipelineService.getPipelineDeleteImpact(id);
+    if (!impact.found) {
+      throw new HttpException('Pipeline not found', HttpStatus.NOT_FOUND);
+    }
+    return impact;
+  }
+
   @Delete(':id')
-  deletePipeline(@Param('id') id: string) {
-    const result = this.pipelineService.deletePipeline(id);
+  deletePipeline(@Param('id') id: string, @Query('cascade') cascade?: string) {
+    const result = this.pipelineService.deletePipeline(id, cascade === 'true');
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete pipeline', HttpStatus.BAD_REQUEST);
     }
@@ -139,14 +148,18 @@ export class PipelineController {
   }
 
   @Delete(':pipelineId/queues/:queueId')
-  deleteQueue(@Param('pipelineId') pipelineId: string, @Param('queueId') queueId: string) {
+  deleteQueue(
+    @Param('pipelineId') pipelineId: string,
+    @Param('queueId') queueId: string,
+    @Query('cascade') cascade?: string,
+  ) {
     // Verify queue belongs to pipeline
     const queue = this.pipelineService.getQueueById(queueId);
     if (!queue || queue.pipelineId !== pipelineId) {
       throw new HttpException('Queue not found in this pipeline', HttpStatus.NOT_FOUND);
     }
 
-    const result = this.pipelineService.deleteQueue(queueId);
+    const result = this.pipelineService.deleteQueue(queueId, cascade === 'true');
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete queue', HttpStatus.BAD_REQUEST);
     }
