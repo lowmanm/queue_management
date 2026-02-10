@@ -119,6 +119,11 @@
                     {{ getPipelineName(loader.pipelineId) }}
                   </span>
                 }
+                @if ($any(loader).stagedRecordCount) {
+                  <span class="meta-item staged-badge">
+                    {{ $any(loader).stagedRecordCount }} records staged
+                  </span>
+                }
                 @if (loader.lastRunAt) {
                   <span class="meta-item">Last run: {{ formatDate(loader.lastRunAt) }}</span>
                 }
@@ -1399,48 +1404,18 @@ ORD-002,Jane Smith,3,RETURNS"
                   <span class="stat-label">Skipped</span>
                 </div>
               }
-              @if (uploadResult()?.recordsRouted !== undefined) {
+              @if (uploadResult()?.recordsStaged) {
                 <div class="result-stat routed">
-                  <span class="stat-value">{{ uploadResult()?.recordsRouted }}</span>
-                  <span class="stat-label">Routed</span>
-                </div>
-              }
-              @if (uploadResult()?.recordsUnrouted) {
-                <div class="result-stat warning">
-                  <span class="stat-value">{{ uploadResult()?.recordsUnrouted }}</span>
-                  <span class="stat-label">Unrouted</span>
+                  <span class="stat-value">{{ uploadResult()?.recordsStaged }}</span>
+                  <span class="stat-label">Staged</span>
                 </div>
               }
             </div>
 
-            <!-- Routing Summary -->
-            @if (uploadResult()?.routingSummary && getRoutingSummaryEntries().length > 0) {
-              <div class="routing-summary">
-                <h4>Routing Breakdown:</h4>
-                <div class="routing-entries">
-                  @for (entry of getRoutingSummaryEntries(); track entry.ruleId) {
-                    <div class="routing-entry">
-                      <span class="rule-name">{{ entry.ruleName }}</span>
-                      <span class="rule-count">{{ entry.count }} record(s)</span>
-                      <span class="rule-queue">&#8594; {{ getQueueName(entry.queueId) }}</span>
-                    </div>
-                  }
-                </div>
-              </div>
-            }
-
-            <!-- Routing Diagnostics -->
-            @if (uploadResult()?.recordsUnrouted && uploadResult()?.routingDiagnostics) {
-              <div class="routing-diagnostics">
-                <h4>Routing Diagnostics:</h4>
-                @if (uploadResult()?.routingDiagnostics?.firstUnmatchedReason) {
-                  <p class="diagnostic-reason">{{ uploadResult()?.routingDiagnostics?.firstUnmatchedReason }}</p>
-                }
-                @if (uploadResult()?.routingDiagnostics?.sampleAvailableFields?.length) {
-                  <p class="diagnostic-fields">
-                    Available fields: {{ uploadResult()?.routingDiagnostics?.sampleAvailableFields?.join(', ') }}
-                  </p>
-                }
+            @if (uploadResult()?.recordsStaged) {
+              <div class="staging-notice">
+                Records are staged and ready. Close this panel and click <strong>Run Now</strong>
+                on the data source to process them through your routing rules.
               </div>
             }
 
@@ -1489,9 +1464,9 @@ ORD-002,Jane Smith,3,RETURNS"
           [disabled]="isUploading() || !csvContent() || !uploadResult()?.success"
         >
           @if (isUploading()) {
-            <span>Processing...</span>
+            <span>Loading...</span>
           } @else {
-            <span>Create {{ uploadResult()?.recordsProcessed || 0 }} Tasks</span>
+            <span>Load {{ uploadResult()?.recordsProcessed || 0 }} Records</span>
           }
         </button>
       </div>

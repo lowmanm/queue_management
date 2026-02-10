@@ -221,16 +221,10 @@ export interface CsvUploadResult {
   recordsProcessed: number;
   recordsFailed: number;
   recordsSkipped: number;
-  recordsRouted?: number;
-  recordsUnrouted?: number;
+  recordsStaged?: number;
   errors: Array<{ row: number; error: string }>;
   samplePayloadUrls?: string[];
   error?: string;
-  routingSummary?: Record<string, { ruleName: string; count: number; queueId: string }>;
-  routingDiagnostics?: {
-    sampleAvailableFields: string[];
-    firstUnmatchedReason?: string;
-  };
 }
 
 /**

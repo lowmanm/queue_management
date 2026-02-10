@@ -74,7 +74,11 @@ export class VolumeLoaderController {
     if (!loader) {
       throw new HttpException('Loader not found', HttpStatus.NOT_FOUND);
     }
-    return loader;
+    // Include staged record count so frontend knows if "Run Now" has data to process
+    return {
+      ...loader,
+      stagedRecordCount: this.volumeLoaderService.getStagedRecordCount(id),
+    };
   }
 
   /**
