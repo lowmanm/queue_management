@@ -518,6 +518,7 @@ export class VolumeLoaderComponent implements OnInit {
       const updates: UpdateVolumeLoaderRequest = {
         name: data.name,
         description: data.description,
+        pipelineId: this.getFormPipelineId() || undefined,
         config: data.config,
         schedule: data.schedule,
         dataFormat: data.dataFormat,
@@ -617,15 +618,38 @@ export class VolumeLoaderComponent implements OnInit {
             this.pollRunStatus(loaderId, runId, attempt + 1);
           } else {
             this.isLoading.set(false);
-            if (run.status === 'COMPLETED') {
-              this.successMessage.set(
-                `Run complete: ${run.recordsProcessed} records processed, ` +
-                `${run.recordsFailed} failed, ${run.recordsSkipped} skipped`
-              );
-            } else if (run.status === 'PARTIAL') {
-              this.successMessage.set(
-                `Run completed with errors: ${run.recordsProcessed}/${run.recordsFound} records processed`
-              );
+            const routed = (run as any).recordsRouted ?? 0;
+            const unrouted = (run as any).recordsUnrouted ?? 0;
+
+            if (run.status === 'COMPLETED' || run.status === 'PARTIAL') {
+              if (run.recordsFound === 0) {
+                this.errorMessage.set(
+                  'No records to process. Upload a CSV file first, then click Run Now.'
+                );
+              } else {
+                let msg = `Run complete: ${run.recordsProcessed}/${run.recordsFound} records processed.`;
+                if (routed > 0) {
+                  msg += ` ${routed} routed to queues.`;
+                }
+                if (unrouted > 0) {
+                  msg += ` ${unrouted} unrouted (default queue or no matching rules).`;
+                }
+                if (run.recordsFailed > 0) {
+                  msg += ` ${run.recordsFailed} failed.`;
+                }
+                this.successMessage.set(msg);
+
+                // Show routing diagnostics as warning if present
+                const diag = (run as any).routingDiagnostics;
+                if (unrouted > 0 && diag?.firstUnmatchedReason) {
+                  this.errorMessage.set(
+                    `Routing: ${diag.firstUnmatchedReason}` +
+                    (diag.sampleAvailableFields?.length
+                      ? ` Available fields: [${diag.sampleAvailableFields.join(', ')}]`
+                      : '')
+                  );
+                }
+              }
             } else {
               this.errorMessage.set(
                 `Run failed: ${run.errorLog?.[0]?.message || 'Unknown error'}`
@@ -1702,42 +1726,22 @@ export class VolumeLoaderComponent implements OnInit {
               `${result.recordsFailed} errors`
             );
           } else {
-            // Build detailed routing summary message
-            const routed = result.recordsRouted || 0;
-            const unrouted = result.recordsUnrouted || 0;
-            let msg = `Uploaded: ${result.recordsProcessed} tasks created`;
-            if (routed > 0 || unrouted > 0) {
-              msg += ` — ${routed} routed to queues`;
-              if (unrouted > 0) {
-                msg += `, ${unrouted} unrouted (no matching rules)`;
-              }
-            }
+            const staged = (result as any).recordsStaged || result.recordsProcessed;
+            let msg = `${staged} records loaded and staged.`;
             if (result.recordsFailed > 0) {
-              msg += `, ${result.recordsFailed} failed`;
+              msg += ` ${result.recordsFailed} failed.`;
             }
             if (result.recordsSkipped > 0) {
-              msg += `, ${result.recordsSkipped} skipped`;
+              msg += ` ${result.recordsSkipped} skipped (duplicates).`;
             }
+            msg += ' Click "Run Now" on the data source to process through routing rules.';
             this.successMessage.set(msg);
 
-            // Show routing diagnostics as a warning if records went unrouted
-            const diagnostics = result.routingDiagnostics;
-            if (unrouted > 0 && diagnostics) {
-              let diagMsg = `${unrouted} record(s) did not match any routing rules.`;
-              if (diagnostics.firstUnmatchedReason) {
-                diagMsg += ` Reason: ${diagnostics.firstUnmatchedReason}`;
-              }
-              if (diagnostics.sampleAvailableFields?.length > 0) {
-                diagMsg += ` Available fields: [${diagnostics.sampleAvailableFields.join(', ')}]`;
-              }
-              this.errorMessage.set(diagMsg);
-            }
-
-            // Clear content but don't auto-close so user can read routing results
+            // Clear content but don't auto-close so user can read results
             this.csvContent.set('');
             setTimeout(() => {
               this.loadData();
-            }, 2000);
+            }, 1500);
           }
         } else {
           this.errorMessage.set(result.error || 'Upload failed');
@@ -1755,20 +1759,6 @@ export class VolumeLoaderComponent implements OnInit {
    */
   triggerFileInput(): void {
     this.csvFileInput?.nativeElement?.click();
-  }
-
-  /**
-   * Convert routing summary map into an array for template iteration.
-   */
-  getRoutingSummaryEntries(): { ruleId: string; ruleName: string; count: number; queueId: string }[] {
-    const summary = this.uploadResult()?.routingSummary;
-    if (!summary) return [];
-    return Object.entries(summary).map(([ruleId, entry]) => ({
-      ruleId,
-      ruleName: entry.ruleName,
-      count: entry.count,
-      queueId: entry.queueId,
-    }));
   }
 
   clearMessages(): void {

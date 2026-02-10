@@ -55,6 +55,14 @@ export class VolumeLoaderService {
   private runs: VolumeLoaderRun[] = [];
   private scheduledIntervals = new Map<string, NodeJS.Timeout>();
 
+  // Staging table: uploaded records waiting to be processed by "Run Now"
+  // Key = loaderId, Value = array of mapped record objects
+  private stagedRecords = new Map<string, {
+    records: TaskFromSource[];
+    uploadedAt: string;
+    fileName?: string;
+  }>();
+
   // Track processed external IDs to prevent duplicates
   private processedExternalIds = new Set<string>();
 
@@ -419,20 +427,35 @@ export class VolumeLoaderService {
     const isDryRun = request?.dryRun ?? false;
 
     try {
-      // Process based on loader type
-      switch (loader.type) {
-        case 'LOCAL':
-          await this.processLocalLoader(loader, run, isDryRun);
-          break;
-        case 'GCS':
-        case 'S3':
-        case 'SFTP':
-        case 'HTTP':
-          // Fall back to simulated processing for unimplemented types
-          this.processSimulated(loader, run, isDryRun);
-          break;
-        default:
-          throw new Error(`Unsupported loader type: ${loader.type}`);
+      // Priority 1: Process staged records from CSV upload
+      const staged = this.stagedRecords.get(loader.id);
+      if (staged && staged.records.length > 0) {
+        this.processStagedRecords(loader, run, staged.records, isDryRun);
+        // Clear staging table after processing
+        if (!isDryRun) {
+          this.stagedRecords.delete(loader.id);
+        }
+      } else {
+        // Priority 2: Type-specific source processing
+        switch (loader.type) {
+          case 'LOCAL':
+            await this.processLocalLoader(loader, run, isDryRun);
+            break;
+          case 'GCS':
+          case 'S3':
+          case 'SFTP':
+          case 'HTTP':
+            // No staged data and no real connector — nothing to process
+            run.status = 'COMPLETED';
+            run.recordsFound = 0;
+            run.recordsProcessed = 0;
+            this.logger.warn(
+              `No staged records for loader ${loader.name}. Upload a CSV file first, then click Run Now.`
+            );
+            break;
+          default:
+            throw new Error(`Unsupported loader type: ${loader.type}`);
+        }
       }
     } catch (error) {
       run.status = 'FAILED';
@@ -683,6 +706,106 @@ export class VolumeLoaderService {
         // For string fields, use field name as prefix for identifiable mock data
         return `${fieldName.replace(/[_-]/g, '')}-${String(index + 1).padStart(4, '0')}`;
     }
+  }
+
+  // ==========================================================================
+  // STAGED RECORD PROCESSING (CSV Upload → "Run Now")
+  // ==========================================================================
+
+  /**
+   * Process previously staged records through the pipeline.
+   * This is the core path: CSV Upload stages → Run Now routes → tasks reach queues → agents.
+   */
+  private processStagedRecords(
+    loader: VolumeLoader,
+    run: VolumeLoaderRun,
+    records: TaskFromSource[],
+    isDryRun: boolean
+  ): void {
+    run.recordsFound = records.length;
+    run.filesProcessed = ['staged_upload'];
+
+    let recordsRouted = 0;
+    let recordsUnrouted = 0;
+    const routingSummary: Record<string, { ruleName: string; count: number; queueId: string }> = {};
+    let firstDiagnostics: any = null;
+
+    for (let i = 0; i < records.length; i++) {
+      const taskData = records[i];
+
+      try {
+        if (isDryRun) {
+          run.recordsProcessed++;
+          continue;
+        }
+
+        // Route through pipeline (V2 or legacy path)
+        const taskResult = this.createTaskFromRecord(loader, taskData, i + 1);
+
+        if (taskResult?.routed) {
+          recordsRouted++;
+          if (taskResult.ruleId) {
+            if (!routingSummary[taskResult.ruleId]) {
+              routingSummary[taskResult.ruleId] = {
+                ruleName: taskResult.ruleName || taskResult.ruleId,
+                count: 0,
+                queueId: taskResult.queueId || '',
+              };
+            }
+            routingSummary[taskResult.ruleId].count++;
+          }
+        } else {
+          recordsUnrouted++;
+          if (!firstDiagnostics && taskResult?.diagnostics) {
+            firstDiagnostics = taskResult.diagnostics;
+          }
+        }
+
+        // Track processed ID for deduplication
+        if (taskData.externalId) {
+          this.processedExternalIds.add(taskData.externalId);
+        }
+
+        run.recordsProcessed++;
+      } catch (err) {
+        run.recordsFailed++;
+        run.errorLog.push({
+          recordId: taskData.externalId || `row-${i + 1}`,
+          rowNumber: i + 1,
+          message: err instanceof Error ? err.message : 'Processing error',
+          field: 'routing',
+          value: '',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Store routing results on the run for the frontend to poll
+    (run as any).recordsRouted = recordsRouted;
+    (run as any).recordsUnrouted = recordsUnrouted;
+    (run as any).routingSummary = routingSummary;
+    if (firstDiagnostics) {
+      (run as any).routingDiagnostics = {
+        sampleAvailableFields: firstDiagnostics.availableFields || [],
+        firstUnmatchedReason: firstDiagnostics.ruleResults
+          ?.flatMap((r: any) => r.conditionResults)
+          ?.find((c: any) => !c.matched && c.reason)?.reason,
+      };
+    }
+
+    // Determine status
+    if (run.recordsFailed > 0 && run.recordsProcessed > 0) {
+      run.status = 'PARTIAL';
+    } else if (run.recordsFailed > 0 && run.recordsProcessed === 0) {
+      run.status = 'FAILED';
+    } else {
+      run.status = 'COMPLETED';
+    }
+
+    this.logger.log(
+      `Processed ${run.recordsProcessed}/${run.recordsFound} staged records for ${loader.name}: ` +
+      `${recordsRouted} routed, ${recordsUnrouted} unrouted, ${run.recordsFailed} failed`
+    );
   }
 
   /**
@@ -1070,17 +1193,28 @@ export class VolumeLoaderService {
   }
 
   /**
-   * Create a task from a parsed record and add to the task pipeline.
-   * V2 path: routes through PipelineOrchestratorService (validate → transform → route → enqueue).
-   * Legacy fallback: routes through PipelineService + TaskSourceService.
+   * Create a task from a parsed record and route through the pipeline.
+   *
+   * V2 path (preferred): PipelineOrchestratorService handles the full lifecycle:
+   *   validate → create task → transform → route → enqueue → notify agents
+   *
+   * If V2 is not available, logs a clear error so we know what's missing.
    */
   private createTaskFromRecord(
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
   ): { routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: any } | null {
-    // V2 path: use PipelineOrchestrator if available and pipeline is configured
-    if (this.orchestrator && loader.pipelineId) {
+    // Guard: pipeline must be configured
+    if (!loader.pipelineId) {
+      this.logger.warn(
+        `Loader "${loader.name}" has no pipeline assigned. Task ${taskData.externalId} cannot be routed.`
+      );
+      return { routed: false };
+    }
+
+    // V2 path: use PipelineOrchestrator (validate → transform → route → enqueue → notify)
+    if (this.orchestrator) {
       const result = this.orchestrator.ingestTask({
         pipelineId: loader.pipelineId,
         taskData,
@@ -1090,8 +1224,8 @@ export class VolumeLoaderService {
 
       if (result.success) {
         this.logger.debug(
-          `[V2] Task ${result.taskId} ingested from ${loader.name}: ` +
-          `${taskData.externalId} → queue "${result.queueId}"`
+          `[V2] Task ${result.taskId} ingested: ${taskData.externalId} → ` +
+          `${result.queueId ? `queue "${result.queueId}"` : `status: ${result.status}`}`
         );
         return {
           routed: !!result.queueId,
@@ -1102,49 +1236,18 @@ export class VolumeLoaderService {
         };
       } else {
         this.logger.warn(
-          `[V2] Ingestion failed for ${taskData.externalId} from ${loader.name}: ` +
-          `${result.status} - ${result.error}`
+          `[V2] Ingestion failed for ${taskData.externalId}: ${result.status} - ${result.error}`
         );
         return { routed: false, diagnostics: result.diagnostics };
       }
     }
 
-    // Legacy path: route through Pipeline if configured, then add to TaskSource
-    if (loader.pipelineId && this.pipelineService) {
-      const routingResult = this.pipelineService.routeTask(loader.pipelineId, taskData);
-
-      if (routingResult.error) {
-        this.logger.warn(
-          `Pipeline routing failed for task ${taskData.externalId}: ${routingResult.error}`
-        );
-      } else if (routingResult.queueId) {
-        taskData.queue = routingResult.queueId;
-        this.logger.debug(
-          `Task ${taskData.externalId} routed to queue ${routingResult.queueId} ` +
-          `${routingResult.ruleId ? `by rule ${routingResult.ruleId}` : 'via default routing'}`
-        );
-      }
-    }
-
-    if (this.taskSourceService) {
-      const pendingOrder: PendingOrder = {
-        rowIndex,
-        rawData: taskData.metadata || {},
-        taskData,
-        status: 'PENDING',
-        importedAt: new Date().toISOString(),
-      };
-
-      this.addToPendingOrders(pendingOrder);
-
-      this.logger.debug(
-        `Created pending task from ${loader.name}: ${taskData.externalId} -> ${taskData.payloadUrl}`
-      );
-    } else {
-      this.logger.warn('TaskSourceService not available - task not added to queue');
-    }
-
-    return { routed: !!taskData.queue };
+    // Orchestrator not available — this means the dependency chain is broken
+    this.logger.error(
+      'PipelineOrchestratorService is not injected. Tasks cannot be routed. ' +
+      'Check that ServicesModule is imported in VolumeLoaderModule.'
+    );
+    return { routed: false };
   }
 
   /**
@@ -1327,12 +1430,13 @@ export class VolumeLoaderService {
    * Process CSV content uploaded directly through the API.
    * Uses the loader's field mappings and defaults to create tasks.
    *
-   * This method provides a unified approach to data loading, replacing
-   * the separate Task Sources feature with Volume Loader infrastructure.
+   * This method parses CSV content, applies field mappings, and stores
+   * the mapped records in an in-memory staging table. Records are NOT
+   * immediately routed — that happens when the user clicks "Run Now".
    *
    * @param loaderId - The loader ID with configured field mappings
    * @param csvContent - The CSV content as a string
-   * @param dryRun - If true, parse but don't create tasks
+   * @param dryRun - If true, parse only (preview); if false, stage records for processing
    * @returns Processing result with counts and any errors
    */
   async processDirectCsvUpload(
@@ -1345,6 +1449,7 @@ export class VolumeLoaderService {
     recordsProcessed: number;
     recordsFailed: number;
     recordsSkipped: number;
+    recordsStaged: number;
     errors: Array<{ row: number; error: string }>;
     samplePayloadUrls?: string[];
     error?: string;
@@ -1357,13 +1462,14 @@ export class VolumeLoaderService {
         recordsProcessed: 0,
         recordsFailed: 0,
         recordsSkipped: 0,
+        recordsStaged: 0,
         errors: [],
         error: 'Loader not found',
       };
     }
 
     this.logger.log(
-      `Processing direct CSV upload for loader ${loaderId} (dryRun: ${dryRun})`
+      `Processing CSV upload for loader ${loaderId} (dryRun: ${dryRun})`
     );
 
     const result = {
@@ -1372,15 +1478,9 @@ export class VolumeLoaderService {
       recordsProcessed: 0,
       recordsFailed: 0,
       recordsSkipped: 0,
-      recordsRouted: 0,
-      recordsUnrouted: 0,
+      recordsStaged: 0,
       errors: [] as Array<{ row: number; error: string }>,
       samplePayloadUrls: [] as string[],
-      routingSummary: {} as Record<string, { ruleName: string; count: number; queueId: string }>,
-      routingDiagnostics: null as {
-        sampleAvailableFields: string[];
-        firstUnmatchedReason?: string;
-      } | null,
     };
 
     try {
@@ -1388,7 +1488,9 @@ export class VolumeLoaderService {
       const records = this.parseCsvContent(csvContent, loader);
       result.recordsFound = records.length;
 
-      // Process each record
+      const stagedBatch: TaskFromSource[] = [];
+
+      // Parse and validate each record
       for (const record of records) {
         if (record.error) {
           result.recordsFailed++;
@@ -1415,57 +1517,48 @@ export class VolumeLoaderService {
           result.samplePayloadUrls.push(record.mappedData.payloadUrl);
         }
 
+        // Stage the mapped record (don't route yet)
         if (!dryRun) {
-          // Create task in the pipeline and capture routing result
-          const taskResult = this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
-
-          // Track routing outcomes
-          if (taskResult?.routed && taskResult.ruleId) {
-            result.recordsRouted++;
-            if (!result.routingSummary[taskResult.ruleId]) {
-              result.routingSummary[taskResult.ruleId] = {
-                ruleName: taskResult.ruleName || taskResult.ruleId,
-                count: 0,
-                queueId: taskResult.queueId || '',
-              };
-            }
-            result.routingSummary[taskResult.ruleId].count++;
-          } else if (taskResult && !taskResult.routed) {
-            result.recordsUnrouted++;
-            // Capture first diagnostic for user feedback
-            if (!result.routingDiagnostics && taskResult.diagnostics) {
-              result.routingDiagnostics = {
-                sampleAvailableFields: taskResult.diagnostics.availableFields || [],
-                firstUnmatchedReason: taskResult.diagnostics.ruleResults
-                  ?.flatMap((r: any) => r.conditionResults)
-                  ?.find((c: any) => !c.matched && c.reason)?.reason,
-              };
-            }
-          }
-
-          // Track processed ID
-          if (record.mappedData.externalId) {
-            this.processedExternalIds.add(record.mappedData.externalId);
-          }
+          stagedBatch.push(record.mappedData);
         }
 
         result.recordsProcessed++;
       }
 
+      // Store staged records for later "Run Now" processing
+      if (!dryRun && stagedBatch.length > 0) {
+        this.stagedRecords.set(loaderId, {
+          records: stagedBatch,
+          uploadedAt: new Date().toISOString(),
+        });
+        result.recordsStaged = stagedBatch.length;
+        this.logger.log(
+          `Staged ${stagedBatch.length} records for loader ${loader.name} — ready for "Run Now"`
+        );
+      }
+
       this.logger.log(
-        `Direct CSV upload complete: ${result.recordsProcessed} processed, ` +
-        `${result.recordsFailed} failed, ${result.recordsSkipped} skipped`
+        `CSV upload complete: ${result.recordsFound} found, ${result.recordsProcessed} valid, ` +
+        `${result.recordsFailed} failed, ${result.recordsSkipped} skipped, ` +
+        `${result.recordsStaged} staged`
       );
 
       return result;
     } catch (error) {
-      this.logger.error(`Failed to process direct CSV upload: ${error}`);
+      this.logger.error(`Failed to process CSV upload: ${error}`);
       return {
         ...result,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  /**
+   * Get the current staging status for a loader.
+   */
+  getStagedRecordCount(loaderId: string): number {
+    return this.stagedRecords.get(loaderId)?.records.length ?? 0;
   }
 
   // ==========================================================================
