@@ -4,8 +4,17 @@ import { designerGuard, adminGuard } from '../../core/guards';
 export const ADMIN_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'pipelines',
+    redirectTo: 'volume-loaders',
     pathMatch: 'full',
+  },
+  {
+    path: 'volume-loaders',
+    loadComponent: () =>
+      import('./components/volume-loader/volume-loader.component').then(
+        (m) => m.VolumeLoaderComponent
+      ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:volume_loaders'] },
   },
   {
     path: 'pipelines',
@@ -17,15 +26,6 @@ export const ADMIN_ROUTES: Routes = [
     data: { permissions: ['design:pipelines'] },
   },
   {
-    path: 'task-sources',
-    loadComponent: () =>
-      import('./components/task-sources/task-sources.component').then(
-        (m) => m.TaskSourcesComponent
-      ),
-    canActivate: [designerGuard],
-    data: { permissions: ['design:task_sources'] },
-  },
-  {
     path: 'dispositions',
     loadComponent: () =>
       import('./components/dispositions/dispositions.component').then(
@@ -33,15 +33,6 @@ export const ADMIN_ROUTES: Routes = [
       ),
     canActivate: [designerGuard],
     data: { permissions: ['design:dispositions'] },
-  },
-  {
-    path: 'logic-builder',
-    loadComponent: () =>
-      import('./components/logic-builder/logic-builder.component').then(
-        (m) => m.LogicBuilderComponent
-      ),
-    canActivate: [designerGuard],
-    data: { permissions: ['design:rules'] },
   },
   {
     path: 'work-states',
@@ -60,23 +51,5 @@ export const ADMIN_ROUTES: Routes = [
       ),
     canActivate: [adminGuard],
     data: { permissions: ['admin:users'] },
-  },
-  {
-    path: 'routing',
-    loadComponent: () =>
-      import('./components/routing-config/routing-config.component').then(
-        (m) => m.RoutingConfigComponent
-      ),
-    canActivate: [designerGuard],
-    data: { permissions: ['design:routing'] },
-  },
-  {
-    path: 'volume-loaders',
-    loadComponent: () =>
-      import('./components/volume-loader/volume-loader.component').then(
-        (m) => m.VolumeLoaderComponent
-      ),
-    canActivate: [designerGuard],
-    data: { permissions: ['design:volume_loaders'] },
   },
 ];

@@ -107,37 +107,8 @@ export class RoutingService {
   }
 
   private assignDefaultAgentSkills(): void {
-    const now = new Date().toISOString();
-
-    // Agent skill assignments for demo users
-    const assignments: Record<string, { skillId: string; proficiency: SkillProficiency }[]> = {
-      'user-agent1': [
-        { skillId: 'orders', proficiency: 5 },
-        { skillId: 'billing', proficiency: 3 },
-        { skillId: 'priority', proficiency: 4 },
-      ],
-      'user-agent2': [
-        { skillId: 'returns', proficiency: 5 },
-        { skillId: 'claims', proficiency: 4 },
-        { skillId: 'spanish', proficiency: 4 },
-      ],
-      'user-agent3': [
-        { skillId: 'claims', proficiency: 5 },
-        { skillId: 'escalation', proficiency: 5 },
-        { skillId: 'technical', proficiency: 3 },
-      ],
-    };
-
-    Object.entries(assignments).forEach(([agentId, skills]) => {
-      const agentSkillList: AgentSkill[] = skills.map((s) => ({
-        skillId: s.skillId,
-        proficiency: s.proficiency,
-        active: true,
-        assignedAt: now,
-        updatedAt: now,
-      }));
-      this.agentSkills.set(agentId, agentSkillList);
-    });
+    // No default agent skill assignments - skills are assigned through the UI
+    // Agent skills will be configured by administrators via the Skills management interface
   }
 
   // ==========================================================================

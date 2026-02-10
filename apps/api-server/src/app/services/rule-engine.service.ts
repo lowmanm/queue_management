@@ -28,89 +28,11 @@ export class RuleEngineService {
   }
 
   /**
-   * Initialize default rules for demonstration
+   * Initialize service - starts with empty state
    */
   private initializeDefaultRules(): void {
-    const defaultRuleSet: RuleSet = {
-      id: 'default',
-      name: 'Default Priority Rules',
-      description: 'Standard routing and priority rules',
-      enabled: true,
-      rules: [
-        {
-          id: 'high-priority-orders',
-          name: 'High Priority Orders',
-          description: 'Boost priority for urgent orders',
-          enabled: true,
-          order: 1,
-          conditionGroup: {
-            id: 'cg1',
-            operator: 'AND',
-            conditions: [
-              {
-                id: 'c1',
-                field: 'workType',
-                operator: 'equals',
-                value: 'ORDERS',
-              },
-              {
-                id: 'c2',
-                field: 'priority',
-                operator: 'less_or_equal',
-                value: 3,
-              },
-            ],
-          },
-          actions: [
-            {
-              id: 'a1',
-              type: 'adjust_priority',
-              value: -2, // Boost priority (lower number = higher priority)
-            },
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'claims-routing',
-          name: 'Claims Queue Routing',
-          description: 'Route claims to specialized queue',
-          enabled: true,
-          order: 2,
-          conditionGroup: {
-            id: 'cg2',
-            operator: 'AND',
-            conditions: [
-              {
-                id: 'c3',
-                field: 'workType',
-                operator: 'equals',
-                value: 'CLAIMS',
-              },
-            ],
-          },
-          actions: [
-            {
-              id: 'a2',
-              type: 'set_queue',
-              value: 'claims-specialists',
-            },
-            {
-              id: 'a3',
-              type: 'add_skill',
-              value: 'claims-handling',
-            },
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.ruleSets.set(defaultRuleSet.id, defaultRuleSet);
-    this.logger.log('Default rules initialized');
+    // No default rules - rules are created through the Pipeline routing configuration
+    this.logger.log('Rule engine service initialized (no default rules)');
   }
 
   // ==========================================================================

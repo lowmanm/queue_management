@@ -57,7 +57,6 @@ export class AppShellComponent implements OnInit, OnDestroy {
         items: [
           { label: 'Team Dashboard', path: '/manager/team', icon: 'team', roles: ['MANAGER', 'ADMIN'] },
           { label: 'Queue Monitor', path: '/manager/queues', icon: 'queue', roles: ['MANAGER', 'ADMIN'] },
-          { label: 'Queue Config', path: '/manager/queue-config', icon: 'config', roles: ['MANAGER', 'ADMIN'] },
         ],
       });
     }
@@ -67,12 +66,9 @@ export class AppShellComponent implements OnInit, OnDestroy {
       sections.push({
         title: 'Design',
         items: [
+          { label: 'Data Sources', path: '/admin/volume-loaders', icon: 'loader', roles: ['DESIGNER', 'ADMIN'] },
           { label: 'Pipelines', path: '/admin/pipelines', icon: 'pipeline', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Volume Loaders', path: '/admin/volume-loaders', icon: 'loader', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Task Sources', path: '/admin/task-sources', icon: 'source', roles: ['DESIGNER', 'ADMIN'] },
           { label: 'Dispositions', path: '/admin/dispositions', icon: 'disposition', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Logic Builder', path: '/admin/logic-builder', icon: 'logic', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Routing', path: '/admin/routing', icon: 'routing', roles: ['DESIGNER', 'ADMIN'] },
           { label: 'Work States', path: '/admin/work-states', icon: 'states', roles: ['DESIGNER', 'ADMIN'] },
         ],
       });
@@ -128,14 +124,10 @@ export class AppShellComponent implements OnInit, OnDestroy {
         admin: 'Admin',
         team: 'Team Dashboard',
         queues: 'Queue Monitor',
-        'queue-config': 'Queue Config',
         pipelines: 'Pipelines',
-        'task-sources': 'Task Sources',
         dispositions: 'Dispositions',
-        'logic-builder': 'Logic Builder',
-        routing: 'Routing',
         'work-states': 'Work States',
-        'volume-loaders': 'Volume Loaders',
+        'volume-loaders': 'Data Sources',
         users: 'Users',
       };
 

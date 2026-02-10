@@ -738,28 +738,55 @@
                 </div>
               </div>
 
+              <!-- Editable Fields Configuration Table -->
               <div class="included-fields-section">
-                <h4>Included Fields</h4>
-                <p class="section-help">All fields will be included in the task data.</p>
-                <div class="included-fields-list">
+                <h4>Field Configuration</h4>
+                <p class="section-help">Rename fields and change data types as needed. Uncheck fields to exclude them.</p>
+                <div class="fields-config-table">
+                  <div class="fields-config-header">
+                    <span>Use</span>
+                    <span>Original Field</span>
+                    <span>Display Name</span>
+                    <span>Data Type</span>
+                    <span>Status</span>
+                  </div>
                   @for (field of detectedFields(); track field.name) {
-                    <div class="included-field" [class.is-primary]="selectedPrimaryIdField() === field.name">
-                      <label class="checkbox-label">
-                        <input
-                          type="checkbox"
-                          [checked]="isFieldIncluded(field.name)"
-                          (change)="toggleFieldInclusion(field.name, $any($event.target).checked)"
-                          [disabled]="selectedPrimaryIdField() === field.name"
-                        />
-                        <span class="field-name">{{ field.name }}</span>
-                      </label>
-                      <span class="field-type-badge">{{ fieldTypeLabels[field.detectedType] }}</span>
-                      @if (selectedPrimaryIdField() === field.name) {
-                        <span class="primary-badge">Primary ID</span>
-                      }
-                      @if (field.isRequired) {
-                        <span class="required-badge">Required</span>
-                      }
+                    <div class="fields-config-row" [class.is-primary]="selectedPrimaryIdField() === field.name">
+                      <input
+                        type="checkbox"
+                        [checked]="isFieldIncluded(field.name)"
+                        (change)="toggleFieldInclusion(field.name, $any($event.target).checked)"
+                        [disabled]="selectedPrimaryIdField() === field.name"
+                        [title]="selectedPrimaryIdField() === field.name ? 'Primary ID field cannot be excluded' : 'Include/exclude this field'"
+                      />
+                      <div class="original-field">
+                        <span>{{ field.name }}</span>
+                        @if (field.looksLikeId) {
+                          <span class="id-badge">ID</span>
+                        }
+                      </div>
+                      <input
+                        type="text"
+                        class="display-name-input"
+                        [class.changed]="getFieldDisplayName(field.name) && getFieldDisplayName(field.name) !== field.name"
+                        [value]="getFieldDisplayName(field.name) || field.name"
+                        (change)="updateFieldDisplayName(field.name, $any($event.target).value)"
+                        placeholder="{{ field.name }}"
+                      />
+                      <select
+                        class="type-select"
+                        [value]="getFieldDataType(field.name) || field.detectedType"
+                        (change)="updateFieldDataType(field.name, $any($event.target).value)"
+                      >
+                        @for (type of fieldTypeOptions; track type.value) {
+                          <option [value]="type.value">{{ type.label }}</option>
+                        }
+                      </select>
+                      <div class="field-badges">
+                        @if (selectedPrimaryIdField() === field.name) {
+                          <span class="primary-badge">Primary</span>
+                        }
+                      </div>
                     </div>
                   }
                 </div>
