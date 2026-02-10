@@ -53,11 +53,12 @@ export class AuthService {
   }
 
   /**
-   * Auto-login with a specific role for development
+   * Auto-login with a specific role for development.
+   * Defaults to ADMIN so all features (including User Management) are accessible.
+   * Override via localStorage: localStorage.setItem('devRole', 'AGENT')
    */
   private autoLoginDev(): void {
-    // Default to agent role, but can be changed via localStorage
-    const savedRole = localStorage.getItem('devRole') as UserRole || 'AGENT';
+    const savedRole = localStorage.getItem('devRole') as UserRole || 'ADMIN';
     this.loginAsRole(savedRole);
   }
 
