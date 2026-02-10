@@ -33,6 +33,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private destroy$ = new Subject<void>();
 
+
   agent$!: Observable<Agent | null>;
   user$!: Observable<AuthenticatedUser | null>;
   agentState$!: Observable<AgentState>;
