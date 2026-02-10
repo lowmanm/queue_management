@@ -29,7 +29,6 @@
           <div class="nav-dropdown-content">
             <a routerLink="/manager/team" routerLinkActive="active" class="dropdown-link">Team Dashboard</a>
             <a routerLink="/manager/queues" routerLinkActive="active" class="dropdown-link">Queue Monitor</a>
-            <a routerLink="/manager/queue-config" routerLinkActive="active" class="dropdown-link">Queue Config</a>
           </div>
         </div>
       }
@@ -42,12 +41,10 @@
             </svg>
           </button>
           <div class="nav-dropdown-content">
-            <a routerLink="/admin/task-sources" routerLinkActive="active" class="dropdown-link">Task Sources</a>
+            <a routerLink="/admin/volume-loaders" routerLinkActive="active" class="dropdown-link">Data Sources</a>
+            <a routerLink="/admin/pipelines" routerLinkActive="active" class="dropdown-link">Pipelines</a>
             <a routerLink="/admin/dispositions" routerLinkActive="active" class="dropdown-link">Dispositions</a>
-            <a routerLink="/admin/logic-builder" routerLinkActive="active" class="dropdown-link">Logic Builder</a>
-            <a routerLink="/admin/routing" routerLinkActive="active" class="dropdown-link">Routing</a>
             <a routerLink="/admin/work-states" routerLinkActive="active" class="dropdown-link">Work States</a>
-            <a routerLink="/admin/volume-loaders" routerLinkActive="active" class="dropdown-link">Volume Loaders</a>
           </div>
         </div>
       }
@@ -164,19 +161,16 @@
           <div class="mobile-nav-section-title">Manager</div>
           <a routerLink="/manager/team" class="mobile-nav-link" (click)="closeMobileNav()">Team Dashboard</a>
           <a routerLink="/manager/queues" class="mobile-nav-link" (click)="closeMobileNav()">Queue Monitor</a>
-          <a routerLink="/manager/queue-config" class="mobile-nav-link" (click)="closeMobileNav()">Queue Config</a>
         </div>
       }
 
       @if (canAccessDesigner) {
         <div class="mobile-nav-section">
           <div class="mobile-nav-section-title">Design</div>
-          <a routerLink="/admin/task-sources" class="mobile-nav-link" (click)="closeMobileNav()">Task Sources</a>
+          <a routerLink="/admin/volume-loaders" class="mobile-nav-link" (click)="closeMobileNav()">Data Sources</a>
+          <a routerLink="/admin/pipelines" class="mobile-nav-link" (click)="closeMobileNav()">Pipelines</a>
           <a routerLink="/admin/dispositions" class="mobile-nav-link" (click)="closeMobileNav()">Dispositions</a>
-          <a routerLink="/admin/logic-builder" class="mobile-nav-link" (click)="closeMobileNav()">Logic Builder</a>
-          <a routerLink="/admin/routing" class="mobile-nav-link" (click)="closeMobileNav()">Routing</a>
           <a routerLink="/admin/work-states" class="mobile-nav-link" (click)="closeMobileNav()">Work States</a>
-          <a routerLink="/admin/volume-loaders" class="mobile-nav-link" (click)="closeMobileNav()">Volume Loaders</a>
         </div>
       }
 

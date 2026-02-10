@@ -23,6 +23,10 @@ import {
   HttpConfig,
   LocalConfig,
   Pipeline,
+  PipelineQueue,
+  RoutingRule,
+  RoutingConditionField,
+  RoutingOperator,
   DetectedField,
   ParseSampleFileResult,
   DetectedFieldType,
@@ -65,6 +69,8 @@ export class VolumeLoaderComponent implements OnInit {
     { step: 5, title: 'Sample File', description: 'Upload to detect fields' },
     { step: 6, title: 'Field Mappings', description: 'Select primary ID' },
     { step: 7, title: 'Options', description: 'Processing settings' },
+    { step: 8, title: 'Queues', description: 'Configure queues' },
+    { step: 9, title: 'Routing', description: 'Set routing rules' },
   ];
 
   // Sample file parsing state
@@ -98,6 +104,28 @@ export class VolumeLoaderComponent implements OnInit {
   uploadResult = signal<CsvUploadResult | null>(null);
   isUploading = signal(false);
   dryRunMode = signal(true); // Preview mode by default
+
+  // Inline pipeline creation state
+  showInlinePipelineCreator = signal(false);
+  newPipelineName = signal('');
+  newPipelineDescription = signal('');
+
+  // Queue setup state (Step 8)
+  pipelineQueues = signal<PipelineQueue[]>([]);
+  showAddQueueForm = signal(false);
+  newQueueName = signal('');
+  newQueueDescription = signal('');
+  newQueuePriority = signal(5);
+  newQueueSkills = signal('');
+
+  // Routing rules state (Step 9)
+  pipelineRoutingRules = signal<RoutingRule[]>([]);
+  showAddRuleForm = signal(false);
+  newRuleName = signal('');
+  newRuleField = signal<RoutingConditionField>('workType');
+  newRuleOperator = signal<RoutingOperator>('equals');
+  newRuleValue = signal('');
+  newRuleTargetQueue = signal('');
 
   @ViewChild('csvFileInput') csvFileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('sampleFileInput') sampleFileInput!: ElementRef<HTMLInputElement>;
@@ -282,7 +310,12 @@ export class VolumeLoaderComponent implements OnInit {
     if (current < this.wizardSteps.length) {
       // Validate current step before proceeding
       if (this.validateCurrentStep()) {
-        this.currentStep.set(current + 1);
+        const nextStep = current + 1;
+        this.currentStep.set(nextStep);
+        // Load pipeline queues/rules when entering steps 8 or 9
+        if ((nextStep === 8 || nextStep === 9) && this.getFormPipelineId()) {
+          this.loadPipelineQueuesAndRules();
+        }
       }
     }
   }
@@ -372,6 +405,12 @@ export class VolumeLoaderComponent implements OnInit {
       case 7: // Options
         return true;
 
+      case 8: // Queues (optional)
+        return true;
+
+      case 9: // Routing (optional)
+        return true;
+
       default:
         return true;
     }
@@ -399,6 +438,10 @@ export class VolumeLoaderComponent implements OnInit {
       case 6: // Field Mappings
         return (data.fieldMappings?.length || 0) > 0 && data.fieldMappings?.some((m) => m.isPrimaryId) === true;
       case 7:
+        return true;
+      case 8: // Queues (optional)
+        return true;
+      case 9: // Routing (optional)
         return true;
       default:
         return false;
@@ -1442,8 +1485,12 @@ export class VolumeLoaderComponent implements OnInit {
               `Uploaded: ${result.recordsProcessed} tasks created, ${result.recordsFailed} failed, ` +
               `${result.recordsSkipped} skipped`
             );
-            // Clear the content after successful upload
+            // Clear the content and auto-close after successful upload
             this.csvContent.set('');
+            setTimeout(() => {
+              this.closeUploadPanel();
+              this.loadData();
+            }, 1500);
           }
         } else {
           this.errorMessage.set(result.error || 'Upload failed');
@@ -1499,5 +1546,169 @@ export class VolumeLoaderComponent implements OnInit {
   getFormPipelineId(): string {
     // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
     return (this.formData() as any).pipelineId || '';
+  }
+
+  // ============ Inline Pipeline Creation ============
+
+  /**
+   * Create a pipeline inline within the wizard
+   */
+  createInlinePipeline(): void {
+    const name = this.newPipelineName();
+    if (!name?.trim()) return;
+
+    this.pipelineService.createPipeline({
+      name: name.trim(),
+      description: this.newPipelineDescription() || undefined,
+      allowedWorkTypes: [],
+    }).subscribe({
+      next: (pipeline) => {
+        this.pipelines.set([...this.pipelines(), pipeline]);
+        this.updatePipelineId(pipeline.id);
+        this.showInlinePipelineCreator.set(false);
+        this.newPipelineName.set('');
+        this.newPipelineDescription.set('');
+        this.successMessage.set(`Pipeline "${pipeline.name}" created`);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to create pipeline');
+      },
+    });
+  }
+
+  // ============ Queue Setup (Step 8) ============
+
+  /**
+   * Load pipeline queues and routing rules
+   */
+  loadPipelineQueuesAndRules(): void {
+    const pipelineId = this.getFormPipelineId();
+    if (!pipelineId) return;
+
+    this.pipelineService.getPipelineQueues(pipelineId).subscribe({
+      next: (queues) => this.pipelineQueues.set(queues),
+      error: () => this.pipelineQueues.set([]),
+    });
+
+    this.pipelineService.getRoutingRules(pipelineId).subscribe({
+      next: (rules) => this.pipelineRoutingRules.set(rules),
+      error: () => this.pipelineRoutingRules.set([]),
+    });
+  }
+
+  /**
+   * Create a queue within the selected pipeline
+   */
+  createQueue(): void {
+    const pipelineId = this.getFormPipelineId();
+    const name = this.newQueueName();
+    if (!pipelineId || !name?.trim()) return;
+
+    const skills = this.newQueueSkills()
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s);
+
+    this.pipelineService.createQueue(pipelineId, {
+      name: name.trim(),
+      description: this.newQueueDescription() || undefined,
+      priority: this.newQueuePriority() || 5,
+      requiredSkills: skills.length > 0 ? skills : undefined,
+    }).subscribe({
+      next: (queue) => {
+        this.pipelineQueues.set([...this.pipelineQueues(), queue]);
+        this.showAddQueueForm.set(false);
+        this.newQueueName.set('');
+        this.newQueueDescription.set('');
+        this.newQueuePriority.set(5);
+        this.newQueueSkills.set('');
+        this.successMessage.set(`Queue "${queue.name}" created`);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to create queue');
+      },
+    });
+  }
+
+  /**
+   * Remove a queue from the pipeline
+   */
+  removeQueue(queueId: string): void {
+    const pipelineId = this.getFormPipelineId();
+    if (!pipelineId) return;
+
+    this.pipelineService.deleteQueue(pipelineId, queueId).subscribe({
+      next: () => {
+        this.pipelineQueues.set(this.pipelineQueues().filter((q) => q.id !== queueId));
+        this.successMessage.set('Queue removed');
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to remove queue');
+      },
+    });
+  }
+
+  /**
+   * Get queue name by ID
+   */
+  getQueueName(queueId: string): string {
+    const queue = this.pipelineQueues().find((q) => q.id === queueId);
+    return queue?.name || queueId;
+  }
+
+  // ============ Routing Rules (Step 9) ============
+
+  /**
+   * Create a routing rule within the selected pipeline
+   */
+  createRoutingRule(): void {
+    const pipelineId = this.getFormPipelineId();
+    const name = this.newRuleName();
+    const targetQueueId = this.newRuleTargetQueue();
+    if (!pipelineId || !name?.trim() || !targetQueueId) return;
+
+    this.pipelineService.createRoutingRule(pipelineId, {
+      name: name.trim(),
+      conditions: [{
+        id: `cond-${Date.now()}`,
+        field: this.newRuleField(),
+        operator: this.newRuleOperator(),
+        value: this.newRuleValue(),
+      }],
+      conditionLogic: 'AND',
+      targetQueueId,
+    }).subscribe({
+      next: (rule) => {
+        this.pipelineRoutingRules.set([...this.pipelineRoutingRules(), rule]);
+        this.showAddRuleForm.set(false);
+        this.newRuleName.set('');
+        this.newRuleField.set('workType');
+        this.newRuleOperator.set('equals');
+        this.newRuleValue.set('');
+        this.newRuleTargetQueue.set('');
+        this.successMessage.set(`Routing rule "${rule.name}" created`);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to create routing rule');
+      },
+    });
+  }
+
+  /**
+   * Remove a routing rule from the pipeline
+   */
+  removeRoutingRule(ruleId: string): void {
+    const pipelineId = this.getFormPipelineId();
+    if (!pipelineId) return;
+
+    this.pipelineService.deleteRoutingRule(pipelineId, ruleId).subscribe({
+      next: () => {
+        this.pipelineRoutingRules.set(this.pipelineRoutingRules().filter((r) => r.id !== ruleId));
+        this.successMessage.set('Routing rule removed');
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to remove routing rule');
+      },
+    });
   }
 }

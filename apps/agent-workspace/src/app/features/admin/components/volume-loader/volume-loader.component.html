@@ -345,14 +345,49 @@
                 }
               </select>
             </div>
-            @if (pipelines().length === 0) {
+            @if (pipelines().length === 0 && !showInlinePipelineCreator()) {
               <div class="no-pipelines-warning">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="8" x2="12" y2="12"></line>
                   <line x1="12" y1="16" x2="12.01" y2="16"></line>
                 </svg>
-                <span>No pipelines configured. <a routerLink="/admin/pipelines">Create a pipeline</a> first.</span>
+                <span>No pipelines configured.</span>
+                <button class="btn-secondary small" (click)="showInlinePipelineCreator.set(true)">+ Create Pipeline</button>
+              </div>
+            }
+            @if (pipelines().length > 0 && !showInlinePipelineCreator()) {
+              <button class="btn-secondary small" (click)="showInlinePipelineCreator.set(true)">
+                + Create New Pipeline
+              </button>
+            }
+            @if (showInlinePipelineCreator()) {
+              <div class="inline-pipeline-form">
+                <h4>Quick Pipeline Setup</h4>
+                <div class="form-group">
+                  <label>Pipeline Name *</label>
+                  <input
+                    type="text"
+                    [ngModel]="newPipelineName()"
+                    (ngModelChange)="newPipelineName.set($event)"
+                    placeholder="e.g., Orders Pipeline"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Description</label>
+                  <textarea
+                    [ngModel]="newPipelineDescription()"
+                    (ngModelChange)="newPipelineDescription.set($event)"
+                    rows="2"
+                    placeholder="Optional description..."
+                  ></textarea>
+                </div>
+                <div class="inline-form-actions">
+                  <button class="btn-primary" (click)="createInlinePipeline()" [disabled]="!newPipelineName()?.trim()">
+                    Create Pipeline
+                  </button>
+                  <button class="btn-secondary" (click)="showInlinePipelineCreator.set(false)">Cancel</button>
+                </div>
               </div>
             }
           </div>
@@ -450,7 +485,7 @@
               }
               @case ('HTTP') {
                 <div class="form-group">
-                  <label>URL *</label>
+                  <label>Base URL *</label>
                   <input
                     type="text"
                     [ngModel]="getConfigValue('url')"
@@ -481,6 +516,44 @@
                       <option value="api_key">API Key</option>
                     </select>
                   </div>
+                </div>
+
+                <!-- Dynamic URL Template -->
+                <div class="url-template-section">
+                  <h4>Dynamic URL Template</h4>
+                  <p class="template-help">
+                    Define a URL pattern with field placeholders. Use <code>{{ '{' }}fieldName{{ '}' }}</code> syntax to
+                    insert field values into the URL when tasks are created.
+                  </p>
+                  <div class="form-group">
+                    <label>URL Template</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('urlTemplate')"
+                      (ngModelChange)="updateConfigField('urlTemplate', $event)"
+                      placeholder="https://api.example.com/orders/{order_id}/details"
+                    />
+                    <span class="field-hint">
+                      Fields in {{ '{' }}braces{{ '}' }} will be replaced with actual values from each record.
+                    </span>
+                  </div>
+                  <div class="form-group">
+                    <label>Primary URL Field</label>
+                    <input
+                      type="text"
+                      [ngModel]="getConfigValue('urlField')"
+                      (ngModelChange)="updateConfigField('urlField', $event)"
+                      placeholder="e.g., order_id"
+                    />
+                    <span class="field-hint">
+                      The main field to incorporate in the URL. This will be used as the default placeholder.
+                    </span>
+                  </div>
+                  @if (getConfigValue('urlTemplate')) {
+                    <div class="template-preview">
+                      Example: <span class="placeholder">{{ getConfigValue('urlTemplate') }}</span>
+                    </div>
+                  }
                 </div>
               }
               @case ('LOCAL') {
@@ -850,6 +923,259 @@
               />
               <span class="field-hint">Stop processing if error rate exceeds this percentage</span>
             </div>
+          </div>
+        }
+
+        <!-- Step 8: Queue Setup -->
+        @if (currentStep() === 8) {
+          <div class="form-section">
+            <h3>Queue Setup</h3>
+            <p class="section-help">
+              Define queues within your pipeline. Tasks will be routed to queues based on routing rules.
+              Each queue can have its own priority and skill requirements.
+            </p>
+
+            @if (!getFormPipelineId()) {
+              <div class="queue-setup-section">
+                <div class="no-pipeline-notice">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span>Select a pipeline in Step 2 to configure queues.</span>
+                </div>
+              </div>
+            } @else {
+              <div class="queue-setup-section">
+                @if (pipelineQueues().length > 0) {
+                  <div class="existing-queues">
+                    <div class="queue-list">
+                      @for (queue of pipelineQueues(); track queue.id) {
+                        <div class="queue-card">
+                          <div class="queue-priority-badge">{{ queue.priority }}</div>
+                          <div class="queue-card-info">
+                            <h4>{{ queue.name }}</h4>
+                            @if (queue.description) {
+                              <p>{{ queue.description }}</p>
+                            }
+                          </div>
+                          @if (queue.requiredSkills?.length) {
+                            <div class="queue-skills">
+                              @for (skill of queue.requiredSkills; track skill) {
+                                <span class="skill-tag">{{ skill }}</span>
+                              }
+                            </div>
+                          }
+                          <button class="btn-icon danger" (click)="removeQueue(queue.id)" title="Remove">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+
+                @if (showAddQueueForm()) {
+                  <div class="add-queue-form">
+                    <h4>Add Queue</h4>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Queue Name *</label>
+                        <input
+                          type="text"
+                          [ngModel]="newQueueName()"
+                          (ngModelChange)="newQueueName.set($event)"
+                          placeholder="e.g., Priority Support"
+                        />
+                      </div>
+                      <div class="form-group">
+                        <label>Priority (1=highest)</label>
+                        <input
+                          type="number"
+                          [ngModel]="newQueuePriority()"
+                          (ngModelChange)="newQueuePriority.set($event)"
+                          min="1"
+                          max="100"
+                        />
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Description</label>
+                      <input
+                        type="text"
+                        [ngModel]="newQueueDescription()"
+                        (ngModelChange)="newQueueDescription.set($event)"
+                        placeholder="Optional description..."
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label>Required Skills (comma-separated)</label>
+                      <input
+                        type="text"
+                        [ngModel]="newQueueSkills()"
+                        (ngModelChange)="newQueueSkills.set($event)"
+                        placeholder="e.g., orders, priority"
+                      />
+                    </div>
+                    <div class="add-queue-actions">
+                      <button class="btn-primary" (click)="createQueue()" [disabled]="!newQueueName()?.trim()">
+                        Add Queue
+                      </button>
+                      <button class="btn-secondary" (click)="showAddQueueForm.set(false)">Cancel</button>
+                    </div>
+                  </div>
+                } @else {
+                  <button class="btn-secondary" (click)="showAddQueueForm.set(true)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Queue
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 9: Routing Rules -->
+        @if (currentStep() === 9) {
+          <div class="form-section">
+            <h3>Routing Rules</h3>
+            <p class="section-help">
+              Define rules to automatically route incoming tasks to the correct queue. Rules are evaluated in
+              priority order and the first matching rule determines the target queue.
+            </p>
+
+            @if (!getFormPipelineId()) {
+              <div class="routing-setup-section">
+                <div class="no-pipeline-notice">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span>Select a pipeline in Step 2 to configure routing rules.</span>
+                </div>
+              </div>
+            } @else if (pipelineQueues().length === 0) {
+              <div class="routing-setup-section">
+                <div class="no-pipeline-notice">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span>Create at least one queue in Step 8 before adding routing rules.</span>
+                </div>
+              </div>
+            } @else {
+              <div class="routing-setup-section">
+                @if (pipelineRoutingRules().length > 0) {
+                  <div class="routing-rules-list">
+                    @for (rule of pipelineRoutingRules(); track rule.id) {
+                      <div class="routing-rule-card">
+                        <div class="rule-header">
+                          <h4>{{ rule.name }}</h4>
+                          <button class="btn-icon danger" (click)="removeRoutingRule(rule.id)" title="Remove">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                        <div class="rule-detail">
+                          <span>{{ rule.conditions.length }} condition{{ rule.conditions.length !== 1 ? 's' : '' }}</span>
+                          <span class="rule-arrow">&rarr;</span>
+                          <span class="rule-target">{{ getQueueName(rule.targetQueueId) }}</span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+
+                @if (showAddRuleForm()) {
+                  <div class="add-rule-form">
+                    <h4>Add Routing Rule</h4>
+                    <div class="form-group">
+                      <label>Rule Name *</label>
+                      <input
+                        type="text"
+                        [ngModel]="newRuleName()"
+                        (ngModelChange)="newRuleName.set($event)"
+                        placeholder="e.g., High Priority Orders"
+                      />
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Condition Field</label>
+                        <select
+                          [ngModel]="newRuleField()"
+                          (ngModelChange)="newRuleField.set($event)"
+                        >
+                          <option value="workType">Work Type</option>
+                          <option value="priority">Priority</option>
+                          <option value="metadata">Custom Field</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Operator</label>
+                        <select
+                          [ngModel]="newRuleOperator()"
+                          (ngModelChange)="newRuleOperator.set($event)"
+                        >
+                          <option value="equals">Equals</option>
+                          <option value="contains">Contains</option>
+                          <option value="greater_than">Greater Than</option>
+                          <option value="less_than">Less Than</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Value</label>
+                        <input
+                          type="text"
+                          [ngModel]="newRuleValue()"
+                          (ngModelChange)="newRuleValue.set($event)"
+                          placeholder="Match value"
+                        />
+                      </div>
+                      <div class="form-group">
+                        <label>Target Queue *</label>
+                        <select
+                          [ngModel]="newRuleTargetQueue()"
+                          (ngModelChange)="newRuleTargetQueue.set($event)"
+                        >
+                          <option value="">-- Select Queue --</option>
+                          @for (queue of pipelineQueues(); track queue.id) {
+                            <option [value]="queue.id">{{ queue.name }}</option>
+                          }
+                        </select>
+                      </div>
+                    </div>
+                    <div class="add-rule-actions">
+                      <button class="btn-primary" (click)="createRoutingRule()" [disabled]="!newRuleName()?.trim() || !newRuleTargetQueue()">
+                        Add Rule
+                      </button>
+                      <button class="btn-secondary" (click)="showAddRuleForm.set(false)">Cancel</button>
+                    </div>
+                  </div>
+                } @else {
+                  <button class="btn-secondary" (click)="showAddRuleForm.set(true)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Routing Rule
+                  </button>
+                }
+              </div>
+            }
           </div>
         }
 

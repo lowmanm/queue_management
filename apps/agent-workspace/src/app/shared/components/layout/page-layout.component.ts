@@ -242,13 +242,10 @@ export class PageLayoutComponent implements OnInit, OnDestroy {
       admin: 'Admin',
       team: 'Team Dashboard',
       queues: 'Queue Monitor',
-      'queue-config': 'Queue Config',
-      'task-sources': 'Task Sources',
+      pipelines: 'Pipelines',
       dispositions: 'Dispositions',
-      'logic-builder': 'Logic Builder',
-      routing: 'Routing',
       'work-states': 'Work States',
-      'volume-loaders': 'Volume Loaders',
+      'volume-loaders': 'Data Sources',
       users: 'Users',
     };
 

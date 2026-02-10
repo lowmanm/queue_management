@@ -55,8 +55,8 @@ export type Permission =
   | 'design:dispositions'     // Manage dispositions
   | 'design:workflows'        // Manage workflows
   | 'design:rules'            // Manage routing rules
-  | 'design:task_sources'     // Manage task sources
-  | 'design:schema_mapping'   // Manage schema mappings
+  | 'design:pipelines'        // Manage pipelines
+  | 'design:volume_loaders'   // Manage data sources / volume loaders
 
   // Admin permissions
   | 'admin:users'             // Manage users and roles
@@ -296,8 +296,8 @@ export const DEFAULT_ROLES: Role[] = [
       'design:dispositions',
       'design:workflows',
       'design:rules',
-      'design:task_sources',
-      'design:schema_mapping',
+      'design:pipelines',
+      'design:volume_loaders',
     ],
   },
   {
@@ -330,8 +330,8 @@ export const DEFAULT_ROLES: Role[] = [
       'design:dispositions',
       'design:workflows',
       'design:rules',
-      'design:task_sources',
-      'design:schema_mapping',
+      'design:pipelines',
+      'design:volume_loaders',
       'admin:users',
       'admin:settings',
       'admin:audit',
@@ -481,15 +481,15 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     category: 'DESIGN',
   },
   {
-    id: 'design:task_sources',
-    name: 'Manage Task Sources',
-    description: 'Configure task ingestion sources',
+    id: 'design:pipelines',
+    name: 'Manage Pipelines',
+    description: 'Create and configure task pipelines',
     category: 'DESIGN',
   },
   {
-    id: 'design:schema_mapping',
-    name: 'Schema Mapping',
-    description: 'Configure data schema mappings',
+    id: 'design:volume_loaders',
+    name: 'Manage Data Sources',
+    description: 'Configure volume loaders and data ingestion',
     category: 'DESIGN',
   },
 
