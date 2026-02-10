@@ -1110,67 +1110,96 @@
                         placeholder="e.g., High Priority Orders"
                       />
                     </div>
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Condition Field *</label>
-                        <select
-                          [ngModel]="newRuleField()"
-                          (ngModelChange)="newRuleField.set($event)"
-                        >
-                          <option value="">-- Select Field --</option>
-                          @for (field of detectedFields(); track field.name) {
-                            <option [value]="field.name">
-                              {{ field.suggestedLabel || field.name }} ({{ fieldTypeLabels[field.detectedType] || field.detectedType }})
-                            </option>
-                          }
-                        </select>
-                        @if (detectedFields().length === 0) {
-                          <span class="field-hint">Upload a sample file in Step 5 to define routable fields.</span>
+
+                    <!-- Conditions -->
+                    <div class="conditions-section">
+                      <div class="conditions-header">
+                        <label>Conditions *</label>
+                        @if (newRuleConditions().length > 1) {
+                          <div class="logic-toggle">
+                            <button
+                              class="logic-btn"
+                              [class.active]="newRuleConditionLogic() === 'AND'"
+                              (click)="newRuleConditionLogic.set('AND')"
+                            >AND</button>
+                            <button
+                              class="logic-btn"
+                              [class.active]="newRuleConditionLogic() === 'OR'"
+                              (click)="newRuleConditionLogic.set('OR')"
+                            >OR</button>
+                          </div>
                         }
                       </div>
-                      <div class="form-group">
-                        <label>Operator</label>
-                        <select
-                          [ngModel]="newRuleOperator()"
-                          (ngModelChange)="newRuleOperator.set($event)"
-                        >
-                          @for (op of availableOperators(); track op) {
-                            <option [value]="op">{{ operatorLabels[op] }}</option>
+                      @if (detectedFields().length === 0) {
+                        <span class="field-hint">Upload a sample file in Step 5 to define routable fields.</span>
+                      }
+                      @for (cond of newRuleConditions(); track $index; let i = $index) {
+                        <div class="condition-row">
+                          @if (i > 0) {
+                            <span class="logic-label">{{ newRuleConditionLogic() }}</span>
                           }
-                        </select>
-                      </div>
+                          <div class="condition-fields">
+                            <select
+                              [ngModel]="cond.field"
+                              (ngModelChange)="updateRuleCondition(i, 'field', $event)"
+                            >
+                              <option value="">-- Field --</option>
+                              @for (field of detectedFields(); track field.name) {
+                                <option [value]="field.name">
+                                  {{ field.suggestedLabel || field.name }} ({{ fieldTypeLabels[field.detectedType] || field.detectedType }})
+                                </option>
+                              }
+                            </select>
+                            <select
+                              [ngModel]="cond.operator"
+                              (ngModelChange)="updateRuleCondition(i, 'operator', $event)"
+                            >
+                              @for (op of getOperatorsForField(cond.field); track op) {
+                                <option [value]="op">{{ operatorLabels[op] }}</option>
+                              }
+                            </select>
+                            <input
+                              type="text"
+                              [ngModel]="cond.value"
+                              (ngModelChange)="updateRuleCondition(i, 'value', $event)"
+                              placeholder="Value"
+                            />
+                            @if (newRuleConditions().length > 1) {
+                              <button class="btn-icon danger" (click)="removeRuleCondition(i)" title="Remove condition">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            }
+                          </div>
+                          @if (cond.operator === 'in' || cond.operator === 'not_in') {
+                            <span class="field-hint">Separate multiple values with commas</span>
+                          }
+                          @if (cond.operator === 'between') {
+                            <span class="field-hint">Enter two values separated by comma (e.g., 1,10)</span>
+                          }
+                        </div>
+                      }
+                      <button class="btn-text" (click)="addRuleCondition()">+ Add Condition</button>
                     </div>
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Value</label>
-                        <input
-                          type="text"
-                          [ngModel]="newRuleValue()"
-                          (ngModelChange)="newRuleValue.set($event)"
-                          placeholder="Match value"
-                        />
-                        @if (newRuleOperator() === 'in' || newRuleOperator() === 'not_in') {
-                          <span class="field-hint">Separate multiple values with commas</span>
+
+                    <!-- Target Queue -->
+                    <div class="form-group">
+                      <label>Target Queue *</label>
+                      <select
+                        [ngModel]="newRuleTargetQueue()"
+                        (ngModelChange)="newRuleTargetQueue.set($event)"
+                      >
+                        <option value="">-- Select Queue --</option>
+                        @for (queue of pipelineQueues(); track queue.id) {
+                          <option [value]="queue.id">{{ queue.name }}</option>
                         }
-                        @if (newRuleOperator() === 'between') {
-                          <span class="field-hint">Enter two values separated by comma (e.g., 1,10)</span>
-                        }
-                      </div>
-                      <div class="form-group">
-                        <label>Target Queue *</label>
-                        <select
-                          [ngModel]="newRuleTargetQueue()"
-                          (ngModelChange)="newRuleTargetQueue.set($event)"
-                        >
-                          <option value="">-- Select Queue --</option>
-                          @for (queue of pipelineQueues(); track queue.id) {
-                            <option [value]="queue.id">{{ queue.name }}</option>
-                          }
-                        </select>
-                      </div>
+                      </select>
                     </div>
+
                     <div class="add-rule-actions">
-                      <button class="btn-primary" (click)="createRoutingRule()" [disabled]="!newRuleName()?.trim() || !newRuleField() || !newRuleTargetQueue()">
+                      <button class="btn-primary" (click)="createRoutingRule()" [disabled]="!newRuleName()?.trim() || !newRuleConditions()[0]?.field || !newRuleTargetQueue()">
                         Add Rule
                       </button>
                       <button class="btn-secondary" (click)="showAddRuleForm.set(false)">Cancel</button>
