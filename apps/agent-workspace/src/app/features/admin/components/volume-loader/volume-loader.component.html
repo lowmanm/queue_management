@@ -108,6 +108,21 @@
                 </div>
               </div>
 
+              <!-- Queue Volume Breakdown (shown after run completes) -->
+              @if (lastRunResult(); as lrr) {
+                @if (lrr.queueVolume.length > 0) {
+                  <div class="run-queue-breakdown">
+                    <span class="breakdown-label">Last Run:</span>
+                    @for (q of lrr.queueVolume; track q.queueId) {
+                      <span class="queue-chip">{{ q.queueName }}: {{ q.count }}</span>
+                    }
+                    @if (lrr.recordsUnrouted > 0) {
+                      <span class="queue-chip unrouted">Unrouted: {{ lrr.recordsUnrouted }}</span>
+                    }
+                  </div>
+                }
+              }
+
               <div class="loader-meta">
                 @if (loader.pipelineId) {
                   <span class="meta-item pipeline">
@@ -1416,6 +1431,34 @@ ORD-002,Jane Smith,3,RETURNS"
               <div class="staging-notice">
                 Records are staged and ready. Close this panel and click <strong>Run Now</strong>
                 on the data source to process them through your routing rules.
+              </div>
+            }
+
+            <!-- Routing Preview (shown after preview/dry-run) -->
+            @if (routingPreview(); as rp) {
+              <div class="routing-preview">
+                <h4>Routing Preview</h4>
+                <div class="routing-preview-summary">
+                  <span class="preview-stat routed">{{ rp.totalRouted }}/{{ rp.totalStaged }} would route</span>
+                  @if (rp.totalUnrouted > 0) {
+                    <span class="preview-stat unrouted">{{ rp.totalUnrouted }} unrouted</span>
+                  }
+                </div>
+                @if (rp.queueVolume.length > 0) {
+                  <div class="queue-breakdown">
+                    @for (q of rp.queueVolume; track q.queueId) {
+                      <div class="queue-row">
+                        <span class="queue-name">{{ q.queueName }}</span>
+                        <span class="queue-count">{{ q.count }} records</span>
+                        <div class="queue-bar">
+                          <div class="queue-bar-fill" [style.width.%]="rp.totalStaged > 0 ? (q.count / rp.totalStaged * 100) : 0"></div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else if (rp.totalRouted === 0) {
+                  <p class="routing-warning">No records matched any routing rules. Check your routing configuration.</p>
+                }
               </div>
             }
 

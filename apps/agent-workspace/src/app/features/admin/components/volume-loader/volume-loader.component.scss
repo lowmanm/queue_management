@@ -1090,6 +1090,122 @@
   color: $color-gray-700;
 }
 
+// Routing Preview (shown after CSV preview)
+.routing-preview {
+  margin-top: $spacing-4;
+  padding: $spacing-3;
+  background: $color-gray-50;
+  border-radius: $border-radius-md;
+  border: $border-width-thin solid $color-gray-200;
+
+  h4 {
+    margin: 0 0 $spacing-2 0;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-700;
+  }
+
+  .routing-preview-summary {
+    display: flex;
+    gap: $spacing-3;
+    margin-bottom: $spacing-3;
+
+    .preview-stat {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      font-variant-numeric: tabular-nums;
+
+      &.routed { color: $color-success; }
+      &.unrouted { color: $color-warning; }
+    }
+  }
+
+  .queue-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+  }
+
+  .queue-row {
+    display: grid;
+    grid-template-columns: 140px 80px 1fr;
+    align-items: center;
+    gap: $spacing-2;
+    font-size: $font-size-xs;
+
+    .queue-name {
+      font-weight: $font-weight-medium;
+      color: $color-gray-700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .queue-count {
+      font-variant-numeric: tabular-nums;
+      color: $color-gray-500;
+      text-align: right;
+    }
+
+    .queue-bar {
+      height: 6px;
+      background: $color-gray-100;
+      border-radius: 3px;
+      overflow: hidden;
+
+      .queue-bar-fill {
+        height: 100%;
+        background: $color-info;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+    }
+  }
+
+  .routing-warning {
+    margin: 0;
+    font-size: $font-size-xs;
+    color: $color-warning;
+    font-style: italic;
+  }
+}
+
+// Queue volume breakdown on loader cards
+.run-queue-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-1;
+  margin-bottom: $spacing-2;
+  padding: $spacing-2;
+  background: $color-gray-50;
+  border-radius: $border-radius-sm;
+
+  .breakdown-label {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-500;
+    margin-right: $spacing-1;
+  }
+
+  .queue-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px $spacing-2;
+    font-size: $font-size-xs;
+    font-variant-numeric: tabular-nums;
+    border-radius: $border-radius-full;
+    background: rgba($color-info, 0.1);
+    color: $color-info;
+    font-weight: $font-weight-medium;
+
+    &.unrouted {
+      background: rgba($color-warning, 0.1);
+      color: $color-warning;
+    }
+  }
+}
+
 .sample-urls {
   margin-top: $spacing-4;
   padding-top: $spacing-4;

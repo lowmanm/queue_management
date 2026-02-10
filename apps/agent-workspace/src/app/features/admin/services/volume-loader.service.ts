@@ -210,6 +210,29 @@ export class VolumeLoaderApiService {
       dryRun,
     });
   }
+
+  /**
+   * Test routing rules against staged records (dry run).
+   * Returns per-record routing results and queue volume preview.
+   */
+  testRouting(
+    id: string,
+    maxRecords = 10
+  ): Observable<RoutingTestResult> {
+    return this.http.post<RoutingTestResult>(`${API_BASE}/${id}/test-routing`, {
+      maxRecords,
+    }).pipe(
+      catchError(() => of({
+        success: false,
+        error: 'Routing test not available',
+        totalStaged: 0,
+        testedCount: 0,
+        results: [],
+        queueVolume: [],
+        routingSummary: { totalRouted: 0, totalUnrouted: 0, totalErrors: 0 },
+      }))
+    );
+  }
 }
 
 /**
@@ -225,6 +248,31 @@ export interface CsvUploadResult {
   errors: Array<{ row: number; error: string }>;
   samplePayloadUrls?: string[];
   error?: string;
+}
+
+/**
+ * Result of a routing test (dry run against staged records)
+ */
+export interface RoutingTestResult {
+  success: boolean;
+  error?: string;
+  totalStaged: number;
+  testedCount: number;
+  results: Array<{
+    row: number;
+    externalId?: string;
+    queueId: string | null;
+    queueName?: string;
+    ruleId?: string;
+    ruleName?: string;
+    error?: string;
+  }>;
+  queueVolume: Array<{ queueId: string; queueName: string; count: number }>;
+  routingSummary: {
+    totalRouted: number;
+    totalUnrouted: number;
+    totalErrors: number;
+  };
 }
 
 /**

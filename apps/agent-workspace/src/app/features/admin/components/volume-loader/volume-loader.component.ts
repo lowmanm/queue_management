@@ -132,6 +132,22 @@ export class VolumeLoaderComponent implements OnInit {
   newRuleConditionLogic = signal<'AND' | 'OR'>('AND');
   newRuleTargetQueue = signal('');
 
+  // Routing preview state (shown after CSV upload preview)
+  routingPreview = signal<{
+    queueVolume: Array<{ queueId: string; queueName: string; count: number }>;
+    totalRouted: number;
+    totalUnrouted: number;
+    totalStaged: number;
+  } | null>(null);
+
+  // Last run result with queue breakdown
+  lastRunResult = signal<{
+    queueVolume: Array<{ queueId: string; queueName: string; count: number }>;
+    recordsRouted: number;
+    recordsUnrouted: number;
+    routingErrors: Array<{ row: number; error: string }>;
+  } | null>(null);
+
   // Cascade delete state
   showDeleteConfirmation = signal(false);
   deleteTarget = signal<VolumeLoader | null>(null);
@@ -620,24 +636,46 @@ export class VolumeLoaderComponent implements OnInit {
             this.isLoading.set(false);
             const routed = (run as any).recordsRouted ?? 0;
             const unrouted = (run as any).recordsUnrouted ?? 0;
+            const queueVolume = (run as any).queueVolume as Array<{ queueId: string; queueName: string; count: number }> || [];
+            const routingErrors = (run as any).routingErrors as Array<{ row: number; error: string }> || [];
+            const noStagedData = (run as any).noStagedData;
 
             if (run.status === 'COMPLETED' || run.status === 'PARTIAL') {
               if (run.recordsFound === 0) {
-                this.errorMessage.set(
-                  'No records to process. Upload a CSV file first, then click Run Now.'
-                );
+                if (noStagedData) {
+                  this.errorMessage.set(
+                    'No staged records to process. Upload a CSV file first, then click Run Now.'
+                  );
+                } else {
+                  this.errorMessage.set(
+                    'No records to process. Upload a CSV file first, then click Run Now.'
+                  );
+                }
               } else {
                 let msg = `Run complete: ${run.recordsProcessed}/${run.recordsFound} records processed.`;
                 if (routed > 0) {
                   msg += ` ${routed} routed to queues.`;
                 }
                 if (unrouted > 0) {
-                  msg += ` ${unrouted} unrouted (default queue or no matching rules).`;
+                  msg += ` ${unrouted} unrouted.`;
                 }
                 if (run.recordsFailed > 0) {
                   msg += ` ${run.recordsFailed} failed.`;
                 }
+                // Add queue breakdown to success message
+                if (queueVolume.length > 0) {
+                  const breakdown = queueVolume.map(q => `${q.queueName}: ${q.count}`).join(', ');
+                  msg += ` Queue breakdown: ${breakdown}`;
+                }
                 this.successMessage.set(msg);
+
+                // Store queue volume for display
+                this.lastRunResult.set({
+                  queueVolume,
+                  recordsRouted: routed,
+                  recordsUnrouted: unrouted,
+                  routingErrors,
+                });
 
                 // Show routing diagnostics as warning if present
                 const diag = (run as any).routingDiagnostics;
@@ -651,9 +689,15 @@ export class VolumeLoaderComponent implements OnInit {
                 }
               }
             } else {
-              this.errorMessage.set(
-                `Run failed: ${run.errorLog?.[0]?.message || 'Unknown error'}`
-              );
+              const errMsg = run.errorLog?.[0]?.message || 'Unknown error';
+              this.errorMessage.set(`Run failed: ${errMsg}`);
+              // Store error details for display
+              this.lastRunResult.set({
+                queueVolume: [],
+                recordsRouted: 0,
+                recordsUnrouted: 0,
+                routingErrors: [{ row: 0, error: errMsg }],
+              });
             }
             this.loadData();
           }
@@ -1658,6 +1702,7 @@ export class VolumeLoaderComponent implements OnInit {
     this.uploadLoader.set(null);
     this.csvContent.set('');
     this.uploadResult.set(null);
+    this.routingPreview.set(null);
   }
 
   /**
@@ -1725,8 +1770,12 @@ export class VolumeLoaderComponent implements OnInit {
               `Preview: ${result.recordsFound} records found, ${result.recordsProcessed} valid, ` +
               `${result.recordsFailed} errors`
             );
+            // After preview, automatically test routing if records are valid
+            if (result.recordsProcessed > 0) {
+              this.testRoutingPreview(loader.id);
+            }
           } else {
-            const staged = (result as any).recordsStaged || result.recordsProcessed;
+            const staged = result.recordsStaged || result.recordsProcessed;
             let msg = `${staged} records loaded and staged.`;
             if (result.recordsFailed > 0) {
               msg += ` ${result.recordsFailed} failed.`;
@@ -1734,14 +1783,13 @@ export class VolumeLoaderComponent implements OnInit {
             if (result.recordsSkipped > 0) {
               msg += ` ${result.recordsSkipped} skipped (duplicates).`;
             }
-            msg += ' Click "Run Now" on the data source to process through routing rules.';
-            this.successMessage.set(msg);
 
-            // Clear content but don't auto-close so user can read results
-            this.csvContent.set('');
-            setTimeout(() => {
-              this.loadData();
-            }, 1500);
+            // Close the upload modal and show the success message on the main page
+            this.closeUploadPanel();
+            this.successMessage.set(
+              `${msg} Click "Run Now" on the data source to process through routing rules.`
+            );
+            this.loadData();
           }
         } else {
           this.errorMessage.set(result.error || 'Upload failed');
@@ -1750,6 +1798,29 @@ export class VolumeLoaderComponent implements OnInit {
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to upload CSV');
         this.isUploading.set(false);
+      },
+    });
+  }
+
+  /**
+   * Test routing rules against staged records to preview where volume would go.
+   * Called automatically after a successful CSV preview.
+   */
+  testRoutingPreview(loaderId: string): void {
+    this.loaderService.testRouting(loaderId).subscribe({
+      next: (result) => {
+        if (result.success) {
+          this.routingPreview.set({
+            queueVolume: result.queueVolume || [],
+            totalRouted: result.routingSummary?.totalRouted || 0,
+            totalUnrouted: result.routingSummary?.totalUnrouted || 0,
+            totalStaged: result.totalStaged || 0,
+          });
+        }
+      },
+      error: () => {
+        // Routing preview is best-effort, don't show errors
+        this.routingPreview.set(null);
       },
     });
   }

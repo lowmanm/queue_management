@@ -80,13 +80,43 @@ export class VolumeLoaderService {
     @Inject(forwardRef(() => PipelineOrchestratorService))
     private readonly orchestrator?: PipelineOrchestratorService
   ) {
-    this.initializeDefaultLoaders();
+    this.logDependencyStatus();
   }
 
-  private initializeDefaultLoaders(): void {
-    // No default loaders - start with empty state
-    // Users create loaders through the UI wizard
-    this.logger.log('Volume loader service initialized (no default loaders)');
+  private logDependencyStatus(): void {
+    this.logger.log(
+      `Volume loader service initialized — ` +
+      `orchestrator: ${this.orchestrator ? 'YES' : 'NO'}, ` +
+      `pipelineService: ${this.pipelineService ? 'YES' : 'NO'}, ` +
+      `taskSourceService: ${this.taskSourceService ? 'YES' : 'NO'}`
+    );
+    if (!this.orchestrator) {
+      this.logger.error(
+        'PipelineOrchestratorService NOT injected! Tasks cannot be routed to queues. ' +
+        'Verify ServicesModule is imported in VolumeLoaderModule.'
+      );
+    }
+  }
+
+  /**
+   * Get diagnostic info about the service dependencies and their status.
+   */
+  getDiagnostics(): {
+    orchestratorReady: boolean;
+    pipelineServiceReady: boolean;
+    loadersCount: number;
+    stagedRecordsByLoader: Record<string, number>;
+  } {
+    const stagedRecordsByLoader: Record<string, number> = {};
+    this.stagedRecords.forEach((staged, loaderId) => {
+      stagedRecordsByLoader[loaderId] = staged.records.length;
+    });
+    return {
+      orchestratorReady: !!this.orchestrator,
+      pipelineServiceReady: !!this.pipelineService,
+      loadersCount: this.loaders.size,
+      stagedRecordsByLoader,
+    };
   }
 
   private createEmptyStats(): VolumeLoaderStats {
@@ -426,10 +456,19 @@ export class VolumeLoaderService {
     const startTime = Date.now();
     const isDryRun = request?.dryRun ?? false;
 
+    this.logger.log(
+      `Processing loader "${loader.name}" (id: ${loader.id}), ` +
+      `pipelineId: ${loader.pipelineId || 'NONE'}, ` +
+      `orchestrator: ${this.orchestrator ? 'available' : 'MISSING'}`
+    );
+
     try {
       // Priority 1: Process staged records from CSV upload
       const staged = this.stagedRecords.get(loader.id);
       if (staged && staged.records.length > 0) {
+        this.logger.log(
+          `Found ${staged.records.length} staged records for loader "${loader.name}"`
+        );
         this.processStagedRecords(loader, run, staged.records, isDryRun);
         // Clear staging table after processing
         if (!isDryRun) {
@@ -437,6 +476,9 @@ export class VolumeLoaderService {
         }
       } else {
         // Priority 2: Type-specific source processing
+        this.logger.warn(
+          `No staged records for loader "${loader.name}". Checking type-specific processing...`
+        );
         switch (loader.type) {
           case 'LOCAL':
             await this.processLocalLoader(loader, run, isDryRun);
@@ -449,6 +491,7 @@ export class VolumeLoaderService {
             run.status = 'COMPLETED';
             run.recordsFound = 0;
             run.recordsProcessed = 0;
+            (run as any).noStagedData = true;
             this.logger.warn(
               `No staged records for loader ${loader.name}. Upload a CSV file first, then click Run Now.`
             );
@@ -727,37 +770,141 @@ export class VolumeLoaderService {
 
     let recordsRouted = 0;
     let recordsUnrouted = 0;
-    const routingSummary: Record<string, { ruleName: string; count: number; queueId: string }> = {};
+    const routingSummary: Record<string, { ruleName: string; count: number; queueId: string; queueName?: string }> = {};
+    const queueVolume: Record<string, { queueId: string; queueName: string; count: number }> = {};
     let firstDiagnostics: any = null;
+    const errors: Array<{ row: number; externalId?: string; error: string; status?: string }> = [];
+
+    // Pre-flight checks
+    if (!this.orchestrator) {
+      this.logger.error(
+        `CRITICAL: PipelineOrchestratorService is NOT injected. ` +
+        `Cannot route ${records.length} records for loader "${loader.name}". ` +
+        `Check module imports.`
+      );
+      run.status = 'FAILED';
+      run.errorLog.push({
+        recordId: 'SYSTEM',
+        rowNumber: 0,
+        message: 'Pipeline orchestrator service is not available. Check server configuration.',
+        field: 'system',
+        value: '',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (!loader.pipelineId) {
+      this.logger.error(
+        `Loader "${loader.name}" has no pipeline assigned. Cannot route records.`
+      );
+      run.status = 'FAILED';
+      run.errorLog.push({
+        recordId: 'SYSTEM',
+        rowNumber: 0,
+        message: 'No pipeline assigned to this data source. Edit the data source and assign a pipeline.',
+        field: 'configuration',
+        value: '',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Verify pipeline exists
+    const pipeline = this.pipelineService?.getPipelineById(loader.pipelineId);
+    if (!pipeline) {
+      this.logger.error(
+        `Pipeline "${loader.pipelineId}" not found for loader "${loader.name}"`
+      );
+      run.status = 'FAILED';
+      run.errorLog.push({
+        recordId: 'SYSTEM',
+        rowNumber: 0,
+        message: `Pipeline "${loader.pipelineId}" not found. It may have been deleted.`,
+        field: 'configuration',
+        value: '',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Get queue names for display
+    const queues = this.pipelineService?.getQueuesByPipeline(loader.pipelineId) || [];
+    const queueNameMap = new Map<string, string>();
+    queues.forEach((q: { id: string; name: string }) => queueNameMap.set(q.id, q.name));
+
+    this.logger.log(
+      `Starting to process ${records.length} staged records through pipeline "${pipeline.name}" ` +
+      `(${queues.length} queues, ${pipeline.routingRules?.length || 0} routing rules, ` +
+      `default routing: ${pipeline.defaultRouting?.behavior || 'none'})`
+    );
 
     for (let i = 0; i < records.length; i++) {
       const taskData = records[i];
 
       try {
         if (isDryRun) {
+          // Dry run: test routing without creating tasks
+          const routingResult = this.pipelineService!.routeTask(loader.pipelineId, taskData);
           run.recordsProcessed++;
+          if (routingResult.queueId) {
+            recordsRouted++;
+            const qId = routingResult.queueId;
+            const qName = queueNameMap.get(qId) || qId;
+            if (!queueVolume[qId]) {
+              queueVolume[qId] = { queueId: qId, queueName: qName, count: 0 };
+            }
+            queueVolume[qId].count++;
+          } else {
+            recordsUnrouted++;
+            if (!firstDiagnostics && routingResult.diagnostics) {
+              firstDiagnostics = routingResult.diagnostics;
+            }
+          }
           continue;
         }
 
-        // Route through pipeline (V2 or legacy path)
+        // Route through pipeline orchestrator
         const taskResult = this.createTaskFromRecord(loader, taskData, i + 1);
 
         if (taskResult?.routed) {
           recordsRouted++;
+          const qId = taskResult.queueId || '';
+          const qName = queueNameMap.get(qId) || qId;
+
+          // Track per-rule counts
           if (taskResult.ruleId) {
             if (!routingSummary[taskResult.ruleId]) {
               routingSummary[taskResult.ruleId] = {
                 ruleName: taskResult.ruleName || taskResult.ruleId,
                 count: 0,
-                queueId: taskResult.queueId || '',
+                queueId: qId,
+                queueName: qName,
               };
             }
             routingSummary[taskResult.ruleId].count++;
+          }
+
+          // Track per-queue counts
+          if (qId) {
+            if (!queueVolume[qId]) {
+              queueVolume[qId] = { queueId: qId, queueName: qName, count: 0 };
+            }
+            queueVolume[qId].count++;
           }
         } else {
           recordsUnrouted++;
           if (!firstDiagnostics && taskResult?.diagnostics) {
             firstDiagnostics = taskResult.diagnostics;
+          }
+          // Track specific failure reason
+          if (taskResult?.error) {
+            errors.push({
+              row: i + 1,
+              externalId: taskData.externalId,
+              error: taskResult.error,
+              status: taskResult.status,
+            });
           }
         }
 
@@ -769,13 +916,19 @@ export class VolumeLoaderService {
         run.recordsProcessed++;
       } catch (err) {
         run.recordsFailed++;
+        const errMsg = err instanceof Error ? err.message : 'Processing error';
         run.errorLog.push({
           recordId: taskData.externalId || `row-${i + 1}`,
           rowNumber: i + 1,
-          message: err instanceof Error ? err.message : 'Processing error',
+          message: errMsg,
           field: 'routing',
           value: '',
           timestamp: new Date().toISOString(),
+        });
+        errors.push({
+          row: i + 1,
+          externalId: taskData.externalId,
+          error: errMsg,
         });
       }
     }
@@ -784,9 +937,24 @@ export class VolumeLoaderService {
     (run as any).recordsRouted = recordsRouted;
     (run as any).recordsUnrouted = recordsUnrouted;
     (run as any).routingSummary = routingSummary;
+    (run as any).queueVolume = Object.values(queueVolume);
+    (run as any).routingErrors = errors.slice(0, 20); // First 20 errors for UI
+
     if (firstDiagnostics) {
       (run as any).routingDiagnostics = {
         sampleAvailableFields: firstDiagnostics.availableFields || [],
+        ruleResults: firstDiagnostics.ruleResults?.map((r: any) => ({
+          ruleName: r.ruleName,
+          matched: r.matched,
+          conditions: r.conditionResults?.map((c: any) => ({
+            field: c.field,
+            operator: c.operator,
+            expected: c.expectedValue,
+            actual: c.actualValue,
+            matched: c.matched,
+            reason: c.reason,
+          })),
+        })),
         firstUnmatchedReason: firstDiagnostics.ruleResults
           ?.flatMap((r: any) => r.conditionResults)
           ?.find((c: any) => !c.matched && c.reason)?.reason,
@@ -803,8 +971,9 @@ export class VolumeLoaderService {
     }
 
     this.logger.log(
-      `Processed ${run.recordsProcessed}/${run.recordsFound} staged records for ${loader.name}: ` +
-      `${recordsRouted} routed, ${recordsUnrouted} unrouted, ${run.recordsFailed} failed`
+      `Processed ${run.recordsProcessed}/${run.recordsFound} staged records for "${loader.name}": ` +
+      `${recordsRouted} routed, ${recordsUnrouted} unrouted, ${run.recordsFailed} failed. ` +
+      `Queue breakdown: ${Object.values(queueVolume).map(q => `${q.queueName}:${q.count}`).join(', ') || 'none'}`
     );
   }
 
@@ -1204,50 +1373,52 @@ export class VolumeLoaderService {
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
-  ): { routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: any } | null {
+  ): { routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: any; error?: string; status?: string } | null {
     // Guard: pipeline must be configured
     if (!loader.pipelineId) {
-      this.logger.warn(
-        `Loader "${loader.name}" has no pipeline assigned. Task ${taskData.externalId} cannot be routed.`
-      );
-      return { routed: false };
+      return { routed: false, error: 'No pipeline assigned', status: 'NO_PIPELINE' };
+    }
+
+    // Guard: orchestrator must be available
+    if (!this.orchestrator) {
+      return { routed: false, error: 'Pipeline orchestrator not available', status: 'NO_ORCHESTRATOR' };
     }
 
     // V2 path: use PipelineOrchestrator (validate → transform → route → enqueue → notify)
-    if (this.orchestrator) {
-      const result = this.orchestrator.ingestTask({
-        pipelineId: loader.pipelineId,
-        taskData,
-        source: 'volume_loader',
-        sourceId: loader.id,
-      });
+    const result = this.orchestrator.ingestTask({
+      pipelineId: loader.pipelineId,
+      taskData,
+      source: 'volume_loader',
+      sourceId: loader.id,
+    });
 
-      if (result.success) {
-        this.logger.debug(
-          `[V2] Task ${result.taskId} ingested: ${taskData.externalId} → ` +
-          `${result.queueId ? `queue "${result.queueId}"` : `status: ${result.status}`}`
-        );
-        return {
-          routed: !!result.queueId,
-          ruleId: result.ruleId,
-          ruleName: result.ruleName,
-          queueId: result.queueId,
-          diagnostics: result.diagnostics,
-        };
-      } else {
+    if (result.success) {
+      this.logger.debug(
+        `[V2] Task ${result.taskId} ingested: ${taskData.externalId} → ` +
+        `${result.queueId ? `queue "${result.queueId}"` : `status: ${result.status}`}`
+      );
+      return {
+        routed: !!result.queueId,
+        ruleId: result.ruleId,
+        ruleName: result.ruleName,
+        queueId: result.queueId,
+        diagnostics: result.diagnostics,
+      };
+    } else {
+      if (rowIndex <= 3) {
+        // Log first few failures for debugging
         this.logger.warn(
-          `[V2] Ingestion failed for ${taskData.externalId}: ${result.status} - ${result.error}`
+          `[V2] Ingestion failed for row ${rowIndex} (${taskData.externalId}): ` +
+          `${result.status} - ${result.error}`
         );
-        return { routed: false, diagnostics: result.diagnostics };
       }
+      return {
+        routed: false,
+        diagnostics: result.diagnostics,
+        error: result.error,
+        status: result.status,
+      };
     }
-
-    // Orchestrator not available — this means the dependency chain is broken
-    this.logger.error(
-      'PipelineOrchestratorService is not injected. Tasks cannot be routed. ' +
-      'Check that ServicesModule is imported in VolumeLoaderModule.'
-    );
-    return { routed: false };
   }
 
   /**
@@ -1559,6 +1730,118 @@ export class VolumeLoaderService {
    */
   getStagedRecordCount(loaderId: string): number {
     return this.stagedRecords.get(loaderId)?.records.length ?? 0;
+  }
+
+  /**
+   * Test routing rules against staged records WITHOUT creating tasks.
+   * Returns per-record routing results showing which queue each record would go to.
+   */
+  testRouting(
+    loaderId: string,
+    maxRecords = 10
+  ): {
+    success: boolean;
+    error?: string;
+    totalStaged: number;
+    testedCount: number;
+    results: Array<{
+      row: number;
+      externalId?: string;
+      queueId: string | null;
+      queueName?: string;
+      ruleId?: string;
+      ruleName?: string;
+      error?: string;
+      diagnostics?: any;
+    }>;
+    queueVolume: Array<{ queueId: string; queueName: string; count: number }>;
+    routingSummary: {
+      totalRouted: number;
+      totalUnrouted: number;
+      totalErrors: number;
+    };
+  } {
+    const loader = this.loaders.get(loaderId);
+    if (!loader) {
+      return { success: false, error: 'Loader not found', totalStaged: 0, testedCount: 0, results: [], queueVolume: [], routingSummary: { totalRouted: 0, totalUnrouted: 0, totalErrors: 0 } };
+    }
+
+    if (!loader.pipelineId || !this.pipelineService) {
+      return { success: false, error: 'No pipeline assigned to this data source', totalStaged: 0, testedCount: 0, results: [], queueVolume: [], routingSummary: { totalRouted: 0, totalUnrouted: 0, totalErrors: 0 } };
+    }
+
+    const staged = this.stagedRecords.get(loaderId);
+    if (!staged || staged.records.length === 0) {
+      return { success: false, error: 'No staged records. Upload a CSV file first.', totalStaged: 0, testedCount: 0, results: [], queueVolume: [], routingSummary: { totalRouted: 0, totalUnrouted: 0, totalErrors: 0 } };
+    }
+
+    const queues = this.pipelineService.getQueuesByPipeline(loader.pipelineId) || [];
+    const queueNameMap = new Map<string, string>();
+    queues.forEach((q: { id: string; name: string }) => queueNameMap.set(q.id, q.name));
+
+    const testRecords = staged.records.slice(0, maxRecords);
+    const results: Array<{ row: number; externalId?: string; queueId: string | null; queueName?: string; ruleId?: string; ruleName?: string; error?: string; diagnostics?: any }> = [];
+    const queueCounts: Record<string, { queueId: string; queueName: string; count: number }> = {};
+    let totalRouted = 0;
+    let totalUnrouted = 0;
+    let totalErrors = 0;
+
+    for (let i = 0; i < testRecords.length; i++) {
+      const taskData = testRecords[i];
+      try {
+        const routingResult = this.pipelineService.routeTask(loader.pipelineId, taskData);
+        const queueId = routingResult.queueId;
+        const queueName = queueId ? (queueNameMap.get(queueId) || queueId) : undefined;
+
+        results.push({
+          row: i + 1,
+          externalId: taskData.externalId,
+          queueId,
+          queueName,
+          ruleId: routingResult.ruleId,
+          ruleName: routingResult.ruleName,
+          error: routingResult.error,
+          diagnostics: routingResult.diagnostics,
+        });
+
+        if (queueId) {
+          totalRouted++;
+          if (!queueCounts[queueId]) {
+            queueCounts[queueId] = { queueId, queueName: queueName || queueId, count: 0 };
+          }
+          queueCounts[queueId].count++;
+        } else {
+          totalUnrouted++;
+        }
+      } catch (err) {
+        totalErrors++;
+        results.push({
+          row: i + 1,
+          externalId: taskData.externalId,
+          queueId: null,
+          error: err instanceof Error ? err.message : 'Routing error',
+        });
+      }
+    }
+
+    // Extrapolate for all staged records
+    const scaleFactor = staged.records.length / testRecords.length;
+    return {
+      success: true,
+      totalStaged: staged.records.length,
+      testedCount: testRecords.length,
+      results,
+      queueVolume: Object.values(queueCounts).map(q => ({
+        ...q,
+        // Estimated count for full dataset
+        count: Math.round(q.count * scaleFactor),
+      })),
+      routingSummary: {
+        totalRouted,
+        totalUnrouted,
+        totalErrors,
+      },
+    };
   }
 
   // ==========================================================================
