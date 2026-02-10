@@ -6,3 +6,8 @@ export * from './task-source.service';
 export * from './disposition.service';
 export * from './rbac.service';
 export * from './agent-session.service';
+// V2 Orchestration services
+export * from './task-store.service';
+export * from './queue-manager.service';
+export * from './pipeline-orchestrator.service';
+export * from './sla-monitor.service';

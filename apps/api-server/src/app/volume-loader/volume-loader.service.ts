@@ -34,6 +34,7 @@ import {
 } from '@nexus-queue/shared-models';
 import { TaskSourceService } from '../services/task-source.service';
 import { PipelineService } from '../pipelines/pipeline.service';
+import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
 
 /**
  * Represents a parsed record from a data source before task creation
@@ -66,7 +67,10 @@ export class VolumeLoaderService {
     private readonly taskSourceService?: TaskSourceService,
     @Optional()
     @Inject(forwardRef(() => PipelineService))
-    private readonly pipelineService?: PipelineService
+    private readonly pipelineService?: PipelineService,
+    @Optional()
+    @Inject(forwardRef(() => PipelineOrchestratorService))
+    private readonly orchestrator?: PipelineOrchestratorService
   ) {
     this.initializeDefaultLoaders();
   }
@@ -926,15 +930,39 @@ export class VolumeLoaderService {
   }
 
   /**
-   * Create a task from a parsed record and add to the task pipeline
-   * Routes through the associated Pipeline if pipelineId is configured
+   * Create a task from a parsed record and add to the task pipeline.
+   * V2 path: routes through PipelineOrchestratorService (validate → transform → route → enqueue).
+   * Legacy fallback: routes through PipelineService + TaskSourceService.
    */
   private createTaskFromRecord(
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
   ): void {
-    // Route through Pipeline if configured
+    // V2 path: use PipelineOrchestrator if available and pipeline is configured
+    if (this.orchestrator && loader.pipelineId) {
+      const result = this.orchestrator.ingestTask({
+        pipelineId: loader.pipelineId,
+        taskData,
+        source: 'volume_loader',
+        sourceId: loader.id,
+      });
+
+      if (result.success) {
+        this.logger.debug(
+          `[V2] Task ${result.taskId} ingested from ${loader.name}: ` +
+          `${taskData.externalId} → queue "${result.queueId}"`
+        );
+      } else {
+        this.logger.warn(
+          `[V2] Ingestion failed for ${taskData.externalId} from ${loader.name}: ` +
+          `${result.status} - ${result.error}`
+        );
+      }
+      return;
+    }
+
+    // Legacy path: route through Pipeline if configured, then add to TaskSource
     if (loader.pipelineId && this.pipelineService) {
       const routingResult = this.pipelineService.routeTask(loader.pipelineId, taskData);
 
@@ -943,7 +971,6 @@ export class VolumeLoaderService {
           `Pipeline routing failed for task ${taskData.externalId}: ${routingResult.error}`
         );
       } else if (routingResult.queueId) {
-        // Update task data with the routed queue
         taskData.queue = routingResult.queueId;
         this.logger.debug(
           `Task ${taskData.externalId} routed to queue ${routingResult.queueId} ` +
@@ -952,7 +979,6 @@ export class VolumeLoaderService {
       }
     }
 
-    // If TaskSourceService is available, use it to add the task
     if (this.taskSourceService) {
       const pendingOrder: PendingOrder = {
         rowIndex,
@@ -962,8 +988,6 @@ export class VolumeLoaderService {
         importedAt: new Date().toISOString(),
       };
 
-      // Access the private pendingOrders array through the service
-      // This creates a pending order that TaskDistributor can pick up
       this.addToPendingOrders(pendingOrder);
 
       this.logger.debug(
