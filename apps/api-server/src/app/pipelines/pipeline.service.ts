@@ -464,12 +464,35 @@ export class PipelineService {
   // ===========================================================================
 
   /**
-   * Route a task to the appropriate queue within a pipeline
+   * Route a task to the appropriate queue within a pipeline.
+   * Returns detailed diagnostics for debugging and user feedback.
    */
   routeTask(
     pipelineId: string,
     taskData: TaskFromSource
-  ): { queueId: string | null; ruleId?: string; error?: string } {
+  ): {
+    queueId: string | null;
+    ruleId?: string;
+    ruleName?: string;
+    error?: string;
+    diagnostics?: {
+      rulesEvaluated: number;
+      ruleResults: Array<{
+        ruleId: string;
+        ruleName: string;
+        matched: boolean;
+        conditionResults: Array<{
+          field: string;
+          operator: string;
+          expectedValue: string;
+          actualValue: string | undefined;
+          matched: boolean;
+          reason?: string;
+        }>;
+      }>;
+      availableFields: string[];
+    };
+  } {
     const pipeline = this.pipelines.get(pipelineId);
     if (!pipeline) {
       return { queueId: null, error: 'Pipeline not found' };
@@ -479,13 +502,44 @@ export class PipelineService {
       return { queueId: null, error: 'Pipeline is disabled' };
     }
 
+    // Collect available metadata fields for diagnostics
+    const availableFields = Object.keys(taskData.metadata || {});
+
     // Evaluate rules in priority order
     const sortedRules = [...pipeline.routingRules]
       .filter((r) => r.enabled)
       .sort((a, b) => a.priority - b.priority);
 
+    const ruleResults: Array<{
+      ruleId: string;
+      ruleName: string;
+      matched: boolean;
+      conditionResults: Array<{
+        field: string;
+        operator: string;
+        expectedValue: string;
+        actualValue: string | undefined;
+        matched: boolean;
+        reason?: string;
+      }>;
+    }> = [];
+
     for (const rule of sortedRules) {
-      if (this.evaluateRule(rule, taskData)) {
+      const conditionResults = this.evaluateRuleDetailed(rule, taskData);
+      const allConditionsResults = conditionResults.map((c) => c.matched);
+      const ruleMatched =
+        rule.conditionLogic === 'AND'
+          ? allConditionsResults.every((r) => r)
+          : allConditionsResults.some((r) => r);
+
+      ruleResults.push({
+        ruleId: rule.id,
+        ruleName: rule.name,
+        matched: ruleMatched,
+        conditionResults,
+      });
+
+      if (ruleMatched) {
         // Update match count
         rule.matchCount++;
         rule.lastMatchedAt = new Date().toISOString();
@@ -495,9 +549,32 @@ export class PipelineService {
           `Task routed by rule "${rule.name}" to queue ${rule.targetQueueId}`
         );
 
-        return { queueId: rule.targetQueueId, ruleId: rule.id };
+        return {
+          queueId: rule.targetQueueId,
+          ruleId: rule.id,
+          ruleName: rule.name,
+          diagnostics: {
+            rulesEvaluated: sortedRules.length,
+            ruleResults,
+            availableFields,
+          },
+        };
       }
     }
+
+    // No rules matched — log why
+    if (sortedRules.length > 0) {
+      this.logger.warn(
+        `No routing rules matched for task "${taskData.externalId}" in pipeline ${pipelineId}. ` +
+        `Available metadata fields: [${availableFields.join(', ')}]`
+      );
+    }
+
+    const diagnostics = {
+      rulesEvaluated: sortedRules.length,
+      ruleResults,
+      availableFields,
+    };
 
     // No rules matched - use default routing
     if (pipeline.defaultRouting.behavior === 'route_to_queue') {
@@ -505,50 +582,64 @@ export class PipelineService {
         this.logger.debug(
           `Task routed to default queue ${pipeline.defaultRouting.defaultQueueId}`
         );
-        return { queueId: pipeline.defaultRouting.defaultQueueId };
+        return { queueId: pipeline.defaultRouting.defaultQueueId, diagnostics };
       }
     }
 
     if (pipeline.defaultRouting.behavior === 'reject') {
-      return { queueId: null, error: 'No routing rules matched and default behavior is reject' };
+      return { queueId: null, error: 'No routing rules matched and default behavior is reject', diagnostics };
     }
 
     // Hold behavior - return null but no error
-    return { queueId: null };
+    return { queueId: null, diagnostics };
   }
 
   /**
-   * Evaluate a routing rule against task data
+   * Evaluate a routing rule against task data with detailed per-condition diagnostics.
    */
-  private evaluateRule(rule: RoutingRule, taskData: TaskFromSource): boolean {
-    if (rule.conditions.length === 0) {
-      return true; // No conditions = always match
-    }
-
-    const results = rule.conditions.map((condition) =>
-      this.evaluateCondition(condition, taskData)
-    );
-
-    if (rule.conditionLogic === 'AND') {
-      return results.every((r) => r);
-    } else {
-      return results.some((r) => r);
-    }
-  }
-
-  /**
-   * Evaluate a single routing condition against task data.
-   *
-   * Field resolution is schema-driven:
-   * 1. Check well-known task properties (workType, priority, etc.) for backwards compatibility
-   * 2. Otherwise look up the field in task metadata (where all schema-defined fields live)
-   */
-  private evaluateCondition(
-    condition: RoutingCondition,
+  private evaluateRuleDetailed(
+    rule: RoutingRule,
     taskData: TaskFromSource
-  ): boolean {
-    let fieldValue: string | number | string[] | undefined;
+  ): Array<{
+    field: string;
+    operator: string;
+    expectedValue: string;
+    actualValue: string | undefined;
+    matched: boolean;
+    reason?: string;
+  }> {
+    if (rule.conditions.length === 0) {
+      return [{ field: '(none)', operator: 'always', expectedValue: '', actualValue: '', matched: true }];
+    }
 
+    return rule.conditions.map((condition) => {
+      const resolved = this.resolveFieldValue(condition.field, taskData);
+      const result = this.compareValues(resolved.value, condition.operator, condition.value);
+      const matched = condition.negate ? !result : result;
+
+      return {
+        field: condition.field,
+        operator: condition.operator,
+        expectedValue: String(condition.value),
+        actualValue: resolved.value !== undefined ? String(resolved.value) : undefined,
+        matched,
+        reason: resolved.value === undefined
+          ? `Field "${condition.field}" not found in task data.${resolved.suggestion ? ' ' + resolved.suggestion : ''}`
+          : !matched
+            ? `"${resolved.value}" does not match "${condition.value}" with operator "${condition.operator}"`
+            : undefined,
+      };
+    });
+  }
+
+  /**
+   * Resolve a field value from task data.
+   * Uses case-insensitive fallback if exact match fails.
+   */
+  private resolveFieldValue(
+    fieldName: string,
+    taskData: TaskFromSource
+  ): { value: string | number | string[] | undefined; suggestion?: string } {
     // Well-known task properties (backwards compatible)
     const wellKnownFields: Record<string, () => string | number | string[] | undefined> = {
       workType: () => taskData.workType,
@@ -559,16 +650,46 @@ export class PipelineService {
       source: () => taskData.metadata?.['_source'],
     };
 
-    const wellKnownGetter = wellKnownFields[condition.field];
+    const wellKnownGetter = wellKnownFields[fieldName];
     if (wellKnownGetter) {
-      fieldValue = wellKnownGetter();
-    } else if (taskData.metadata) {
-      // Schema-driven: look up any field from metadata
-      fieldValue = taskData.metadata[condition.field];
+      return { value: wellKnownGetter() };
     }
 
-    const result = this.compareValues(fieldValue, condition.operator, condition.value);
-    return condition.negate ? !result : result;
+    if (!taskData.metadata) {
+      return { value: undefined, suggestion: 'Task has no metadata.' };
+    }
+
+    // Exact match first
+    if (fieldName in taskData.metadata) {
+      return { value: taskData.metadata[fieldName] };
+    }
+
+    // Case-insensitive fallback
+    const lowerField = fieldName.toLowerCase();
+    const metaKeys = Object.keys(taskData.metadata);
+    const caseMatch = metaKeys.find((k) => k.toLowerCase() === lowerField);
+    if (caseMatch) {
+      this.logger.warn(
+        `Field "${fieldName}" not found but "${caseMatch}" exists (case mismatch). Using "${caseMatch}".`
+      );
+      return { value: taskData.metadata[caseMatch] };
+    }
+
+    // Trimmed-key fallback (whitespace in CSV headers)
+    const trimMatch = metaKeys.find((k) => k.trim().toLowerCase() === lowerField);
+    if (trimMatch) {
+      this.logger.warn(
+        `Field "${fieldName}" matched after trimming whitespace from "${trimMatch}".`
+      );
+      return { value: taskData.metadata[trimMatch] };
+    }
+
+    // No match — suggest close matches
+    const suggestions = metaKeys.filter((k) => k.toLowerCase().includes(lowerField) || lowerField.includes(k.toLowerCase()));
+    const suggestion = suggestions.length > 0
+      ? `Did you mean: ${suggestions.slice(0, 3).map(s => `"${s}"`).join(', ')}? Available: [${metaKeys.join(', ')}]`
+      : `Available fields: [${metaKeys.join(', ')}]`;
+    return { value: undefined, suggestion };
   }
 
   /**

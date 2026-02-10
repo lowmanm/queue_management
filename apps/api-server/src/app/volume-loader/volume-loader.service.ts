@@ -938,7 +938,7 @@ export class VolumeLoaderService {
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
-  ): void {
+  ): { routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: any } | null {
     // V2 path: use PipelineOrchestrator if available and pipeline is configured
     if (this.orchestrator && loader.pipelineId) {
       const result = this.orchestrator.ingestTask({
@@ -953,13 +953,20 @@ export class VolumeLoaderService {
           `[V2] Task ${result.taskId} ingested from ${loader.name}: ` +
           `${taskData.externalId} → queue "${result.queueId}"`
         );
+        return {
+          routed: !!result.queueId,
+          ruleId: result.ruleId,
+          ruleName: result.ruleName,
+          queueId: result.queueId,
+          diagnostics: result.diagnostics,
+        };
       } else {
         this.logger.warn(
           `[V2] Ingestion failed for ${taskData.externalId} from ${loader.name}: ` +
           `${result.status} - ${result.error}`
         );
+        return { routed: false, diagnostics: result.diagnostics };
       }
-      return;
     }
 
     // Legacy path: route through Pipeline if configured, then add to TaskSource
@@ -996,6 +1003,8 @@ export class VolumeLoaderService {
     } else {
       this.logger.warn('TaskSourceService not available - task not added to queue');
     }
+
+    return { routed: !!taskData.queue };
   }
 
   /**
@@ -1223,8 +1232,15 @@ export class VolumeLoaderService {
       recordsProcessed: 0,
       recordsFailed: 0,
       recordsSkipped: 0,
+      recordsRouted: 0,
+      recordsUnrouted: 0,
       errors: [] as Array<{ row: number; error: string }>,
       samplePayloadUrls: [] as string[],
+      routingSummary: {} as Record<string, { ruleName: string; count: number; queueId: string }>,
+      routingDiagnostics: null as {
+        sampleAvailableFields: string[];
+        firstUnmatchedReason?: string;
+      } | null,
     };
 
     try {
@@ -1260,8 +1276,32 @@ export class VolumeLoaderService {
         }
 
         if (!dryRun) {
-          // Create task in the pipeline
-          this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+          // Create task in the pipeline and capture routing result
+          const taskResult = this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+
+          // Track routing outcomes
+          if (taskResult?.routed && taskResult.ruleId) {
+            result.recordsRouted++;
+            if (!result.routingSummary[taskResult.ruleId]) {
+              result.routingSummary[taskResult.ruleId] = {
+                ruleName: taskResult.ruleName || taskResult.ruleId,
+                count: 0,
+                queueId: taskResult.queueId || '',
+              };
+            }
+            result.routingSummary[taskResult.ruleId].count++;
+          } else if (taskResult && !taskResult.routed) {
+            result.recordsUnrouted++;
+            // Capture first diagnostic for user feedback
+            if (!result.routingDiagnostics && taskResult.diagnostics) {
+              result.routingDiagnostics = {
+                sampleAvailableFields: taskResult.diagnostics.availableFields || [],
+                firstUnmatchedReason: taskResult.diagnostics.ruleResults
+                  ?.flatMap((r: any) => r.conditionResults)
+                  ?.find((c: any) => !c.matched && c.reason)?.reason,
+              };
+            }
+          }
 
           // Track processed ID
           if (record.mappedData.externalId) {
