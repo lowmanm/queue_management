@@ -25,34 +25,11 @@ export class TaskSourceService {
   }
 
   /**
-   * Initialize with a default CSV source configuration
+   * Initialize service - starts with empty state
    */
   private initializeDefaultSource(): void {
-    const defaultSource: TaskSource = {
-      id: 'default-csv',
-      name: 'CSV Upload',
-      type: 'CSV',
-      enabled: true,
-      urlTemplate: 'https://example.com/orders/{orderId}',
-      fieldMappings: [
-        { sourceField: 'OrderId', targetField: 'externalId', required: true },
-        { sourceField: 'City', targetField: 'metadata' },
-        { sourceField: 'State', targetField: 'metadata' },
-        { sourceField: 'WorkType', targetField: 'workType' },
-        { sourceField: 'Priority', targetField: 'priority', transform: 'number' },
-      ],
-      defaults: {
-        workType: 'ORDER_REVIEW',
-        priority: 5,
-        queue: 'default',
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.sources.set(defaultSource.id, defaultSource);
-    this.activeSourceId = defaultSource.id;
-    this.logger.log('Initialized default CSV source configuration');
+    // No default sources - data sources are configured through the Volume Loader wizard
+    this.logger.log('Task source service initialized (no default sources)');
   }
 
   /**

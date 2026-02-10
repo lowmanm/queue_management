@@ -25,13 +25,4 @@ export const MANAGER_ROUTES: Routes = [
     canActivate: [managerGuard],
     data: { permissions: ['queues:view'] },
   },
-  {
-    path: 'queue-config',
-    loadComponent: () =>
-      import('./components/queue-config/queue-config.component').then(
-        (m) => m.QueueConfigComponent
-      ),
-    canActivate: [managerGuard],
-    data: { permissions: ['queues:manage'] },
-  },
 ];

@@ -140,6 +140,18 @@ export class VolumeLoaderComponent implements OnInit {
     { value: ' ', label: 'Space' },
   ];
 
+  // Field type options for dropdown
+  readonly fieldTypeOptions: { value: DetectedFieldType; label: string }[] = [
+    { value: 'string', label: 'Text' },
+    { value: 'number', label: 'Number' },
+    { value: 'boolean', label: 'Yes/No' },
+    { value: 'date', label: 'Date' },
+    { value: 'email', label: 'Email' },
+    { value: 'url', label: 'URL' },
+    { value: 'phone', label: 'Phone' },
+    { value: 'currency', label: 'Currency' },
+  ];
+
   // Computed
   isEditMode = computed(() => this.editingLoader() !== null);
   enabledLoaders = computed(() => this.loaders().filter((l) => l.enabled));
@@ -1227,6 +1239,48 @@ export class VolumeLoaderComponent implements OnInit {
   isFieldIncluded(fieldName: string): boolean {
     const mappings = this.formData().fieldMappings || [];
     return mappings.some((m) => m.sourceField === fieldName);
+  }
+
+  /**
+   * Get the display name (targetField) for a field
+   */
+  getFieldDisplayName(fieldName: string): string {
+    const mappings = this.formData().fieldMappings || [];
+    const mapping = mappings.find((m) => m.sourceField === fieldName);
+    return mapping?.targetField || fieldName;
+  }
+
+  /**
+   * Update the display name for a field
+   */
+  updateFieldDisplayName(fieldName: string, displayName: string): void {
+    const mappings = this.formData().fieldMappings || [];
+    const mapping = mappings.find((m) => m.sourceField === fieldName);
+    if (mapping) {
+      mapping.targetField = displayName.trim() || fieldName;
+      this.updateFormField('fieldMappings', [...mappings]);
+    }
+  }
+
+  /**
+   * Get the data type for a field
+   */
+  getFieldDataType(fieldName: string): DetectedFieldType | undefined {
+    const mappings = this.formData().fieldMappings || [];
+    const mapping = mappings.find((m) => m.sourceField === fieldName);
+    return mapping?.detectedType;
+  }
+
+  /**
+   * Update the data type for a field
+   */
+  updateFieldDataType(fieldName: string, dataType: DetectedFieldType): void {
+    const mappings = this.formData().fieldMappings || [];
+    const mapping = mappings.find((m) => m.sourceField === fieldName);
+    if (mapping) {
+      mapping.detectedType = dataType;
+      this.updateFormField('fieldMappings', [...mappings]);
+    }
   }
 
   /**

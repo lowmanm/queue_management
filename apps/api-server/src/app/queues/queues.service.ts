@@ -46,77 +46,9 @@ export class QueuesService {
   }
 
   private initializeDefaultQueues(): void {
-    const defaults: Omit<QueueConfig, 'createdAt' | 'updatedAt'>[] = [
-      {
-        id: 'queue-orders',
-        name: 'Order Processing',
-        description: 'New orders and order modifications',
-        active: true,
-        priority: 1,
-        slaTarget: 300,
-        maxWaitTime: 600,
-        requiredSkills: ['orders'],
-        workTypes: ['ORDERS'],
-        routingMode: 'round-robin',
-      },
-      {
-        id: 'queue-returns',
-        name: 'Returns & Refunds',
-        description: 'Return requests and refund processing',
-        active: true,
-        priority: 2,
-        slaTarget: 300,
-        maxWaitTime: 900,
-        requiredSkills: ['returns'],
-        workTypes: ['RETURNS'],
-        routingMode: 'least-busy',
-      },
-      {
-        id: 'queue-claims',
-        name: 'Claims Processing',
-        description: 'Insurance and warranty claims',
-        active: true,
-        priority: 3,
-        slaTarget: 600,
-        maxWaitTime: 1800,
-        requiredSkills: ['claims'],
-        workTypes: ['CLAIMS'],
-        routingMode: 'skill-based',
-      },
-      {
-        id: 'queue-escalations',
-        name: 'Escalations',
-        description: 'Escalated issues requiring supervisor attention',
-        active: true,
-        priority: 1,
-        slaTarget: 600,
-        maxWaitTime: 900,
-        requiredSkills: ['escalation'],
-        workTypes: ['ESCALATIONS'],
-        routingMode: 'priority',
-      },
-      {
-        id: 'queue-updates',
-        name: 'Customer Updates',
-        description: 'Address changes, account updates',
-        active: true,
-        priority: 4,
-        slaTarget: 300,
-        maxWaitTime: 600,
-        requiredSkills: [],
-        workTypes: ['UPDATES'],
-        routingMode: 'round-robin',
-      },
-    ];
-
-    const now = new Date();
-    defaults.forEach((q) => {
-      this.queues.set(q.id, { ...q, createdAt: now, updatedAt: now });
-      // Initialize with random task ages for demo
-      this.taskAges.set(q.id, Date.now() - Math.random() * 600000);
-    });
-
-    this.logger.log(`Initialized ${defaults.length} default queues`);
+    // No default queues - queues are created through Pipelines
+    // Each Pipeline contains its own queues configured through the UI wizard
+    this.logger.log('Queues service initialized (no default queues)');
   }
 
   /**

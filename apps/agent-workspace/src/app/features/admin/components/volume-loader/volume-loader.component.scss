@@ -312,11 +312,12 @@
 // Wizard stepper - uses shared wizard-stepper styles
 
 // Component-specific modal overrides
-.modal.large { max-width: 800px; }
+.modal.large { max-width: 1000px; }
 
 .modal.wizard-modal {
-  max-width: 800px;
-  min-height: 600px;
+  max-width: 1100px;
+  min-height: 700px;
+  width: 95vw;
 }
 
 // Wizard stepper uses brand primary color
@@ -659,6 +660,120 @@
 
   .section-help {
     margin-bottom: $spacing-3;
+  }
+}
+
+// Editable Fields Configuration Table
+.fields-config-table {
+  border: 1px solid $color-gray-200;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.fields-config-header {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 140px 100px;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  background: $color-gray-100;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-600;
+  text-transform: uppercase;
+  letter-spacing: $letter-spacing-wide;
+}
+
+.fields-config-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 140px 100px;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  border-top: 1px solid $color-gray-200;
+  align-items: center;
+
+  &:hover {
+    background: $color-gray-50;
+  }
+
+  &.is-primary {
+    background: rgba($color-primary, 0.05);
+
+    &:hover {
+      background: rgba($color-primary, 0.08);
+    }
+  }
+
+  input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    accent-color: $color-primary;
+    cursor: pointer;
+  }
+
+  .original-field {
+    font-size: $font-size-sm;
+    color: $color-gray-500;
+    font-family: $font-family-mono;
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+  }
+
+  .display-name-input {
+    padding: $spacing-2;
+    font-size: $font-size-sm;
+    border: 1px solid $color-gray-300;
+    border-radius: $border-radius-md;
+    transition: border-color $transition-fast;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+    }
+
+    &.changed {
+      border-color: $color-info;
+      background: $color-info-bg;
+    }
+  }
+
+  .type-select {
+    padding: $spacing-2;
+    font-size: $font-size-sm;
+    border: 1px solid $color-gray-300;
+    border-radius: $border-radius-md;
+    background: $color-white;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+    }
+  }
+
+  .field-badges {
+    display: flex;
+    gap: $spacing-1;
+    flex-wrap: wrap;
+  }
+
+  .primary-badge {
+    font-size: 10px;
+    padding: $spacing-1 $spacing-2;
+    background: $color-primary;
+    color: $color-white;
+    border-radius: $border-radius-sm;
+    font-weight: $font-weight-semibold;
+    text-transform: uppercase;
+  }
+
+  .id-badge {
+    font-size: 10px;
+    padding: $spacing-1 $spacing-2;
+    background: $color-info;
+    color: $color-white;
+    border-radius: $border-radius-sm;
+    font-weight: $font-weight-semibold;
   }
 }
 
