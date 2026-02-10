@@ -341,11 +341,11 @@ export interface RoutingCondition {
   /** Unique identifier */
   id: string;
 
-  /** Field to evaluate */
-  field: RoutingConditionField;
-
-  /** Custom field name (when field is 'metadata') */
-  customField?: string;
+  /**
+   * Field to evaluate — references a field name from the pipeline's data schema.
+   * Any field defined in the schema (via sample file detection or manual mapping) can be used.
+   */
+  field: string;
 
   /** Comparison operator */
   operator: RoutingOperator;
@@ -358,16 +358,10 @@ export interface RoutingCondition {
 }
 
 /**
- * Fields available for routing conditions
+ * @deprecated Use schema field names directly as strings.
+ * Kept for reference during migration — routing conditions now accept any field name.
  */
-export type RoutingConditionField =
-  | 'workType'      // Task work type
-  | 'priority'      // Task priority (1-10)
-  | 'externalId'    // External ID pattern matching
-  | 'title'         // Title contains/matches
-  | 'source'        // Data source (volume loader ID)
-  | 'skills'        // Required skills
-  | 'metadata';     // Custom metadata field
+export type RoutingConditionField = string;
 
 /**
  * Comparison operators for routing conditions
@@ -591,6 +585,15 @@ export const DEFAULT_PIPELINE_STATS: PipelineStats = {
 export const ROUTING_OPERATORS_BY_TYPE: Record<string, RoutingOperator[]> = {
   string: ['equals', 'not_equals', 'contains', 'starts_with', 'ends_with', 'matches', 'in', 'not_in', 'exists', 'not_exists'],
   number: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'in', 'not_in', 'exists', 'not_exists'],
+  integer: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'in', 'not_in', 'exists', 'not_exists'],
+  boolean: ['equals', 'not_equals', 'exists', 'not_exists'],
+  date: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'exists', 'not_exists'],
+  datetime: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'exists', 'not_exists'],
+  timestamp: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'exists', 'not_exists'],
+  email: ['equals', 'not_equals', 'contains', 'starts_with', 'ends_with', 'in', 'not_in', 'exists', 'not_exists'],
+  url: ['equals', 'not_equals', 'contains', 'starts_with', 'exists', 'not_exists'],
+  phone: ['equals', 'not_equals', 'contains', 'starts_with', 'in', 'not_in', 'exists', 'not_exists'],
+  currency: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'exists', 'not_exists'],
   array: ['contains', 'in', 'not_in', 'exists', 'not_exists'],
 };
 

@@ -537,7 +537,11 @@ export class PipelineService {
   }
 
   /**
-   * Evaluate a single routing condition
+   * Evaluate a single routing condition against task data.
+   *
+   * Field resolution is schema-driven:
+   * 1. Check well-known task properties (workType, priority, etc.) for backwards compatibility
+   * 2. Otherwise look up the field in task metadata (where all schema-defined fields live)
    */
   private evaluateCondition(
     condition: RoutingCondition,
@@ -545,30 +549,22 @@ export class PipelineService {
   ): boolean {
     let fieldValue: string | number | string[] | undefined;
 
-    // Get the field value
-    switch (condition.field) {
-      case 'workType':
-        fieldValue = taskData.workType;
-        break;
-      case 'priority':
-        fieldValue = taskData.priority;
-        break;
-      case 'externalId':
-        fieldValue = taskData.externalId;
-        break;
-      case 'title':
-        fieldValue = taskData.title;
-        break;
-      case 'skills':
-        fieldValue = taskData.skills;
-        break;
-      case 'metadata':
-        if (condition.customField && taskData.metadata) {
-          fieldValue = taskData.metadata[condition.customField];
-        }
-        break;
-      default:
-        fieldValue = undefined;
+    // Well-known task properties (backwards compatible)
+    const wellKnownFields: Record<string, () => string | number | string[] | undefined> = {
+      workType: () => taskData.workType,
+      priority: () => taskData.priority,
+      externalId: () => taskData.externalId,
+      title: () => taskData.title,
+      skills: () => taskData.skills,
+      source: () => taskData.metadata?.['_source'],
+    };
+
+    const wellKnownGetter = wellKnownFields[condition.field];
+    if (wellKnownGetter) {
+      fieldValue = wellKnownGetter();
+    } else if (taskData.metadata) {
+      // Schema-driven: look up any field from metadata
+      fieldValue = taskData.metadata[condition.field];
     }
 
     const result = this.compareValues(fieldValue, condition.operator, condition.value);

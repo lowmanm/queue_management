@@ -1112,15 +1112,21 @@
                     </div>
                     <div class="form-row">
                       <div class="form-group">
-                        <label>Condition Field</label>
+                        <label>Condition Field *</label>
                         <select
                           [ngModel]="newRuleField()"
                           (ngModelChange)="newRuleField.set($event)"
                         >
-                          <option value="workType">Work Type</option>
-                          <option value="priority">Priority</option>
-                          <option value="metadata">Custom Field</option>
+                          <option value="">-- Select Field --</option>
+                          @for (field of detectedFields(); track field.name) {
+                            <option [value]="field.name">
+                              {{ field.suggestedLabel || field.name }} ({{ fieldTypeLabels[field.detectedType] || field.detectedType }})
+                            </option>
+                          }
                         </select>
+                        @if (detectedFields().length === 0) {
+                          <span class="field-hint">Upload a sample file in Step 5 to define routable fields.</span>
+                        }
                       </div>
                       <div class="form-group">
                         <label>Operator</label>
@@ -1128,10 +1134,9 @@
                           [ngModel]="newRuleOperator()"
                           (ngModelChange)="newRuleOperator.set($event)"
                         >
-                          <option value="equals">Equals</option>
-                          <option value="contains">Contains</option>
-                          <option value="greater_than">Greater Than</option>
-                          <option value="less_than">Less Than</option>
+                          @for (op of availableOperators(); track op) {
+                            <option [value]="op">{{ operatorLabels[op] }}</option>
+                          }
                         </select>
                       </div>
                     </div>
@@ -1144,6 +1149,12 @@
                           (ngModelChange)="newRuleValue.set($event)"
                           placeholder="Match value"
                         />
+                        @if (newRuleOperator() === 'in' || newRuleOperator() === 'not_in') {
+                          <span class="field-hint">Separate multiple values with commas</span>
+                        }
+                        @if (newRuleOperator() === 'between') {
+                          <span class="field-hint">Enter two values separated by comma (e.g., 1,10)</span>
+                        }
                       </div>
                       <div class="form-group">
                         <label>Target Queue *</label>
@@ -1159,7 +1170,7 @@
                       </div>
                     </div>
                     <div class="add-rule-actions">
-                      <button class="btn-primary" (click)="createRoutingRule()" [disabled]="!newRuleName()?.trim() || !newRuleTargetQueue()">
+                      <button class="btn-primary" (click)="createRoutingRule()" [disabled]="!newRuleName()?.trim() || !newRuleField() || !newRuleTargetQueue()">
                         Add Rule
                       </button>
                       <button class="btn-secondary" (click)="showAddRuleForm.set(false)">Cancel</button>

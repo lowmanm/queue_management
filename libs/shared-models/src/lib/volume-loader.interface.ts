@@ -301,10 +301,13 @@ export type DetectedFieldType =
   | 'number'
   | 'boolean'
   | 'date'
+  | 'datetime'
+  | 'timestamp'
   | 'email'
   | 'url'
   | 'phone'
   | 'currency'
+  | 'integer'
   | 'empty';
 
 /**
