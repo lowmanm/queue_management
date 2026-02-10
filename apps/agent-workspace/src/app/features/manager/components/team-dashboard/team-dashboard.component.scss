@@ -37,9 +37,9 @@
   padding: $spacing-4;
   text-align: center;
   box-shadow: $shadow-sm;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all $transition-fast;
 
   &:hover {
     box-shadow: $shadow-md;
@@ -51,6 +51,7 @@
     font-size: $font-size-2xl;
     font-weight: $font-weight-bold;
     color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
   }
 
   .card-label {
@@ -59,15 +60,15 @@
     color: $color-gray-500;
     margin-top: $spacing-1;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: $letter-spacing-wide;
   }
 
   &.total {
-    border-left: 3px solid $color-gray-500;
+    border-left: $border-width-thick solid $color-gray-500;
   }
 
   &.online {
-    border-left: 3px solid $color-primary;
+    border-left: $border-width-thick solid $color-primary;
 
     .card-value {
       color: $color-primary;
@@ -75,7 +76,7 @@
   }
 
   &.active {
-    border-left: 3px solid $color-success;
+    border-left: $border-width-thick solid $color-success;
 
     .card-value {
       color: $color-success;
@@ -83,7 +84,7 @@
   }
 
   &.idle {
-    border-left: 3px solid $color-warning;
+    border-left: $border-width-thick solid $color-warning;
 
     .card-value {
       color: $color-warning;
@@ -91,7 +92,7 @@
   }
 
   &.paused {
-    border-left: 3px solid $color-gray-400;
+    border-left: $border-width-thick solid $color-gray-400;
 
     .card-value {
       color: $color-gray-600;
@@ -99,7 +100,7 @@
   }
 
   &.tasks {
-    border-left: 3px solid $color-info;
+    border-left: $border-width-thick solid $color-info;
   }
 
   &.aht,
@@ -117,20 +118,20 @@
   display: flex;
   gap: $spacing-2;
   margin-bottom: $spacing-5;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
   padding-bottom: $spacing-3;
 }
 
 .filter-tab {
   padding: $spacing-2 $spacing-4;
   background: none;
-  border: 1px solid transparent;
+  border: $border-width-thin solid transparent;
   border-radius: $border-radius-md;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
   color: $color-gray-600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all $transition-fast;
 
   &:hover {
     background: $color-gray-100;
@@ -156,8 +157,8 @@
   border-radius: $border-radius-lg;
   padding: $spacing-4;
   box-shadow: $shadow-sm;
-  border: 1px solid $color-gray-200;
-  transition: all 0.2s ease;
+  border: $border-width-thin solid $border-color;
+  transition: all $transition-fast;
 
   &:hover {
     box-shadow: $shadow-md;
@@ -165,7 +166,7 @@
 
   // State-based styling
   &.state-active {
-    border-left: 4px solid $color-success;
+    border-left: $border-width-thick solid $color-success;
 
     .state-icon {
       color: $color-success;
@@ -173,7 +174,7 @@
   }
 
   &.state-idle {
-    border-left: 4px solid $color-warning;
+    border-left: $border-width-thick solid $color-warning;
 
     .state-icon {
       color: $color-warning;
@@ -181,7 +182,7 @@
   }
 
   &.state-reserved {
-    border-left: 4px solid $color-info;
+    border-left: $border-width-thick solid $color-info;
 
     .state-icon {
       color: $color-info;
@@ -189,15 +190,15 @@
   }
 
   &.state-wrap-up {
-    border-left: 4px solid #7b1fa2;
+    border-left: $border-width-thick solid $color-state-wrapup;
 
     .state-icon {
-      color: #7b1fa2;
+      color: $color-state-wrapup;
     }
   }
 
   &.state-paused {
-    border-left: 4px solid $color-gray-400;
+    border-left: $border-width-thick solid $color-gray-400;
     opacity: 0.85;
 
     .state-icon {
@@ -206,7 +207,7 @@
   }
 
   &.state-offline {
-    border-left: 4px solid $color-gray-300;
+    border-left: $border-width-thick solid $color-gray-300;
     opacity: 0.6;
 
     .state-icon {
@@ -280,7 +281,7 @@
   display: flex;
   justify-content: space-between;
   padding-top: $spacing-3;
-  border-top: 1px solid $color-gray-100;
+  border-top: $border-width-thin solid $color-gray-100;
 
   .metric {
     text-align: center;
@@ -291,6 +292,7 @@
       font-size: $font-size-lg;
       font-weight: $font-weight-semibold;
       color: $color-gray-900;
+      font-variant-numeric: tabular-nums;
     }
 
     .metric-label {

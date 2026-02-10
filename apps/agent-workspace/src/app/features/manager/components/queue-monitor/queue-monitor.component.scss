@@ -37,9 +37,9 @@
   padding: $spacing-4;
   text-align: center;
   box-shadow: $shadow-sm;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all $transition-fast;
 
   &:hover {
     box-shadow: $shadow-md;
@@ -51,6 +51,7 @@
     font-size: $font-size-2xl;
     font-weight: $font-weight-bold;
     color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
   }
 
   .card-label {
@@ -59,15 +60,15 @@
     color: $color-gray-500;
     margin-top: $spacing-1;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: $letter-spacing-wide;
   }
 
   &.total {
-    border-left: 3px solid $color-gray-500;
+    border-left: $border-width-thick solid $color-gray-500;
   }
 
   &.waiting {
-    border-left: 3px solid $color-warning;
+    border-left: $border-width-thick solid $color-warning;
 
     .card-value {
       color: $color-warning;
@@ -75,7 +76,7 @@
   }
 
   &.in-progress {
-    border-left: 3px solid $color-info;
+    border-left: $border-width-thick solid $color-info;
 
     .card-value {
       color: $color-info;
@@ -83,7 +84,7 @@
   }
 
   &.service-level {
-    border-left: 3px solid $color-primary;
+    border-left: $border-width-thick solid $color-primary;
 
     &.sl-good .card-value {
       color: $color-success;
@@ -99,7 +100,7 @@
   }
 
   &.healthy {
-    border-left: 3px solid $color-success;
+    border-left: $border-width-thick solid $color-success;
 
     .card-value {
       color: $color-success;
@@ -107,7 +108,7 @@
   }
 
   &.warning {
-    border-left: 3px solid $color-warning;
+    border-left: $border-width-thick solid $color-warning;
 
     .card-value {
       color: $color-warning;
@@ -115,7 +116,7 @@
   }
 
   &.critical {
-    border-left: 3px solid $color-error;
+    border-left: $border-width-thick solid $color-error;
 
     .card-value {
       color: $color-error;
@@ -128,14 +129,14 @@
   display: flex;
   gap: $spacing-2;
   margin-bottom: $spacing-5;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
   padding-bottom: $spacing-3;
 }
 
 .filter-tab {
   padding: $spacing-2 $spacing-4;
   background: none;
-  border: 1px solid transparent;
+  border: $border-width-thin solid transparent;
   border-radius: $border-radius-md;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
@@ -182,24 +183,24 @@
   border-radius: $border-radius-lg;
   padding: $spacing-5;
   box-shadow: $shadow-sm;
-  border: 1px solid $color-gray-200;
-  transition: all 0.2s ease;
+  border: $border-width-thin solid $border-color;
+  transition: all $transition-fast;
 
   &:hover {
     box-shadow: $shadow-md;
   }
 
   &.status-healthy {
-    border-left: 4px solid $color-success;
+    border-left: $border-width-thick solid $color-success;
   }
 
   &.status-warning {
-    border-left: 4px solid $color-warning;
+    border-left: $border-width-thick solid $color-warning;
   }
 
   &.status-critical {
-    border-left: 4px solid $color-error;
-    background: #fff5f5;
+    border-left: $border-width-thick solid $color-error;
+    background: $color-error-bg;
   }
 }
 
@@ -291,6 +292,7 @@
     display: block;
     font-size: $font-size-xl;
     font-weight: $font-weight-bold;
+    font-variant-numeric: tabular-nums;
   }
 
   .sl-label {
@@ -315,7 +317,7 @@
 
   &.secondary {
     padding-top: $spacing-3;
-    border-top: 1px solid $color-gray-100;
+    border-top: $border-width-thin solid $color-gray-100;
   }
 }
 

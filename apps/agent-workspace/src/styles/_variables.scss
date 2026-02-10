@@ -1,79 +1,93 @@
 // =============================================================================
-// NEXUS QUEUE - DESIGN TOKENS
-// Inspired by Equifax Workforce Solutions clean, professional aesthetic
+// NEXUS QUEUE - DESIGN TOKENS (V2 — Modern, Minimal)
+// Clean dashboard aesthetic inspired by Linear, Vercel, Stripe
 // =============================================================================
 
 // -----------------------------------------------------------------------------
 // COLORS
 // -----------------------------------------------------------------------------
 
-// Primary Brand Colors
-$color-primary: #b32541;           // Equifax Burgundy
-$color-primary-dark: #8c1d33;      // Darker shade for hover
-$color-primary-light: #d64d66;     // Lighter shade for accents
-$color-primary-subtle: #f9e8eb;    // Very light for backgrounds
+// Primary Brand
+$color-primary: #b32541;
+$color-primary-dark: #961e36;
+$color-primary-light: #d64d66;
+$color-primary-subtle: #fdf2f4;
 
-// Neutral Colors
+// Neutral Palette (cool-tinted for modern feel)
 $color-white: #ffffff;
-$color-black: #000000;
+$color-black: #0f1115;
 
-// Grays (warm-tinted to complement burgundy)
-$color-gray-50: #fafafa;
-$color-gray-100: #f5f5f5;
-$color-gray-200: #eeeeee;
-$color-gray-300: #e0e0e0;
-$color-gray-400: #bdbdbd;
-$color-gray-500: #9e9e9e;
-$color-gray-600: #757575;
-$color-gray-700: #616161;
-$color-gray-800: #424242;
-$color-gray-900: #212121;
+$color-gray-50: #f8f9fb;
+$color-gray-100: #f1f3f5;
+$color-gray-200: #e5e7eb;
+$color-gray-300: #d1d5db;
+$color-gray-400: #9ca3af;
+$color-gray-500: #6b7280;
+$color-gray-600: #4b5563;
+$color-gray-700: #374151;
+$color-gray-800: #1f2937;
+$color-gray-900: #111827;
 
 // Semantic Colors
-$color-success: #2e7d32;           // Green
-$color-success-dark: #1b5e20;      // Darker green for hover
-$color-success-light: #4caf50;
-$color-success-bg: #e8f5e9;
+$color-success: #16a34a;
+$color-success-dark: #15803d;
+$color-success-light: #22c55e;
+$color-success-bg: #f0fdf4;
 
-$color-warning: #f57c00;           // Orange
-$color-warning-dark: #e65100;      // Darker orange for hover
-$color-warning-light: #ff9800;
-$color-warning-bg: #fff3e0;
+$color-warning: #ea580c;
+$color-warning-dark: #c2410c;
+$color-warning-light: #f97316;
+$color-warning-bg: #fff7ed;
 
-$color-error: #c62828;             // Red (different from brand)
-$color-error-dark: #b71c1c;        // Darker red for hover
-$color-error-light: #ef5350;
-$color-error-bg: #ffebee;
+$color-error: #dc2626;
+$color-error-dark: #b91c1c;
+$color-error-light: #ef4444;
+$color-error-bg: #fef2f2;
 
-$color-info: #1565c0;              // Blue
-$color-info-dark: #0d47a1;         // Darker blue for hover
-$color-info-light: #42a5f5;
-$color-info-bg: #e3f2fd;
+$color-info: #2563eb;
+$color-info-dark: #1d4ed8;
+$color-info-light: #3b82f6;
+$color-info-bg: #eff6ff;
 
 // Work Type Colors
-$color-orders: #1565c0;            // Blue
-$color-returns: #f57c00;           // Orange
-$color-claims: #7b1fa2;            // Purple
+$color-orders: #2563eb;
+$color-returns: #ea580c;
+$color-claims: #7c3aed;
+$color-claims-dark: #6d28d9;
+
+// State Colors (agent workflow)
+$color-state-ready: #22c55e;
+$color-state-reserved: #f59e0b;
+$color-state-active: #3b82f6;
+$color-state-wrapup: #8b5cf6;
+$color-state-offline: #9ca3af;
+
+// Sidebar
+$color-sidebar-bg: #111827;
+$color-sidebar-hover: rgba(255, 255, 255, 0.06);
+$color-sidebar-active: rgba(179, 37, 65, 0.15);
+$color-sidebar-text: #9ca3af;
+$color-sidebar-text-hover: #f3f4f6;
 
 // -----------------------------------------------------------------------------
 // TYPOGRAPHY
 // -----------------------------------------------------------------------------
 
-$font-family-base: 'Helvetica Neue', Helvetica, Arial, -apple-system,
-                   BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+$font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                   Roboto, 'Helvetica Neue', sans-serif;
 
-$font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
-                   Consolas, monospace;
+$font-family-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code',
+                   'Roboto Mono', Consolas, monospace;
 
-// Font Sizes
-$font-size-xs: 0.75rem;      // 12px
-$font-size-sm: 0.875rem;     // 14px
-$font-size-base: 1rem;       // 16px
-$font-size-lg: 1.125rem;     // 18px
-$font-size-xl: 1.25rem;      // 20px
-$font-size-2xl: 1.5rem;      // 24px
-$font-size-3xl: 1.875rem;    // 30px
-$font-size-4xl: 2.25rem;     // 36px
+// Font Sizes (slightly tighter scale for dashboard density)
+$font-size-xs: 0.6875rem;   // 11px
+$font-size-sm: 0.8125rem;   // 13px
+$font-size-base: 0.875rem;  // 14px
+$font-size-lg: 1rem;        // 16px
+$font-size-xl: 1.125rem;    // 18px
+$font-size-2xl: 1.375rem;   // 22px
+$font-size-3xl: 1.75rem;    // 28px
+$font-size-4xl: 2.25rem;    // 36px
 
 // Font Weights
 $font-weight-normal: 400;
@@ -82,62 +96,72 @@ $font-weight-semibold: 600;
 $font-weight-bold: 700;
 
 // Line Heights
-$line-height-tight: 1.25;
+$line-height-tight: 1.3;
 $line-height-normal: 1.5;
-$line-height-relaxed: 1.75;
+$line-height-relaxed: 1.7;
 
 // Letter Spacing
-$letter-spacing-tight: -0.025em;
+$letter-spacing-tight: -0.01em;
 $letter-spacing-normal: 0;
-$letter-spacing-wide: 0.025em;
-$letter-spacing-wider: 0.05em;
+$letter-spacing-wide: 0.02em;
+$letter-spacing-wider: 0.04em;
 
 // -----------------------------------------------------------------------------
-// SPACING
+// SPACING (4px grid)
 // -----------------------------------------------------------------------------
 
 $spacing-0: 0;
-$spacing-1: 0.25rem;   // 4px
-$spacing-2: 0.5rem;    // 8px
-$spacing-3: 0.75rem;   // 12px
-$spacing-4: 1rem;      // 16px
-$spacing-5: 1.25rem;   // 20px
-$spacing-6: 1.5rem;    // 24px
-$spacing-8: 2rem;      // 32px
-$spacing-10: 2.5rem;   // 40px
-$spacing-12: 3rem;     // 48px
-$spacing-16: 4rem;     // 64px
+$spacing-px: 1px;
+$spacing-0-5: 0.125rem;  // 2px
+$spacing-1: 0.25rem;     // 4px
+$spacing-1-5: 0.375rem;  // 6px
+$spacing-2: 0.5rem;      // 8px
+$spacing-3: 0.75rem;     // 12px
+$spacing-4: 1rem;        // 16px
+$spacing-5: 1.25rem;     // 20px
+$spacing-6: 1.5rem;      // 24px
+$spacing-8: 2rem;        // 32px
+$spacing-10: 2.5rem;     // 40px
+$spacing-12: 3rem;       // 48px
+$spacing-16: 4rem;       // 64px
 
 // -----------------------------------------------------------------------------
 // BORDERS
 // -----------------------------------------------------------------------------
 
-$border-radius-sm: 4px;
-$border-radius-md: 6px;
-$border-radius-lg: 8px;
-$border-radius-xl: 12px;
+$border-radius-sm: 6px;
+$border-radius-md: 8px;
+$border-radius-lg: 10px;
+$border-radius-xl: 14px;
+$border-radius-2xl: 18px;
 $border-radius-full: 9999px;
 
 $border-width-thin: 1px;
 $border-width-medium: 2px;
 $border-width-thick: 3px;
 
+$border-color: $color-gray-200;
+$border-color-subtle: rgba(0, 0, 0, 0.06);
+
 // -----------------------------------------------------------------------------
-// SHADOWS
+// SHADOWS (softer, more modern)
 // -----------------------------------------------------------------------------
 
-$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+$shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+$shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+$shadow-xl: 0 20px 40px -8px rgba(0, 0, 0, 0.1), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+$shadow-ring: 0 0 0 3px rgba($color-primary, 0.12);
 
 // -----------------------------------------------------------------------------
 // TRANSITIONS
 // -----------------------------------------------------------------------------
 
-$transition-fast: 150ms ease;
-$transition-normal: 200ms ease;
-$transition-slow: 300ms ease;
+$transition-fast: 120ms ease;
+$transition-normal: 180ms ease;
+$transition-slow: 280ms ease;
+$transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
 // -----------------------------------------------------------------------------
 // Z-INDEX
@@ -154,9 +178,9 @@ $z-toast: 600;
 // LAYOUT
 // -----------------------------------------------------------------------------
 
-$header-height: 64px;
-$sidebar-width: 320px;
-$action-bar-height: 72px;
+$header-height: 56px;
+$sidebar-width: 300px;
+$action-bar-height: 64px;
 
 // -----------------------------------------------------------------------------
 // BREAKPOINTS

@@ -1,5 +1,5 @@
-@use '../../../../../styles/variables' as *;
-@use '../../../../../styles/admin-shared';
+@use 'styles/variables' as *;
+@use 'styles/admin-shared';
 
 .volume-loader-container {
   max-width: 1400px;
@@ -28,6 +28,7 @@
     font-size: $font-size-4xl;
     font-weight: $font-weight-semibold;
     color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
 
     &.active { color: $color-success; }
     &.running { color: $color-info; }
@@ -55,7 +56,7 @@
 
 .loader-card {
   background: $color-gray-50;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   border-radius: $border-radius-xl;
   padding: $spacing-4;
   transition: all $transition-fast;
@@ -155,14 +156,14 @@
   display: flex;
   gap: $spacing-4;
   padding: $spacing-3 0;
-  border-top: 1px solid $color-gray-200;
-  border-bottom: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $color-gray-100;
+  border-bottom: $border-width-thin solid $color-gray-100;
   margin-bottom: $spacing-3;
 
   .stat {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: $spacing-0-5;
   }
 
   .stat-label {
@@ -175,6 +176,7 @@
     font-size: $font-size-base;
     font-weight: $font-weight-semibold;
     color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -222,13 +224,24 @@
 
 // Empty/Loading handled by admin-shared
 
-// Runs Panel - uses shared panel-overlay styles
+// Runs Panel - explicit styles instead of @extend
 .runs-panel-overlay {
-  @extend .panel-overlay;
+  position: fixed;
+  inset: 0;
+  background-color: rgba($color-black, 0.3);
+  display: flex;
+  justify-content: flex-end;
+  z-index: $z-modal;
 }
 
 .runs-panel {
-  @extend .slide-panel;
+  width: 480px;
+  max-width: 100%;
+  background-color: $color-white;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: $shadow-xl;
 }
 
 .empty-runs {
@@ -251,14 +264,14 @@
 
 .run-item {
   background: $color-gray-50;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   border-radius: $border-radius-lg;
   padding: $spacing-3;
 
-  &.run-completed { border-left: 3px solid $color-success; }
-  &.run-partial { border-left: 3px solid $color-warning; }
-  &.run-failed { border-left: 3px solid $color-error; }
-  &.run-running { border-left: 3px solid $color-info; }
+  &.run-completed { border-left: $border-width-thick solid $color-success; }
+  &.run-partial { border-left: $border-width-thick solid $color-warning; }
+  &.run-failed { border-left: $border-width-thick solid $color-error; }
+  &.run-running { border-left: $border-width-thick solid $color-info; }
 }
 
 .run-status {
@@ -362,7 +375,7 @@
 
 // Mappings Table
 .mappings-table {
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   border-radius: $border-radius-lg;
   overflow: hidden;
 }
@@ -384,7 +397,7 @@
   grid-template-columns: 1fr 1fr 120px 70px 40px;
   gap: $spacing-2;
   padding: $spacing-2 $spacing-3;
-  border-top: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $color-gray-100;
   align-items: center;
 
   input[type='text'],
@@ -516,7 +529,7 @@
   gap: $spacing-1;
   padding: $spacing-1 $spacing-2;
   background: $color-white;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   border-radius: $border-radius-md;
   font-size: $font-size-xs;
 
@@ -649,7 +662,7 @@
 // Included Fields Section
 .included-fields-section {
   padding-top: $spacing-4;
-  border-top: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $color-gray-100;
 
   h4 {
     margin: 0 0 $spacing-1;
@@ -665,7 +678,7 @@
 
 // Editable Fields Configuration Table
 .fields-config-table {
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   border-radius: $border-radius-lg;
   overflow: hidden;
 }
@@ -688,7 +701,7 @@
   grid-template-columns: 40px 1fr 1fr 140px 100px;
   gap: $spacing-3;
   padding: $spacing-3 $spacing-4;
-  border-top: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $color-gray-100;
   align-items: center;
 
   &:hover {
@@ -874,7 +887,7 @@
 
   svg {
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: $spacing-0-5;
   }
 
   p {
@@ -956,6 +969,7 @@
     font-size: $font-size-2xl;
     font-weight: $font-weight-semibold;
     color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
   }
 
   .stat-label {
@@ -971,7 +985,7 @@
 .sample-urls {
   margin-top: $spacing-4;
   padding-top: $spacing-4;
-  border-top: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $color-gray-100;
 
   h4 {
     margin: 0 0 $spacing-2 0;

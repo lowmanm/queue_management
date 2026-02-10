@@ -6,44 +6,42 @@
   align-items: center;
   padding: 0 $spacing-4;
   height: $header-height;
-  background-color: $color-primary;
+  background-color: $color-gray-900;
   color: $color-white;
-  box-shadow: $shadow-md;
   position: relative;
   z-index: $z-header;
 
   @media (min-width: $breakpoint-lg) {
-    padding: 0 $spacing-6;
+    padding: 0 $spacing-5;
   }
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: $spacing-4;
+  gap: $spacing-3;
   flex: 0 1 auto;
   min-width: 0;
 
   @media (min-width: $breakpoint-lg) {
-    gap: $spacing-6;
+    gap: $spacing-5;
   }
 }
 
-// Mobile menu button
 .mobile-menu-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: $spacing-2;
+  padding: $spacing-1-5;
   background: none;
   border: none;
-  color: $color-white;
+  color: $color-gray-400;
   cursor: pointer;
   border-radius: $border-radius-sm;
-  transition: background-color $transition-fast;
+  transition: color $transition-fast;
 
   &:hover {
-    background-color: rgba($color-white, 0.1);
+    color: $color-white;
   }
 
   @media (min-width: $breakpoint-lg) {
@@ -56,15 +54,15 @@
 }
 
 .app-title {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
   margin: 0;
   color: $color-white;
   letter-spacing: $letter-spacing-tight;
   white-space: nowrap;
 
   @media (min-width: $breakpoint-md) {
-    font-size: $font-size-xl;
+    font-size: $font-size-lg;
   }
 }
 
@@ -75,13 +73,13 @@
   @media (min-width: $breakpoint-lg) {
     display: flex;
     align-items: center;
-    gap: $spacing-1;
+    gap: $spacing-0-5;
   }
 }
 
 .nav-link {
-  padding: $spacing-2 $spacing-3;
-  color: rgba($color-white, 0.8);
+  padding: $spacing-1-5 $spacing-3;
+  color: $color-gray-400;
   text-decoration: none;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
@@ -91,12 +89,12 @@
 
   &:hover {
     color: $color-white;
-    background-color: rgba($color-white, 0.1);
+    background-color: rgba(255, 255, 255, 0.06);
   }
 
   &.active {
     color: $color-white;
-    background-color: rgba($color-white, 0.2);
+    background-color: rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -115,8 +113,8 @@
   display: flex;
   align-items: center;
   gap: $spacing-1;
-  padding: $spacing-2 $spacing-3;
-  color: rgba($color-white, 0.8);
+  padding: $spacing-1-5 $spacing-3;
+  color: $color-gray-400;
   background: none;
   border: none;
   font-size: $font-size-sm;
@@ -129,7 +127,7 @@
   &:hover,
   &.active {
     color: $color-white;
-    background-color: rgba($color-white, 0.1);
+    background-color: rgba(255, 255, 255, 0.06);
   }
 
   svg {
@@ -147,13 +145,14 @@
   left: 0;
   min-width: 180px;
   margin-top: $spacing-1;
-  padding: $spacing-2 0;
+  padding: $spacing-1 0;
   background-color: $color-white;
-  border-radius: $border-radius-md;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
   box-shadow: $shadow-lg;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-8px);
+  transform: translateY(-4px);
   transition: all $transition-fast;
   z-index: $z-dropdown;
 }
@@ -161,13 +160,13 @@
 .dropdown-link {
   display: block;
   padding: $spacing-2 $spacing-4;
-  color: $color-gray-700;
+  color: $color-gray-600;
   text-decoration: none;
   font-size: $font-size-sm;
   transition: all $transition-fast;
 
   &:hover {
-    background-color: $color-gray-100;
+    background-color: $color-gray-50;
     color: $color-gray-900;
   }
 
@@ -203,39 +202,32 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .metric-value {
   font-size: $font-size-base;
-  font-weight: $font-weight-bold;
+  font-weight: $font-weight-semibold;
   color: $color-white;
-
-  @media (min-width: $breakpoint-2xl) {
-    font-size: $font-size-lg;
-  }
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-label {
-  font-size: $font-size-xs;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wider;
-  color: rgba($color-white, 0.75);
+  color: $color-gray-400;
 }
 
 // Header Right
 .header-right {
   display: flex;
   align-items: center;
-  gap: $spacing-3;
+  gap: $spacing-2;
   flex: 0 0 auto;
 
   @media (min-width: $breakpoint-md) {
-    gap: $spacing-4;
-  }
-
-  @media (min-width: $breakpoint-lg) {
-    gap: $spacing-6;
+    gap: $spacing-3;
   }
 }
 
@@ -243,14 +235,14 @@
 .user-info {
   display: flex;
   align-items: center;
-  gap: $spacing-3;
+  gap: $spacing-2;
   font-size: $font-size-sm;
 }
 
 .user-name {
   display: none;
   font-weight: $font-weight-medium;
-  color: $color-white;
+  color: $color-gray-300;
 
   @media (min-width: $breakpoint-lg) {
     display: inline;
@@ -262,13 +254,13 @@
 }
 
 .role-badge {
-  padding: $spacing-1 $spacing-3;
-  background-color: rgba($color-white, 0.2);
-  color: $color-white;
-  border: $border-width-thin solid rgba($color-white, 0.3);
+  padding: $spacing-1 $spacing-2;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: $color-gray-300;
+  border: $border-width-thin solid rgba(255, 255, 255, 0.12);
   border-radius: $border-radius-sm;
   font-size: $font-size-xs;
-  font-weight: $font-weight-semibold;
+  font-weight: $font-weight-medium;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wide;
   cursor: pointer;
@@ -277,8 +269,9 @@
 
   &:hover,
   &.active {
-    background-color: rgba($color-white, 0.3);
-    border-color: rgba($color-white, 0.5);
+    background-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: $color-white;
   }
 }
 
@@ -286,9 +279,10 @@
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: $spacing-2;
+  margin-top: $spacing-1;
   background-color: $color-white;
-  border-radius: $border-radius-md;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
   box-shadow: $shadow-lg;
   overflow: hidden;
   z-index: $z-dropdown;
@@ -298,17 +292,17 @@
 .role-option {
   display: block;
   width: 100%;
-  padding: $spacing-2 $spacing-4;
+  padding: $spacing-2 $spacing-3;
   text-align: left;
   background: none;
   border: none;
   font-size: $font-size-sm;
-  color: $color-gray-700;
+  color: $color-gray-600;
   cursor: pointer;
   transition: background-color $transition-fast;
 
   &:hover {
-    background-color: $color-gray-100;
+    background-color: $color-gray-50;
   }
 
   &.selected {
@@ -320,36 +314,31 @@
 
 // Debug Button
 .debug-btn {
-  padding: $spacing-2 $spacing-3;
-  background-color: rgba($color-white, 0.15);
-  color: $color-white;
-  border: $border-width-thin solid rgba($color-white, 0.3);
+  padding: $spacing-1-5 $spacing-3;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: $color-gray-400;
+  border: $border-width-thin solid rgba(255, 255, 255, 0.1);
   border-radius: $border-radius-sm;
-  font-size: $font-size-sm;
+  font-size: $font-size-xs;
   font-weight: $font-weight-medium;
   cursor: pointer;
   transition: all $transition-fast;
   white-space: nowrap;
 
   &:hover {
-    background-color: rgba($color-white, 0.25);
-    border-color: rgba($color-white, 0.5);
-  }
-
-  &:active {
-    background-color: rgba($color-white, 0.3);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: $color-white;
   }
 }
 
 // Mobile Navigation Drawer
 .mobile-nav-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba($color-black, 0.5);
+  inset: 0;
+  background-color: rgba($color-black, 0.4);
   z-index: $z-overlay;
+  backdrop-filter: blur(2px);
 }
 
 .mobile-nav {
@@ -367,12 +356,8 @@
 }
 
 @keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 .mobile-nav-header {
@@ -380,13 +365,13 @@
   align-items: center;
   justify-content: space-between;
   padding: $spacing-4;
-  background-color: $color-primary;
-  color: $color-white;
+  border-bottom: $border-width-thin solid $border-color;
 
   h2 {
     margin: 0;
     font-size: $font-size-lg;
     font-weight: $font-weight-semibold;
+    color: $color-gray-900;
   }
 }
 
@@ -394,124 +379,124 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: $spacing-2;
+  padding: $spacing-1-5;
   background: none;
   border: none;
-  color: $color-white;
+  color: $color-gray-500;
   cursor: pointer;
   border-radius: $border-radius-sm;
 
   &:hover {
-    background-color: rgba($color-white, 0.1);
+    background-color: $color-gray-100;
+    color: $color-gray-900;
   }
 }
 
 .mobile-nav-content {
   flex: 1;
   overflow-y: auto;
-  padding: $spacing-4 0;
+  padding: $spacing-3 0;
 }
 
 .mobile-nav-section {
-  margin-bottom: $spacing-4;
+  margin-bottom: $spacing-3;
 }
 
 .mobile-nav-section-title {
   padding: $spacing-2 $spacing-4;
-  font-size: $font-size-xs;
+  font-size: 10px;
   font-weight: $font-weight-semibold;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wider;
-  color: $color-gray-500;
+  color: $color-gray-400;
 }
 
 .mobile-nav-link {
   display: flex;
   align-items: center;
   gap: $spacing-3;
-  padding: $spacing-3 $spacing-4;
-  color: $color-gray-700;
+  padding: $spacing-2 $spacing-4;
+  color: $color-gray-600;
   text-decoration: none;
   font-size: $font-size-base;
   transition: all $transition-fast;
 
   &:hover {
-    background-color: $color-gray-100;
+    background-color: $color-gray-50;
     color: $color-gray-900;
   }
 
   svg {
-    color: $color-gray-500;
+    color: $color-gray-400;
   }
 }
 
-// Legacy State Badge Styles (keep for backwards compatibility)
+// State Badge (header variant)
 .state-badge {
   display: flex;
   align-items: center;
   gap: $spacing-2;
-  padding: $spacing-2 $spacing-4;
-  border-radius: $border-radius-md;
+  padding: $spacing-1-5 $spacing-3;
+  border-radius: $border-radius-sm;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
-  background-color: rgba($color-white, 0.15);
-  backdrop-filter: blur(4px);
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .state-indicator {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: $border-radius-full;
   animation: pulse 2s infinite;
 }
 
 .state-label {
-  color: $color-white;
+  color: $color-gray-300;
 }
 
 .countdown {
-  color: rgba($color-white, 0.85);
+  color: $color-gray-400;
   font-size: $font-size-xs;
   font-weight: $font-weight-semibold;
+  font-variant-numeric: tabular-nums;
 }
 
 // State-specific colors
 .state-idle .state-indicator {
-  background-color: $color-success-light;
-  box-shadow: 0 0 8px $color-success-light;
+  background-color: $color-state-ready;
+  box-shadow: 0 0 6px rgba($color-state-ready, 0.6);
 }
 
 .state-reserved {
-  background-color: rgba($color-warning, 0.9);
+  background-color: rgba($color-state-reserved, 0.15);
 
   .state-indicator {
-    background-color: $color-white;
-    box-shadow: 0 0 8px $color-white;
+    background-color: $color-state-reserved;
+    box-shadow: 0 0 6px rgba($color-state-reserved, 0.6);
     animation: pulse-fast 0.5s infinite;
   }
 }
 
 .state-active .state-indicator {
-  background-color: $color-info-light;
-  box-shadow: 0 0 8px $color-info-light;
+  background-color: $color-state-active;
+  box-shadow: 0 0 6px rgba($color-state-active, 0.6);
 }
 
 .state-wrap_up {
-  background-color: rgba(#7b1fa2, 0.9);
+  background-color: rgba($color-state-wrapup, 0.15);
 
   .state-indicator {
-    background-color: #ce93d8;
-    box-shadow: 0 0 8px #ce93d8;
+    background-color: $color-state-wrapup;
+    box-shadow: 0 0 6px rgba($color-state-wrapup, 0.6);
   }
 }
 
 .state-offline .state-indicator {
-  background-color: $color-gray-400;
+  background-color: $color-state-offline;
   box-shadow: none;
   animation: none;
 }
 
-// Legacy agent-info (keep for backwards compatibility)
 .agent-info {
   display: flex;
   align-items: center;
@@ -520,27 +505,21 @@
 }
 
 .agent-label {
-  color: rgba($color-white, 0.75);
+  color: $color-gray-500;
 }
 
 .agent-name {
   font-weight: $font-weight-medium;
-  color: $color-white;
+  color: $color-gray-300;
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 @keyframes pulse-fast {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
     transform: scale(1);
   }

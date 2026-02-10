@@ -1,76 +1,33 @@
 // =============================================================================
-// SHARED ADMIN COMPONENT STYLES
-// Common patterns used across all admin feature components
+// SHARED ADMIN COMPONENT STYLES (V2 — Modern, Minimal)
 // =============================================================================
 
 @use 'variables' as *;
+@use 'mixins' as *;
 
 // -----------------------------------------------------------------------------
 // BUTTONS
 // -----------------------------------------------------------------------------
 
-@mixin btn-base {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: $spacing-2;
-  font-family: $font-family-base;
-  font-weight: $font-weight-medium;
-  border-radius: $border-radius-md;
-  cursor: pointer;
-  transition: all $transition-fast;
-  border: none;
-  white-space: nowrap;
+.btn-primary {
+  @include button-primary;
+}
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+.btn-secondary {
+  @include button-secondary;
 
-  svg {
-    flex-shrink: 0;
+  &.small {
+    padding: $spacing-1 $spacing-3;
+    font-size: $font-size-xs;
   }
 }
 
-@mixin btn-primary {
-  @include btn-base;
-  padding: $spacing-2 $spacing-4;
-  background-color: $color-primary;
-  color: $color-white;
-  font-size: $font-size-sm;
-
-  &:hover:not(:disabled) {
-    background-color: $color-primary-dark;
-  }
-}
-
-@mixin btn-secondary {
-  @include btn-base;
-  padding: $spacing-2 $spacing-4;
-  background-color: $color-white;
-  color: $color-gray-700;
-  font-size: $font-size-sm;
-  border: 1px solid $color-gray-300;
-
-  &:hover:not(:disabled) {
-    background-color: $color-gray-100;
-    border-color: $color-gray-400;
-  }
-}
-
-@mixin btn-icon {
-  @include btn-base;
+.btn-icon {
+  @include button-ghost;
   width: 32px;
   height: 32px;
   padding: 0;
-  background-color: transparent;
-  color: $color-gray-600;
   border-radius: $border-radius-md;
-
-  &:hover:not(:disabled) {
-    background-color: $color-gray-100;
-    color: $color-gray-900;
-  }
 
   &.danger:hover:not(:disabled) {
     background-color: $color-error-bg;
@@ -83,29 +40,11 @@
   }
 }
 
-// Button classes
-.btn-primary {
-  @include btn-primary;
-}
-
-.btn-secondary {
-  @include btn-secondary;
-
-  &.small {
-    padding: $spacing-1 $spacing-3;
-    font-size: $font-size-xs;
-  }
-}
-
-.btn-icon {
-  @include btn-icon;
-}
-
 // -----------------------------------------------------------------------------
 // MESSAGES / ALERTS
 // -----------------------------------------------------------------------------
 
-@mixin message-base {
+.message {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -113,33 +52,30 @@
   border-radius: $border-radius-md;
   margin-bottom: $spacing-4;
   font-size: $font-size-sm;
-}
-
-.message {
-  @include message-base;
+  border: $border-width-thin solid transparent;
 
   &.error {
     background-color: $color-error-bg;
     color: $color-error;
-    border: 1px solid rgba($color-error, 0.2);
+    border-color: rgba($color-error, 0.15);
   }
 
   &.success {
     background-color: $color-success-bg;
     color: $color-success;
-    border: 1px solid rgba($color-success, 0.2);
+    border-color: rgba($color-success, 0.15);
   }
 
   &.warning {
     background-color: $color-warning-bg;
     color: $color-warning;
-    border: 1px solid rgba($color-warning, 0.2);
+    border-color: rgba($color-warning, 0.15);
   }
 
   &.info {
     background-color: $color-info-bg;
     color: $color-info;
-    border: 1px solid rgba($color-info, 0.2);
+    border-color: rgba($color-info, 0.15);
   }
 }
 
@@ -147,28 +83,12 @@
 // CARDS
 // -----------------------------------------------------------------------------
 
-@mixin card-base {
-  background-color: $color-white;
-  border: 1px solid $color-gray-200;
-  border-radius: $border-radius-lg;
-  transition: all $transition-fast;
-}
-
-@mixin card-hoverable {
-  @include card-base;
-
-  &:hover {
-    border-color: $color-gray-300;
-    box-shadow: $shadow-md;
-  }
-}
-
 .admin-card {
-  @include card-hoverable;
+  @include card-interactive;
   padding: $spacing-4;
 
   &.disabled {
-    opacity: 0.6;
+    opacity: 0.5;
   }
 }
 
@@ -179,16 +99,18 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba($color-black, 0.5);
+  background-color: rgba($color-black, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: $z-modal;
   padding: $spacing-4;
+  backdrop-filter: blur(2px);
 }
 
 .modal {
   background-color: $color-white;
+  border: $border-width-thin solid $border-color;
   border-radius: $border-radius-xl;
   width: 100%;
   max-width: 560px;
@@ -213,7 +135,7 @@
   justify-content: space-between;
   align-items: center;
   padding: $spacing-4 $spacing-5;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
   flex-shrink: 0;
 
   h2 {
@@ -235,7 +157,7 @@
   justify-content: flex-end;
   gap: $spacing-3;
   padding: $spacing-4 $spacing-5;
-  border-top: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $border-color;
   flex-shrink: 0;
 }
 
@@ -263,7 +185,7 @@
     width: 100%;
     padding: $spacing-2 $spacing-3;
     background-color: $color-white;
-    border: 1px solid $color-gray-300;
+    border: $border-width-thin solid $border-color;
     border-radius: $border-radius-md;
     font-size: $font-size-sm;
     color: $color-gray-900;
@@ -272,7 +194,7 @@
     &:focus {
       outline: none;
       border-color: $color-primary;
-      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+      box-shadow: $shadow-ring;
     }
 
     &::placeholder {
@@ -280,7 +202,7 @@
     }
 
     &:disabled {
-      background-color: $color-gray-100;
+      background-color: $color-gray-50;
       cursor: not-allowed;
     }
   }
@@ -293,7 +215,7 @@
   .field-hint {
     display: block;
     font-size: $font-size-xs;
-    color: $color-gray-500;
+    color: $color-gray-400;
     margin-top: $spacing-1;
   }
 }
@@ -311,7 +233,7 @@
 .form-section {
   margin-bottom: $spacing-6;
   padding-bottom: $spacing-6;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $color-gray-100;
 
   &:last-child {
     border-bottom: none;
@@ -321,16 +243,16 @@
 
   h3 {
     margin: 0 0 $spacing-4;
-    font-size: $font-size-base;
+    font-size: $font-size-xs;
     font-weight: $font-weight-semibold;
-    color: $color-gray-900;
+    color: $color-gray-500;
     text-transform: uppercase;
-    letter-spacing: $letter-spacing-wide;
+    letter-spacing: $letter-spacing-wider;
   }
 
   .section-help {
     font-size: $font-size-sm;
-    color: $color-gray-600;
+    color: $color-gray-500;
     margin-bottom: $spacing-4;
     line-height: $line-height-relaxed;
   }
@@ -351,8 +273,8 @@
   color: $color-gray-700;
 
   input[type='checkbox'] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     accent-color: $color-primary;
   }
@@ -365,13 +287,13 @@
 .empty-state {
   text-align: center;
   padding: $spacing-12 $spacing-6;
-  color: $color-gray-500;
+  color: $color-gray-400;
 
   svg {
     width: 48px;
     height: 48px;
     margin-bottom: $spacing-4;
-    opacity: 0.5;
+    opacity: 0.4;
   }
 
   p {
@@ -383,7 +305,7 @@
 .loading {
   text-align: center;
   padding: $spacing-8;
-  color: $color-gray-500;
+  color: $color-gray-400;
   font-size: $font-size-sm;
 }
 
@@ -412,7 +334,7 @@
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: $spacing-1 $spacing-2;
+  padding: $spacing-0-5 $spacing-2;
   background-color: $color-primary;
   color: $color-white;
   border-radius: $border-radius-sm;
@@ -426,9 +348,9 @@
     cursor: pointer;
     padding: 0;
     margin-left: $spacing-1;
-    font-size: $font-size-base;
+    font-size: $font-size-sm;
     line-height: 1;
-    opacity: 0.7;
+    opacity: 0.6;
 
     &:hover {
       opacity: 1;
@@ -440,7 +362,7 @@
   .tags {
     display: flex;
     flex-wrap: wrap;
-    gap: $spacing-2;
+    gap: $spacing-1-5;
     margin-bottom: $spacing-2;
   }
 
@@ -460,7 +382,7 @@
 
 .status-badge {
   display: inline-block;
-  padding: $spacing-1 $spacing-2;
+  padding: $spacing-0-5 $spacing-2;
   border-radius: $border-radius-sm;
   font-size: $font-size-xs;
   font-weight: $font-weight-medium;
@@ -495,7 +417,7 @@
   &.disabled,
   &.inactive {
     background-color: $color-gray-100;
-    color: $color-gray-600;
+    color: $color-gray-500;
   }
 }
 
@@ -511,7 +433,7 @@
 }
 
 .stat-card {
-  @include card-base;
+  @include card;
   padding: $spacing-4;
   text-align: center;
 
@@ -520,16 +442,17 @@
     font-size: $font-size-2xl;
     font-weight: $font-weight-bold;
     color: $color-gray-900;
+    font-variant-numeric: tabular-nums;
 
     &.success { color: $color-success; }
-    &.error { color: $color-error; }
+    &.error   { color: $color-error; }
     &.warning { color: $color-warning; }
-    &.info { color: $color-info; }
+    &.info    { color: $color-info; }
   }
 
   .stat-label {
-    font-size: $font-size-sm;
-    color: $color-gray-600;
+    font-size: $font-size-xs;
+    color: $color-gray-500;
     margin-top: $spacing-1;
   }
 }
@@ -546,7 +469,7 @@
   td {
     padding: $spacing-3 $spacing-4;
     text-align: left;
-    border-bottom: 1px solid $color-gray-200;
+    border-bottom: $border-width-thin solid $color-gray-100;
   }
 
   th {
@@ -554,8 +477,8 @@
     font-size: $font-size-xs;
     font-weight: $font-weight-semibold;
     text-transform: uppercase;
-    letter-spacing: $letter-spacing-wide;
-    color: $color-gray-600;
+    letter-spacing: $letter-spacing-wider;
+    color: $color-gray-500;
   }
 
   td {
@@ -572,7 +495,7 @@
 
     &.inactive,
     &.disabled {
-      opacity: 0.6;
+      opacity: 0.5;
       background-color: $color-gray-50;
     }
   }
@@ -598,7 +521,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 20px rgba($color-black, 0.1);
+  box-shadow: $shadow-xl;
 }
 
 .panel-header {
@@ -606,7 +529,7 @@
   justify-content: space-between;
   align-items: center;
   padding: $spacing-4 $spacing-5;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
 
   h2 {
     margin: 0;
@@ -627,9 +550,9 @@
 
 .wizard-stepper {
   display: flex;
-  padding: $spacing-4 $spacing-5;
+  padding: $spacing-3 $spacing-5;
   background-color: $color-gray-50;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
   gap: $spacing-1;
   overflow-x: auto;
 
@@ -644,7 +567,6 @@
 
     &.clickable {
       cursor: pointer;
-
       &:hover {
         background-color: $color-gray-200;
       }
@@ -657,14 +579,8 @@
         background-color: $color-white;
         color: $color-primary;
       }
-
-      .step-title {
-        color: $color-white;
-      }
-
-      .step-desc {
-        color: rgba($color-white, 0.8);
-      }
+      .step-title { color: $color-white; }
+      .step-desc { color: rgba($color-white, 0.7); }
     }
 
     &.completed .step-number {
@@ -674,11 +590,11 @@
   }
 
   .step-number {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: $border-radius-full;
     background-color: $color-gray-200;
-    color: $color-gray-600;
+    color: $color-gray-500;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -701,7 +617,7 @@
 
   .step-desc {
     font-size: 10px;
-    color: $color-gray-500;
+    color: $color-gray-400;
     white-space: nowrap;
   }
 }

@@ -1,7 +1,7 @@
-@use '../../../../../styles/variables' as vars;
+@use 'styles/variables' as *;
 
 .dispositions-container {
-  padding: vars.$spacing-6;
+  padding: $spacing-6;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -10,18 +10,19 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: vars.$spacing-6;
+  margin-bottom: $spacing-6;
 
   .header-content {
     h1 {
-      font-size: vars.$font-size-2xl;
-      font-weight: vars.$font-weight-bold;
-      color: vars.$color-gray-900;
-      margin: 0 0 vars.$spacing-1 0;
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
+      color: $color-gray-900;
+      margin: 0 0 $spacing-1 0;
     }
 
     .subtitle {
-      color: vars.$color-gray-600;
+      color: $color-gray-500;
+      font-size: $font-size-sm;
       margin: 0;
     }
   }
@@ -32,78 +33,83 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: vars.$spacing-3 vars.$spacing-4;
-  border-radius: vars.$border-radius-md;
-  margin-bottom: vars.$spacing-4;
+  padding: $spacing-3 $spacing-4;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-4;
+  font-size: $font-size-sm;
+  border: $border-width-thin solid transparent;
 
   &.success {
-    background: vars.$color-success-bg;
-    color: vars.$color-success;
-    border: 1px solid vars.$color-success;
+    background: $color-success-bg;
+    color: $color-success;
+    border-color: rgba($color-success, 0.15);
   }
 
   &.error {
-    background: vars.$color-error-bg;
-    color: vars.$color-error;
-    border: 1px solid vars.$color-error;
+    background: $color-error-bg;
+    color: $color-error;
+    border-color: rgba($color-error, 0.15);
   }
 
   .close-btn {
     background: none;
     border: none;
-    font-size: vars.$font-size-xl;
+    font-size: $font-size-xl;
     cursor: pointer;
     color: inherit;
+    padding: 0;
+    line-height: 1;
   }
 }
 
 .loading {
   text-align: center;
-  padding: vars.$spacing-8;
-  color: vars.$color-gray-500;
+  padding: $spacing-8;
+  color: $color-gray-400;
+  font-size: $font-size-sm;
 }
 
 // Dispositions Section
 .dispositions-section {
   h2 {
-    font-size: vars.$font-size-lg;
-    margin: 0 0 vars.$spacing-4 0;
-    color: vars.$color-gray-800;
+    font-size: $font-size-lg;
+    margin: 0 0 $spacing-4 0;
+    color: $color-gray-900;
   }
 }
 
 .dispositions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: vars.$spacing-4;
+  gap: $spacing-4;
 }
 
 // Disposition Card
 .disposition-card {
-  background: vars.$color-white;
-  border: 1px solid vars.$color-gray-200;
-  border-radius: vars.$border-radius-lg;
-  padding: vars.$spacing-4;
-  transition: box-shadow 0.2s ease;
+  background: $color-white;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
+  padding: $spacing-4;
+  transition: all $transition-fast;
 
   &:hover {
-    box-shadow: vars.$shadow-md;
+    box-shadow: $shadow-md;
+    border-color: $color-gray-300;
   }
 
-  // Color accents
-  &.color-green { border-left: 4px solid vars.$color-success; }
-  &.color-blue { border-left: 4px solid vars.$color-info; }
-  &.color-orange { border-left: 4px solid vars.$color-warning; }
-  &.color-red { border-left: 4px solid vars.$color-error; }
-  &.color-purple { border-left: 4px solid #7b1fa2; }
-  &.color-gray { border-left: 4px solid vars.$color-gray-400; }
+  &.color-green  { border-left: $border-width-thick solid $color-success; }
+  &.color-blue   { border-left: $border-width-thick solid $color-info; }
+  &.color-orange { border-left: $border-width-thick solid $color-warning; }
+  &.color-red    { border-left: $border-width-thick solid $color-error; }
+  &.color-purple { border-left: $border-width-thick solid $color-claims; }
+  &.color-gray   { border-left: $border-width-thick solid $color-gray-400; }
 }
 
 .card-header {
   display: flex;
   align-items: flex-start;
-  gap: vars.$spacing-3;
-  margin-bottom: vars.$spacing-3;
+  gap: $spacing-3;
+  margin-bottom: $spacing-3;
 }
 
 .card-icon {
@@ -112,16 +118,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: vars.$border-radius-md;
-  font-size: vars.$font-size-sm;
-  font-weight: vars.$font-weight-medium;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
 
-  &.color-green { background: vars.$color-success-bg; color: vars.$color-success; }
-  &.color-blue { background: vars.$color-info-bg; color: vars.$color-info; }
-  &.color-orange { background: vars.$color-warning-bg; color: vars.$color-warning; }
-  &.color-red { background: vars.$color-error-bg; color: vars.$color-error; }
-  &.color-purple { background: #f3e5f5; color: #7b1fa2; }
-  &.color-gray { background: vars.$color-gray-100; color: vars.$color-gray-600; }
+  &.color-green  { background: $color-success-bg; color: $color-success; }
+  &.color-blue   { background: $color-info-bg; color: $color-info; }
+  &.color-orange { background: $color-warning-bg; color: $color-warning; }
+  &.color-red    { background: $color-error-bg; color: $color-error; }
+  &.color-purple { background: rgba($color-claims, 0.08); color: $color-claims; }
+  &.color-gray   { background: $color-gray-100; color: $color-gray-600; }
 }
 
 .card-title {
@@ -129,21 +135,21 @@
 
   h3 {
     margin: 0;
-    font-size: vars.$font-size-base;
-    font-weight: vars.$font-weight-semibold;
-    color: vars.$color-gray-900;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
   }
 
   .code {
-    font-family: vars.$font-family-mono;
-    font-size: vars.$font-size-xs;
-    color: vars.$color-gray-500;
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    color: $color-gray-400;
   }
 }
 
 .card-actions {
   display: flex;
-  gap: vars.$spacing-1;
+  gap: $spacing-1;
 }
 
 .btn-icon {
@@ -153,217 +159,225 @@
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid vars.$color-gray-200;
-  border-radius: vars.$border-radius-sm;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
   cursor: pointer;
-  color: vars.$color-gray-600;
-  transition: all 0.2s ease;
+  color: $color-gray-500;
+  transition: all $transition-fast;
 
   &:hover {
-    background: vars.$color-gray-100;
-    color: vars.$color-gray-900;
+    background: $color-gray-50;
+    color: $color-gray-900;
+    border-color: $color-gray-300;
   }
 
   &.danger:hover {
-    background: vars.$color-error-bg;
-    color: vars.$color-error;
-    border-color: vars.$color-error;
+    background: $color-error-bg;
+    color: $color-error;
+    border-color: rgba($color-error, 0.3);
   }
 }
 
 .card-description {
-  font-size: vars.$font-size-sm;
-  color: vars.$color-gray-600;
-  margin: 0 0 vars.$spacing-3 0;
-  line-height: vars.$line-height-relaxed;
+  font-size: $font-size-sm;
+  color: $color-gray-500;
+  margin: 0 0 $spacing-3 0;
+  line-height: $line-height-relaxed;
 }
 
 .card-meta {
   display: flex;
-  gap: vars.$spacing-2;
+  gap: $spacing-2;
   flex-wrap: wrap;
 }
 
 .category-badge {
   display: inline-block;
-  padding: vars.$spacing-1 vars.$spacing-2;
-  border-radius: vars.$border-radius-sm;
-  font-size: vars.$font-size-xs;
-  font-weight: vars.$font-weight-medium;
+  padding: $spacing-0-5 $spacing-2;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
   text-transform: uppercase;
+  letter-spacing: $letter-spacing-wide;
 
-  &.category-completed { background: vars.$color-success-bg; color: vars.$color-success; }
-  &.category-transferred { background: vars.$color-info-bg; color: vars.$color-info; }
-  &.category-escalated { background: #f3e5f5; color: #7b1fa2; }
-  &.category-deferred { background: vars.$color-warning-bg; color: vars.$color-warning; }
-  &.category-cancelled { background: vars.$color-gray-100; color: vars.$color-gray-600; }
-  &.category-error { background: vars.$color-error-bg; color: vars.$color-error; }
+  &.category-completed   { background: $color-success-bg; color: $color-success; }
+  &.category-transferred { background: $color-info-bg; color: $color-info; }
+  &.category-escalated   { background: rgba($color-claims, 0.08); color: $color-claims; }
+  &.category-deferred    { background: $color-warning-bg; color: $color-warning; }
+  &.category-cancelled   { background: $color-gray-100; color: $color-gray-500; }
+  &.category-error       { background: $color-error-bg; color: $color-error; }
 }
 
 .note-required {
   display: inline-block;
-  padding: vars.$spacing-1 vars.$spacing-2;
-  border-radius: vars.$border-radius-sm;
-  font-size: vars.$font-size-xs;
-  background: vars.$color-gray-100;
-  color: vars.$color-gray-600;
+  padding: $spacing-0-5 $spacing-2;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  background: $color-gray-100;
+  color: $color-gray-500;
 }
 
 .card-restrictions {
-  margin-top: vars.$spacing-2;
-  padding-top: vars.$spacing-2;
-  border-top: 1px solid vars.$color-gray-100;
+  margin-top: $spacing-2;
+  padding-top: $spacing-2;
+  border-top: $border-width-thin solid $color-gray-100;
 
   .restriction {
-    font-size: vars.$font-size-xs;
-    color: vars.$color-gray-500;
-    margin-right: vars.$spacing-2;
+    font-size: $font-size-xs;
+    color: $color-gray-400;
+    margin-right: $spacing-2;
   }
 }
 
 // Inactive Section
 .inactive-section {
-  margin-top: vars.$spacing-8;
+  margin-top: $spacing-8;
 
   h3 {
-    font-size: vars.$font-size-base;
-    color: vars.$color-gray-600;
-    margin: 0 0 vars.$spacing-3 0;
+    font-size: $font-size-base;
+    color: $color-gray-500;
+    margin: 0 0 $spacing-3 0;
   }
 }
 
 .inactive-list {
   display: flex;
   flex-direction: column;
-  gap: vars.$spacing-2;
+  gap: $spacing-2;
 }
 
 .inactive-item {
   display: flex;
   align-items: center;
-  gap: vars.$spacing-3;
-  padding: vars.$spacing-2 vars.$spacing-3;
-  background: vars.$color-gray-50;
-  border-radius: vars.$border-radius-md;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  background: $color-gray-50;
+  border-radius: $border-radius-md;
   opacity: 0.7;
 
   .name {
     flex: 1;
-    color: vars.$color-gray-600;
+    color: $color-gray-600;
   }
 
   .code {
-    font-family: vars.$font-family-mono;
-    font-size: vars.$font-size-xs;
-    color: vars.$color-gray-400;
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    color: $color-gray-400;
   }
 }
 
 // Modal
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba($color-black, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: $z-modal;
+  backdrop-filter: blur(2px);
 }
 
 .modal {
-  background: vars.$color-white;
-  border-radius: vars.$border-radius-lg;
+  background: $color-white;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-xl;
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: vars.$shadow-xl;
+  box-shadow: $shadow-xl;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: vars.$spacing-4 vars.$spacing-6;
-  border-bottom: 1px solid vars.$color-gray-200;
+  padding: $spacing-4 $spacing-5;
+  border-bottom: $border-width-thin solid $border-color;
 
   h2 {
     margin: 0;
-    font-size: vars.$font-size-lg;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
   }
 
   .close-btn {
     background: none;
     border: none;
-    font-size: vars.$font-size-2xl;
+    font-size: $font-size-2xl;
     cursor: pointer;
-    color: vars.$color-gray-500;
+    color: $color-gray-400;
+    padding: 0;
+    line-height: 1;
+    transition: color $transition-fast;
 
     &:hover {
-      color: vars.$color-gray-900;
+      color: $color-gray-900;
     }
   }
 }
 
 .modal-body {
-  padding: vars.$spacing-6;
+  padding: $spacing-5;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: vars.$spacing-3;
-  padding: vars.$spacing-4 vars.$spacing-6;
-  border-top: 1px solid vars.$color-gray-200;
+  gap: $spacing-3;
+  padding: $spacing-4 $spacing-5;
+  border-top: $border-width-thin solid $border-color;
 }
 
 // Form
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: vars.$spacing-4;
+  gap: $spacing-4;
 
-  @media (max-width: vars.$breakpoint-sm) {
+  @media (max-width: $breakpoint-sm) {
     grid-template-columns: 1fr;
   }
 }
 
 .form-group {
-  margin-bottom: vars.$spacing-4;
+  margin-bottom: $spacing-4;
 
   label {
     display: block;
-    font-size: vars.$font-size-sm;
-    font-weight: vars.$font-weight-medium;
-    margin-bottom: vars.$spacing-1;
-    color: vars.$color-gray-700;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    margin-bottom: $spacing-1;
+    color: $color-gray-700;
   }
 
   .hint {
-    font-size: vars.$font-size-xs;
-    color: vars.$color-gray-500;
-    margin-top: vars.$spacing-1;
+    font-size: $font-size-xs;
+    color: $color-gray-400;
+    margin-top: $spacing-1;
   }
 }
 
 .form-control {
   width: 100%;
-  padding: vars.$spacing-2 vars.$spacing-3;
-  border: 1px solid vars.$color-gray-300;
-  border-radius: vars.$border-radius-md;
-  font-size: vars.$font-size-base;
+  padding: $spacing-2 $spacing-3;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  color: $color-gray-900;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
 
   &:focus {
     outline: none;
-    border-color: vars.$color-primary;
-    box-shadow: 0 0 0 3px rgba(vars.$color-primary, 0.1);
+    border-color: $color-primary;
+    box-shadow: $shadow-ring;
   }
 
   &:disabled {
-    background: vars.$color-gray-100;
+    background: $color-gray-50;
     cursor: not-allowed;
   }
 }
@@ -382,51 +396,57 @@ textarea.form-control {
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: vars.$spacing-2;
+  gap: $spacing-2;
   cursor: pointer;
+  font-size: $font-size-sm;
+  color: $color-gray-700;
 
   input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
+    accent-color: $color-primary;
+    cursor: pointer;
   }
 }
 
 .checkbox-list {
   display: flex;
   flex-wrap: wrap;
-  gap: vars.$spacing-2;
-  margin-top: vars.$spacing-2;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
 }
 
 .checkbox-item {
   display: flex;
   align-items: center;
-  gap: vars.$spacing-1;
-  padding: vars.$spacing-1 vars.$spacing-2;
-  background: vars.$color-gray-50;
-  border-radius: vars.$border-radius-sm;
-  font-size: vars.$font-size-sm;
+  gap: $spacing-1;
+  padding: $spacing-1 $spacing-2;
+  background: $color-gray-50;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-sm;
   cursor: pointer;
+  transition: background-color $transition-fast;
 
   &:hover {
-    background: vars.$color-gray-100;
+    background: $color-gray-100;
   }
 
   input[type="checkbox"] {
     width: 16px;
     height: 16px;
+    accent-color: $color-primary;
   }
 }
 
 // Buttons
 .btn {
-  padding: vars.$spacing-2 vars.$spacing-4;
-  border-radius: vars.$border-radius-md;
-  font-size: vars.$font-size-sm;
-  font-weight: vars.$font-weight-medium;
+  padding: $spacing-2 $spacing-4;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
   cursor: pointer;
   border: none;
-  transition: all 0.2s ease;
+  transition: all $transition-fast;
 
   &:disabled {
     opacity: 0.5;
@@ -434,26 +454,27 @@ textarea.form-control {
   }
 
   &.btn-primary {
-    background: vars.$color-primary;
-    color: vars.$color-white;
+    background: $color-primary;
+    color: $color-white;
 
     &:hover:not(:disabled) {
-      background: vars.$color-primary-dark;
+      background: $color-primary-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
   &.btn-secondary {
-    background: vars.$color-gray-100;
-    color: vars.$color-gray-700;
-    border: 1px solid vars.$color-gray-300;
+    background: $color-gray-100;
+    color: $color-gray-700;
+    border: $border-width-thin solid $border-color;
 
     &:hover:not(:disabled) {
-      background: vars.$color-gray-200;
+      background: $color-gray-200;
     }
   }
 
   &.btn-sm {
-    padding: vars.$spacing-1 vars.$spacing-2;
-    font-size: vars.$font-size-xs;
+    padding: $spacing-1 $spacing-2;
+    font-size: $font-size-xs;
   }
 }

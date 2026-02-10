@@ -5,22 +5,27 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+  background-color: $color-gray-50;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba($color-primary, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba($color-primary, 0.03) 0%, transparent 50%);
 }
 
 .login-card {
   text-align: center;
-  padding: $spacing-12;
+  padding: $spacing-10 $spacing-8;
   background-color: $color-white;
-  border-radius: $border-radius-lg;
-  box-shadow: $shadow-xl;
-  min-width: 400px;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-lg;
+  min-width: 380px;
 
   h1 {
-    margin: 0 0 $spacing-2;
+    margin: 0 0 $spacing-1;
     font-size: $font-size-2xl;
     font-weight: $font-weight-bold;
-    color: $color-primary;
+    color: $color-gray-900;
+    letter-spacing: $letter-spacing-tight;
   }
 
   p {
@@ -44,12 +49,11 @@
 
   &:hover {
     background-color: $color-primary-dark;
-    transform: translateY(-1px);
     box-shadow: $shadow-md;
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(0.98);
   }
 
   &:focus-visible {
@@ -58,17 +62,16 @@
   }
 }
 
-// Optional: Add a logo placeholder
 .login-logo {
-  width: 80px;
-  height: 80px;
+  width: 64px;
+  height: 64px;
   margin: 0 auto $spacing-6;
-  background-color: $color-primary;
-  border-radius: $border-radius-full;
+  background: linear-gradient(135deg, $color-primary, $color-primary-light);
+  border-radius: $border-radius-xl;
   display: flex;
   align-items: center;
   justify-content: center;
   color: $color-white;
-  font-size: $font-size-3xl;
+  font-size: $font-size-2xl;
   font-weight: $font-weight-bold;
 }
