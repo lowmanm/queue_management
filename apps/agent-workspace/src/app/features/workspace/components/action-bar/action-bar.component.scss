@@ -4,38 +4,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: $spacing-6;
-  padding: $spacing-3 $spacing-6;
+  gap: $spacing-5;
+  padding: $spacing-3 $spacing-5;
   background-color: $color-white;
-  border-top: $border-width-thin solid $color-gray-200;
+  border-top: $border-width-thin solid $border-color;
   min-height: $action-bar-height;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 }
 
 // Work type badge
 .work-type-badge {
-  padding: $spacing-1 $spacing-3;
+  padding: $spacing-0-5 $spacing-2;
   border-radius: $border-radius-sm;
   font-size: $font-size-xs;
-  font-weight: $font-weight-semibold;
+  font-weight: $font-weight-medium;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wide;
-  background-color: $color-gray-200;
-  color: $color-gray-700;
+  background-color: $color-gray-100;
+  color: $color-gray-600;
 
   &[data-type="ORDERS"] {
     background-color: $color-info-bg;
-    color: $color-info;
+    color: $color-orders;
   }
 
   &[data-type="RETURNS"] {
     background-color: $color-warning-bg;
-    color: $color-warning;
+    color: $color-returns;
   }
 
   &[data-type="CLAIMS"] {
-    background-color: #f3e5f5;
-    color: #7b1fa2;
+    background-color: rgba($color-claims, 0.08);
+    color: $color-claims;
   }
 }
 
@@ -44,6 +43,7 @@
   font-weight: $font-weight-semibold;
   margin-left: $spacing-1;
   color: $color-gray-700;
+  font-variant-numeric: tabular-nums;
 
   &.urgent {
     color: $color-error;
@@ -52,15 +52,11 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-// Common button styles
+// Action buttons
 .action-btn {
   padding: $spacing-2 $spacing-5;
   border: none;
@@ -69,14 +65,14 @@
   font-weight: $font-weight-medium;
   cursor: pointer;
   transition: all $transition-fast;
-  background-color: $color-gray-200;
+  background-color: $color-gray-100;
   color: $color-gray-700;
 
-  &:hover {
-    background-color: $color-gray-300;
+  &:hover:not(:disabled) {
+    background-color: $color-gray-200;
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.98);
   }
 
@@ -86,7 +82,7 @@
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
@@ -96,6 +92,7 @@
 
     &:hover:not(:disabled) {
       background-color: $color-primary-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
@@ -103,8 +100,9 @@
     background-color: $color-success;
     color: $color-white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-success-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
@@ -112,8 +110,9 @@
     background-color: $color-warning;
     color: $color-white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-warning-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
@@ -121,8 +120,9 @@
     background-color: $color-error;
     color: $color-white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-error-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
@@ -130,8 +130,9 @@
     background-color: $color-info;
     color: $color-white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-info-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
@@ -139,98 +140,81 @@
     background-color: $color-success;
     color: $color-white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-success-dark;
+      box-shadow: $shadow-sm;
     }
   }
 
   &.reject {
     background-color: $color-white;
     color: $color-error;
-    border: $border-width-thin solid $color-error;
+    border: $border-width-thin solid $color-gray-200;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: $color-error-bg;
+      border-color: rgba($color-error, 0.3);
     }
   }
 }
 
-// Disposition button color variants
+// Disposition button colors
 .disposition-btn {
   position: relative;
 
   &.color-green {
     background-color: $color-success;
     color: $color-white;
-
-    &:hover {
-      background-color: $color-success-dark;
-    }
+    &:hover:not(:disabled) { background-color: $color-success-dark; }
   }
 
   &.color-blue {
     background-color: $color-info;
     color: $color-white;
-
-    &:hover {
-      background-color: $color-info-dark;
-    }
+    &:hover:not(:disabled) { background-color: $color-info-dark; }
   }
 
   &.color-orange {
     background-color: $color-warning;
     color: $color-white;
-
-    &:hover {
-      background-color: $color-warning-dark;
-    }
+    &:hover:not(:disabled) { background-color: $color-warning-dark; }
   }
 
   &.color-red {
     background-color: $color-error;
     color: $color-white;
-
-    &:hover {
-      background-color: $color-error-dark;
-    }
+    &:hover:not(:disabled) { background-color: $color-error-dark; }
   }
 
   &.color-purple {
-    background-color: #7b1fa2;
+    background-color: $color-claims;
     color: $color-white;
-
-    &:hover {
-      background-color: #6a1b9a;
-    }
+    &:hover:not(:disabled) { background-color: $color-claims-dark; }
   }
 
   &.color-gray {
     background-color: $color-gray-500;
     color: $color-white;
-
-    &:hover {
-      background-color: $color-gray-600;
-    }
+    &:hover:not(:disabled) { background-color: $color-gray-600; }
   }
 }
 
-// Note indicator asterisk
 .note-indicator {
   margin-right: $spacing-1;
   color: inherit;
   font-weight: $font-weight-bold;
 }
 
-// Reservation state styles
+// Layout groups
 .reservation-actions {
   display: flex;
   align-items: center;
-  gap: $spacing-6;
+  gap: $spacing-5;
 }
 
 .reservation-prompt {
   font-size: $font-size-sm;
-  color: $color-gray-700;
+  color: $color-gray-600;
   font-weight: $font-weight-medium;
 }
 
@@ -239,63 +223,60 @@
   gap: $spacing-3;
 }
 
-// Active task actions
 .task-actions {
   display: flex;
   align-items: center;
   gap: $spacing-3;
 }
 
-// Disposition state styles
 .disposition-actions {
   display: flex;
   align-items: center;
-  gap: $spacing-6;
+  gap: $spacing-5;
 }
 
 .disposition-prompt {
   font-size: $font-size-sm;
-  color: $color-gray-700;
+  color: $color-gray-600;
   font-weight: $font-weight-medium;
 }
 
 .disposition-buttons {
   display: flex;
-  gap: $spacing-3;
+  gap: $spacing-2;
   flex-wrap: wrap;
 }
 
-// Note Modal Styles
+// Note Modal
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba($color-black, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: $z-modal;
+  backdrop-filter: blur(2px);
 }
 
 .note-modal {
   background: $color-white;
-  border-radius: $border-radius-lg;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-xl;
   width: 100%;
   max-width: 480px;
   box-shadow: $shadow-xl;
-  animation: modalFadeIn 0.2s ease-out;
+  animation: modalFadeIn 0.15s ease-out;
 }
 
 @keyframes modalFadeIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: translateY(4px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -304,7 +285,7 @@
   justify-content: space-between;
   align-items: center;
   padding: $spacing-4 $spacing-5;
-  border-bottom: $border-width-thin solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
 
   h3 {
     margin: 0;
@@ -316,11 +297,12 @@
   .close-btn {
     background: none;
     border: none;
-    font-size: $font-size-2xl;
+    font-size: $font-size-xl;
     cursor: pointer;
-    color: $color-gray-500;
+    color: $color-gray-400;
     padding: 0;
     line-height: 1;
+    transition: color $transition-fast;
 
     &:hover {
       color: $color-gray-900;
@@ -334,10 +316,10 @@
   .disposition-info {
     margin: 0 0 $spacing-4 0;
     font-size: $font-size-sm;
-    color: $color-gray-600;
+    color: $color-gray-500;
 
     strong {
-      color: $color-gray-900;
+      color: $color-gray-800;
     }
   }
 
@@ -356,17 +338,18 @@
   .note-input {
     width: 100%;
     padding: $spacing-3;
-    border: $border-width-thin solid $color-gray-300;
+    border: $border-width-thin solid $border-color;
     border-radius: $border-radius-md;
     font-size: $font-size-sm;
     font-family: inherit;
     resize: vertical;
     min-height: 100px;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
 
     &:focus {
       outline: none;
       border-color: $color-primary;
-      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+      box-shadow: $shadow-ring;
     }
 
     &::placeholder {
@@ -380,5 +363,5 @@
   justify-content: flex-end;
   gap: $spacing-3;
   padding: $spacing-4 $spacing-5;
-  border-top: $border-width-thin solid $color-gray-200;
+  border-top: $border-width-thin solid $border-color;
 }

@@ -6,14 +6,14 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: $color-gray-100;
+  background-color: $color-gray-50;
 }
 
 .workspace-body {
   display: flex;
   flex: 1;
   overflow: hidden;
-  min-height: 0; // Critical for nested flex to work properly
+  min-height: 0;
 }
 
 .workspace-main {
@@ -23,14 +23,12 @@
   position: relative;
   overflow: hidden;
 
-  // Main stage (iframe) should fill available space
   app-main-stage {
     flex: 1;
     display: flex;
-    min-height: 0; // Important for flex children to shrink
+    min-height: 0;
   }
 
-  // Action bar at the bottom
   app-action-bar {
     flex-shrink: 0;
   }
@@ -39,15 +37,12 @@
 // Status overlay (base)
 .status-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba($color-white, 0.95);
-  backdrop-filter: blur(4px);
+  background-color: rgba($color-white, 0.92);
+  backdrop-filter: blur(6px);
   z-index: 10;
 }
 
@@ -60,7 +55,7 @@
 
   h2 {
     margin: 0;
-    font-size: $font-size-2xl;
+    font-size: $font-size-xl;
     font-weight: $font-weight-semibold;
     color: $color-gray-900;
   }
@@ -75,20 +70,20 @@
 // Connecting state
 .connecting {
   .spinner {
-    width: 48px;
-    height: 48px;
-    border: 3px solid $color-gray-300;
+    width: 40px;
+    height: 40px;
+    border: 2px solid $color-gray-200;
     border-top-color: $color-primary;
     border-radius: $border-radius-full;
-    animation: spin 1s linear infinite;
+    animation: spin 0.8s linear infinite;
   }
 }
 
 // Waiting for task state (Force Mode)
 .waiting {
   .pulse-ring {
-    width: 80px;
-    height: 80px;
+    width: 64px;
+    height: 64px;
     border-radius: $border-radius-full;
     background-color: $color-success;
     position: relative;
@@ -96,14 +91,13 @@
     align-items: center;
     justify-content: center;
 
-    // Checkmark icon
     &::before {
       content: '';
-      width: 24px;
-      height: 40px;
-      border-right: 4px solid $color-white;
-      border-bottom: 4px solid $color-white;
-      transform: rotate(45deg) translateY(-4px);
+      width: 20px;
+      height: 32px;
+      border-right: 3px solid $color-white;
+      border-bottom: 3px solid $color-white;
+      transform: rotate(45deg) translateY(-3px);
     }
   }
 
@@ -112,8 +106,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 80px;
-    height: 80px;
+    width: 64px;
+    height: 64px;
     border-radius: $border-radius-full;
     border: 2px solid $color-success;
     animation: pulse-ring 2s ease-out infinite;
@@ -128,22 +122,19 @@
   }
 }
 
-// Animations
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes pulse-ring {
   0% {
-    width: 80px;
-    height: 80px;
+    width: 64px;
+    height: 64px;
     opacity: 1;
   }
   100% {
-    width: 160px;
-    height: 160px;
+    width: 128px;
+    height: 128px;
     opacity: 0;
   }
 }

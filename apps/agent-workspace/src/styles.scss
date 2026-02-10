@@ -1,6 +1,5 @@
 /* =============================================================================
-   NEXUS QUEUE - GLOBAL STYLES
-   Clean, professional theme inspired by Equifax Workforce Solutions
+   NEXUS QUEUE - GLOBAL STYLES (V2 — Modern, Minimal)
    ============================================================================= */
 
 @use 'styles/variables' as *;
@@ -22,12 +21,13 @@ body {
   height: 100%;
   width: 100%;
   font-family: $font-family-base;
-  font-size: 16px;
+  font-size: 14px;
   line-height: $line-height-normal;
-  background-color: $color-gray-100;
+  background-color: $color-gray-50;
   color: $color-gray-900;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 // -----------------------------------------------------------------------------
@@ -39,6 +39,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: $font-weight-semibold;
   line-height: $line-height-tight;
   color: $color-gray-900;
+  letter-spacing: $letter-spacing-tight;
 }
 
 h1 { font-size: $font-size-3xl; }
@@ -58,7 +59,6 @@ a {
 
   &:hover {
     color: $color-primary-dark;
-    text-decoration: underline;
   }
 }
 
@@ -79,31 +79,30 @@ select {
 }
 
 // -----------------------------------------------------------------------------
-// SCROLLBAR STYLING (Light Theme)
+// SCROLLBAR STYLING
 // -----------------------------------------------------------------------------
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: $color-gray-100;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: $color-gray-400;
+  background: $color-gray-300;
   border-radius: $border-radius-full;
 
   &:hover {
-    background: $color-gray-500;
+    background: $color-gray-400;
   }
 }
 
-// Firefox
 * {
   scrollbar-width: thin;
-  scrollbar-color: $color-gray-400 $color-gray-100;
+  scrollbar-color: $color-gray-300 transparent;
 }
 
 // -----------------------------------------------------------------------------
@@ -120,8 +119,8 @@ select {
 // -----------------------------------------------------------------------------
 
 ::selection {
-  background-color: $color-primary;
-  color: $color-white;
+  background-color: rgba($color-primary, 0.15);
+  color: $color-gray-900;
 }
 
 // -----------------------------------------------------------------------------
@@ -140,21 +139,10 @@ select {
   border: 0;
 }
 
-.text-primary {
-  color: $color-primary;
-}
-
-.text-success {
-  color: $color-success;
-}
-
-.text-warning {
-  color: $color-warning;
-}
-
-.text-error {
-  color: $color-error;
-}
+.text-primary { color: $color-primary; }
+.text-success { color: $color-success; }
+.text-warning { color: $color-warning; }
+.text-error   { color: $color-error; }
 
 .bg-primary {
   background-color: $color-primary;

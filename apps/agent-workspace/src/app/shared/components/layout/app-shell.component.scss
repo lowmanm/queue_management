@@ -1,25 +1,23 @@
 @use 'styles/variables' as *;
 
-$sidebar-width-expanded: 260px;
-$sidebar-width-collapsed: 64px;
-$top-bar-height: 56px;
+$sidebar-width-expanded: 248px;
+$sidebar-width-collapsed: 60px;
+$top-bar-height: 48px;
 
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background-color: $color-gray-100;
+  background-color: $color-gray-50;
 }
 
 // Mobile overlay
 .mobile-overlay {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba($color-black, 0.5);
+  inset: 0;
+  background-color: rgba($color-black, 0.4);
   z-index: $z-overlay;
+  backdrop-filter: blur(2px);
 
   @media (max-width: $breakpoint-lg) {
     display: block;
@@ -33,7 +31,7 @@ $top-bar-height: 56px;
   left: 0;
   bottom: 0;
   width: $sidebar-width-expanded;
-  background-color: $color-gray-900;
+  background-color: $color-sidebar-bg;
   color: $color-white;
   display: flex;
   flex-direction: column;
@@ -62,7 +60,7 @@ $top-bar-height: 56px;
 
     .nav-item {
       justify-content: center;
-      padding: $spacing-3;
+      padding: $spacing-2 $spacing-3;
     }
 
     .nav-icon {
@@ -75,8 +73,8 @@ $top-bar-height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: $spacing-4;
-  border-bottom: 1px solid rgba($color-white, 0.1);
+  padding: $spacing-4 $spacing-4 $spacing-3;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .logo {
@@ -87,36 +85,38 @@ $top-bar-height: 56px;
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: $color-primary;
+  background: linear-gradient(135deg, $color-primary, $color-primary-light);
   border-radius: $border-radius-md;
   font-weight: $font-weight-bold;
-  font-size: $font-size-sm;
+  font-size: $font-size-xs;
   flex-shrink: 0;
 }
 
 .logo-text {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
   white-space: nowrap;
+  letter-spacing: $letter-spacing-tight;
   transition: opacity $transition-normal, width $transition-normal;
 }
 
 .close-mobile-btn {
   display: none;
-  padding: $spacing-2;
+  padding: $spacing-1-5;
   background: none;
   border: none;
-  color: $color-white;
+  color: $color-sidebar-text;
   cursor: pointer;
   border-radius: $border-radius-sm;
 
   &:hover {
-    background-color: rgba($color-white, 0.1);
+    background-color: $color-sidebar-hover;
+    color: $color-white;
   }
 
   @media (max-width: $breakpoint-lg) {
@@ -127,16 +127,16 @@ $top-bar-height: 56px;
 .sidebar-nav {
   flex: 1;
   overflow-y: auto;
-  padding: $spacing-4 0;
+  padding: $spacing-3 0;
 }
 
 .nav-section {
-  margin-bottom: $spacing-4;
+  margin-bottom: $spacing-2;
 }
 
 .section-title {
-  padding: $spacing-2 $spacing-4;
-  font-size: $font-size-xs;
+  padding: $spacing-2 $spacing-4 $spacing-1;
+  font-size: 10px;
   font-weight: $font-weight-semibold;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wider;
@@ -154,22 +154,22 @@ $top-bar-height: 56px;
 .nav-item {
   display: flex;
   align-items: center;
-  padding: $spacing-3 $spacing-4;
-  color: $color-gray-400;
+  padding: $spacing-2 $spacing-4;
+  margin: $spacing-px $spacing-2;
+  color: $color-sidebar-text;
   text-decoration: none;
   cursor: pointer;
   transition: all $transition-fast;
-  border-left: 3px solid transparent;
+  border-radius: $border-radius-md;
 
   &:hover {
-    color: $color-white;
-    background-color: rgba($color-white, 0.05);
+    color: $color-sidebar-text-hover;
+    background-color: $color-sidebar-hover;
   }
 
   &.active {
     color: $color-white;
-    background-color: rgba($color-primary, 0.2);
-    border-left-color: $color-primary;
+    background-color: $color-sidebar-active;
   }
 }
 
@@ -177,15 +177,16 @@ $top-bar-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   margin-right: $spacing-3;
   flex-shrink: 0;
   transition: margin $transition-normal;
 
   svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
+    opacity: 0.8;
   }
 }
 
@@ -196,8 +197,8 @@ $top-bar-height: 56px;
 }
 
 .sidebar-footer {
-  padding: $spacing-4;
-  border-top: 1px solid rgba($color-white, 0.1);
+  padding: $spacing-3 $spacing-4;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .collapse-btn {
@@ -205,10 +206,10 @@ $top-bar-height: 56px;
   align-items: center;
   gap: $spacing-2;
   width: 100%;
-  padding: $spacing-2 $spacing-3;
+  padding: $spacing-2 $spacing-2;
   background: none;
   border: none;
-  color: $color-gray-400;
+  color: $color-sidebar-text;
   font-size: $font-size-sm;
   cursor: pointer;
   border-radius: $border-radius-sm;
@@ -216,7 +217,7 @@ $top-bar-height: 56px;
 
   &:hover {
     color: $color-white;
-    background-color: rgba($color-white, 0.1);
+    background-color: $color-sidebar-hover;
   }
 
   span {
@@ -253,16 +254,16 @@ $top-bar-height: 56px;
   align-items: center;
   justify-content: space-between;
   height: $top-bar-height;
-  padding: 0 $spacing-6;
+  padding: 0 $spacing-5;
   background-color: $color-white;
-  border-bottom: 1px solid $color-gray-200;
+  border-bottom: $border-width-thin solid $border-color;
   flex-shrink: 0;
 }
 
 .top-bar-left {
   display: flex;
   align-items: center;
-  gap: $spacing-4;
+  gap: $spacing-3;
   min-width: 0;
   flex: 1;
 }
@@ -270,16 +271,16 @@ $top-bar-height: 56px;
 .top-bar-right {
   display: flex;
   align-items: center;
-  gap: $spacing-4;
+  gap: $spacing-3;
   flex-shrink: 0;
 }
 
 .menu-toggle {
   display: none;
-  padding: $spacing-2;
+  padding: $spacing-1-5;
   background: none;
   border: none;
-  color: $color-gray-600;
+  color: $color-gray-500;
   cursor: pointer;
   border-radius: $border-radius-sm;
 
@@ -297,10 +298,10 @@ $top-bar-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: $spacing-2;
+  padding: $spacing-1-5;
   background: none;
   border: none;
-  color: $color-gray-600;
+  color: $color-gray-400;
   cursor: pointer;
   border-radius: $border-radius-sm;
   transition: all $transition-fast;
@@ -315,7 +316,7 @@ $top-bar-height: 56px;
 .breadcrumbs {
   display: flex;
   align-items: center;
-  gap: $spacing-2;
+  gap: $spacing-1-5;
   font-size: $font-size-sm;
   min-width: 0;
   overflow: hidden;
@@ -326,7 +327,7 @@ $top-bar-height: 56px;
 }
 
 .breadcrumb-link {
-  color: $color-gray-500;
+  color: $color-gray-400;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
@@ -338,11 +339,12 @@ $top-bar-height: 56px;
 }
 
 .breadcrumb-separator {
-  color: $color-gray-400;
+  color: $color-gray-300;
+  font-size: $font-size-xs;
 }
 
 .breadcrumb-current {
-  color: $color-gray-900;
+  color: $color-gray-700;
   font-weight: $font-weight-medium;
   white-space: nowrap;
   overflow: hidden;

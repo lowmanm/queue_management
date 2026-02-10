@@ -1,5 +1,5 @@
-@use '../../../../../styles/variables' as *;
-@use '../../../../../styles/admin-shared';
+@use 'styles/variables' as *;
+@use 'styles/admin-shared';
 
 .work-states-container {
   padding: $spacing-6;
@@ -81,7 +81,7 @@
   padding: $spacing-3;
   background: $color-gray-50;
   border-radius: $border-radius-lg;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
 
   &.system-state {
     opacity: 0.85;
@@ -159,7 +159,7 @@
   padding: $spacing-3 $spacing-4;
   background: $color-gray-50;
   border-radius: $border-radius-lg;
-  border: 1px solid $color-gray-200;
+  border: $border-width-thin solid $border-color;
   transition: all $transition-fast;
 
   &:hover {
@@ -217,7 +217,7 @@
 .inactive-section {
   margin-top: $spacing-6;
   padding-top: $spacing-6;
-  border-top: 1px solid $color-gray-200;
+  border-top: $border-width-thin solid $border-color;
 
   h3 {
     font-size: $font-size-sm;
@@ -299,7 +299,7 @@
 .icon-option {
   width: 32px;
   height: 32px;
-  border: 1px solid transparent;
+  border: $border-width-thin solid transparent;
   background: transparent;
   border-radius: $border-radius-sm;
   cursor: pointer;
@@ -311,7 +311,7 @@
 
   &:hover {
     background: $color-white;
-    border-color: $color-gray-200;
+    border-color: $border-color;
     color: $color-gray-900;
   }
 
