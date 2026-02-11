@@ -8,10 +8,12 @@ import {
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Observable, Subject, takeUntil } from 'rxjs';
 import { Task } from '@nexus-queue/shared-models';
 import { QueueService, LoggerService, AuthService } from '../../../../core/services';
+import { environment } from '../../../../../environments/environment';
 
 const LOG_CONTEXT = 'MainStage';
 
@@ -28,6 +30,19 @@ export interface IFrameMessage {
   taskId?: string;
 }
 
+/** Display mode for the current task's external URL */
+type DisplayMode = 'iframe' | 'popup';
+
+/** Result of the server-side embeddability check */
+interface EmbeddableCheckResult {
+  url: string;
+  origin: string;
+  embeddable: boolean;
+  reason: string;
+  cached: boolean;
+  recommendedMode: string;
+}
+
 @Component({
   selector: 'app-main-stage',
   standalone: true,
@@ -42,19 +57,39 @@ export class MainStageComponent implements OnInit, OnDestroy {
 
   /** The current safe iframe URL — only changes when the origin differs */
   safePayloadUrl: SafeResourceUrl | null = null;
-  /** Whether any task has a payload URL (controls iframe visibility) */
+  /** Whether any task has a payload URL (controls visibility) */
   hasPayloadUrl = false;
   iframeLoaded = false;
   /** Whether the iframe app has signaled READY (session is initialized) */
   iframeReady = false;
+  /** Whether the iframe was blocked by CSP (detected via timeout or security event) */
+  iframeBlocked = false;
+  /** Reason the iframe was blocked */
+  iframeBlockedReason = '';
 
+  /** Current display mode for the task: iframe (embedded) or popup (new window) */
+  activeDisplayMode: DisplayMode = 'iframe';
+  /** Whether the embeddability check is still in progress */
+  checkingEmbeddability = false;
+
+  /** Reference to the managed popup window (for screen pop mode) */
+  private popupWindow: Window | null = null;
+  /** URL currently open in the popup window */
+  popupUrl = '';
+
+  private http = inject(HttpClient);
   private logger = inject(LoggerService);
   private authService = inject(AuthService);
   private destroy$ = new Subject<void>();
   private messageHandler: ((event: MessageEvent) => void) | null = null;
+  private securityHandler: ((event: SecurityPolicyViolationEvent) => void) | null = null;
 
   /** Track the current iframe origin to detect same-origin task transitions */
   private currentIframeOrigin = '';
+  /** Cache embeddability check results per origin */
+  private embeddableCache = new Map<string, boolean>();
+  /** Timeout for iframe load detection */
+  private iframeLoadTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private queueService: QueueService,
@@ -65,7 +100,17 @@ export class MainStageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;
 
-    // Subscribe to task changes — manage iframe lifecycle with session persistence
+    // Listen for CSP violation events (catches frame-ancestors blocks)
+    this.securityHandler = (event: SecurityPolicyViolationEvent) => {
+      if (event.violatedDirective?.includes('frame-ancestors')) {
+        this.ngZone.run(() => {
+          this.handleIframeBlocked(`CSP ${event.violatedDirective}: ${event.blockedURI}`);
+        });
+      }
+    };
+    document.addEventListener('securitypolicyviolation', this.securityHandler);
+
+    // Subscribe to task changes — manage display lifecycle
     this.currentTask$.pipe(takeUntil(this.destroy$)).subscribe((task) => {
       if (task?.payloadUrl) {
         this.hasPayloadUrl = true;
@@ -74,22 +119,60 @@ export class MainStageComponent implements OnInit, OnDestroy {
       } else {
         this.hasPayloadUrl = false;
         this.removeMessageListener();
-        // Don't clear safePayloadUrl or destroy iframe — preserve session for next task
       }
     });
   }
 
   /**
-   * Determine whether to reload the iframe or send task context via postMessage.
-   * If the origin hasn't changed, keep the iframe alive and push context instead.
+   * Determine how to display the task's external URL.
+   * Checks displayMode on the task, embeddability cache, or runs a server-side check.
    */
   private handleTaskPayload(task: Task): void {
     const newOrigin = this.extractOrigin(task.payloadUrl!);
     const originChanged = newOrigin !== this.currentIframeOrigin;
 
+    // If task specifies a display mode, use it directly
+    if (task.displayMode === 'popup') {
+      this.openInPopup(task);
+      return;
+    }
+    if (task.displayMode === 'iframe') {
+      this.openInIframe(task, originChanged);
+      return;
+    }
+
+    // Auto mode: check if we already know this origin's embeddability
+    const cached = this.embeddableCache.get(newOrigin);
+    if (cached === false) {
+      // Known non-embeddable: open as popup
+      this.openInPopup(task);
+      return;
+    }
+    if (cached === true) {
+      // Known embeddable: use iframe
+      this.openInIframe(task, originChanged);
+      return;
+    }
+
+    // Unknown: run server-side check, default to iframe while checking
+    this.checkingEmbeddability = true;
+    this.openInIframe(task, originChanged);
+    this.checkEmbeddability(task.payloadUrl!, newOrigin);
+  }
+
+  /**
+   * Open the task URL in an iframe (embedded mode).
+   */
+  private openInIframe(task: Task, originChanged: boolean): void {
+    this.activeDisplayMode = 'iframe';
+    this.iframeBlocked = false;
+    this.iframeBlockedReason = '';
+    this.closePopup();
+
+    const newOrigin = this.extractOrigin(task.payloadUrl!);
+
     if (originChanged || !this.safePayloadUrl) {
-      // Origin changed (or first load): reload iframe with new URL
-      this.logger.info(LOG_CONTEXT, 'Loading new iframe URL', {
+      this.logger.info(LOG_CONTEXT, 'Loading iframe URL', {
         taskId: task.id,
         origin: newOrigin,
         previousOrigin: this.currentIframeOrigin || '(none)',
@@ -98,6 +181,9 @@ export class MainStageComponent implements OnInit, OnDestroy {
       this.iframeReady = false;
       this.currentIframeOrigin = newOrigin;
       this.safePayloadUrl = this.sanitizer.bypassSecurityTrustResourceUrl(task.payloadUrl!);
+
+      // Start a timeout to detect if the iframe silently failed
+      this.startIframeLoadTimeout(task);
     } else {
       // Same origin: keep iframe alive, send task context via postMessage
       this.logger.info(LOG_CONTEXT, 'Same origin — sending task context via postMessage', {
@@ -105,6 +191,138 @@ export class MainStageComponent implements OnInit, OnDestroy {
         origin: newOrigin,
       });
       this.sendTaskContext(task);
+    }
+  }
+
+  /**
+   * Open the task URL in a managed popup window (screen pop mode).
+   * This is used when the external site blocks iframe embedding.
+   */
+  private openInPopup(task: Task): void {
+    this.activeDisplayMode = 'popup';
+    this.safePayloadUrl = null;
+    this.iframeLoaded = false;
+    this.currentIframeOrigin = '';
+
+    const url = task.payloadUrl!;
+    this.popupUrl = url;
+
+    // Reuse existing popup if still open
+    if (this.popupWindow && !this.popupWindow.closed) {
+      this.popupWindow.location.href = url;
+      this.popupWindow.focus();
+      this.logger.info(LOG_CONTEXT, 'Navigated existing popup to new task', { taskId: task.id });
+    } else {
+      // Open a new popup window with reasonable dimensions
+      const width = Math.min(1200, window.screen.availWidth - 100);
+      const height = Math.min(900, window.screen.availHeight - 100);
+      const left = window.screen.availWidth - width - 50;
+      const top = 50;
+
+      this.popupWindow = window.open(
+        url,
+        'nexus-task-window',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=yes,menubar=no,location=yes`
+      );
+      this.logger.info(LOG_CONTEXT, 'Opened popup window for task', { taskId: task.id, url });
+    }
+  }
+
+  /**
+   * Manually open/re-open the popup window (called from template)
+   */
+  openPopup(): void {
+    const task = this.queueService.currentTask;
+    if (task?.payloadUrl) {
+      this.openInPopup(task);
+    }
+  }
+
+  /**
+   * Switch from blocked iframe to popup mode (called from template)
+   */
+  switchToPopup(): void {
+    const task = this.queueService.currentTask;
+    if (task?.payloadUrl) {
+      const origin = this.extractOrigin(task.payloadUrl);
+      this.embeddableCache.set(origin, false);
+      this.openInPopup(task);
+    }
+  }
+
+  /**
+   * Close the popup window
+   */
+  private closePopup(): void {
+    if (this.popupWindow && !this.popupWindow.closed) {
+      // Don't close the popup when switching tasks — the agent may need to continue their session
+      // The popup is only closed on component destroy
+    }
+  }
+
+  /**
+   * Run server-side embeddability check and update accordingly.
+   */
+  private checkEmbeddability(url: string, origin: string): void {
+    this.http.get<EmbeddableCheckResult>(
+      `${environment.apiUrl}/proxy/check-embeddable`,
+      { params: { url } }
+    ).subscribe({
+      next: (result) => {
+        this.checkingEmbeddability = false;
+        this.embeddableCache.set(origin, result.embeddable);
+
+        if (!result.embeddable) {
+          this.logger.warn(LOG_CONTEXT, 'URL not embeddable, switching to popup', {
+            origin,
+            reason: result.reason,
+          });
+          this.handleIframeBlocked(result.reason);
+        } else {
+          this.logger.info(LOG_CONTEXT, 'URL confirmed embeddable', { origin });
+        }
+      },
+      error: () => {
+        this.checkingEmbeddability = false;
+        this.logger.warn(LOG_CONTEXT, 'Embeddability check failed, keeping iframe mode');
+      },
+    });
+  }
+
+  /**
+   * Handle iframe being blocked (CSP, timeout, or server-side check)
+   */
+  private handleIframeBlocked(reason: string): void {
+    this.iframeBlocked = true;
+    this.iframeBlockedReason = reason;
+    this.iframeLoaded = false;
+    this.clearIframeLoadTimeout();
+    this.logger.warn(LOG_CONTEXT, 'iFrame blocked', { reason });
+  }
+
+  /**
+   * Start a timeout to detect silent iframe load failures.
+   * If the iframe doesn't fire onload within 8 seconds, assume it's blocked.
+   */
+  private startIframeLoadTimeout(task: Task): void {
+    this.clearIframeLoadTimeout();
+    this.iframeLoadTimeout = setTimeout(() => {
+      if (!this.iframeLoaded && this.activeDisplayMode === 'iframe') {
+        this.logger.warn(LOG_CONTEXT, 'iFrame load timeout — may be blocked', {
+          taskId: task.id,
+        });
+        // Don't auto-switch — just show the blocked message with option to switch
+        if (!this.iframeBlocked) {
+          this.handleIframeBlocked('Page did not load within the expected time. The site may block iframe embedding.');
+        }
+      }
+    }, 8000);
+  }
+
+  private clearIframeLoadTimeout(): void {
+    if (this.iframeLoadTimeout) {
+      clearTimeout(this.iframeLoadTimeout);
+      this.iframeLoadTimeout = null;
     }
   }
 
@@ -146,13 +364,25 @@ export class MainStageComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.removeMessageListener();
+    this.clearIframeLoadTimeout();
+
+    if (this.securityHandler) {
+      document.removeEventListener('securitypolicyviolation', this.securityHandler);
+      this.securityHandler = null;
+    }
+
+    // Close popup window on workspace exit
+    if (this.popupWindow && !this.popupWindow.closed) {
+      this.popupWindow.close();
+    }
   }
 
   /**
-   * Handle iframe load event
+   * Handle iframe load event — clears the load timeout
    */
   onIframeLoad(): void {
     this.iframeLoaded = true;
+    this.clearIframeLoadTimeout();
     this.logger.info(LOG_CONTEXT, 'iFrame loaded successfully');
   }
 
@@ -162,6 +392,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
   onIframeError(): void {
     this.logger.error(LOG_CONTEXT, 'iFrame failed to load');
     this.iframeLoaded = false;
+    this.handleIframeBlocked('iFrame failed to load (network error or security restriction)');
   }
 
   /**
@@ -277,7 +508,6 @@ export class MainStageComponent implements OnInit, OnDestroy {
    */
   private handleTaskSaved(payload?: Record<string, unknown>): void {
     this.logger.info(LOG_CONTEXT, 'Source app saved work', payload);
-    // Could show a toast notification or update UI
   }
 
   /**
@@ -285,7 +515,6 @@ export class MainStageComponent implements OnInit, OnDestroy {
    */
   private handleNavigation(payload?: Record<string, unknown>): void {
     this.logger.debug(LOG_CONTEXT, 'Source app navigation', payload);
-    // Could track for analytics or handle specific navigation events
   }
 
   /**
@@ -293,7 +522,6 @@ export class MainStageComponent implements OnInit, OnDestroy {
    */
   private handleError(payload?: Record<string, unknown>): void {
     this.logger.error(LOG_CONTEXT, 'Source app error', payload);
-    // Could show error notification to agent
   }
 
   /**
@@ -327,7 +555,6 @@ export class MainStageComponent implements OnInit, OnDestroy {
    */
   private handleCustomMessage(payload?: Record<string, unknown>): void {
     this.logger.debug(LOG_CONTEXT, 'Custom message received', payload);
-    // Handle based on payload content
   }
 
   /**

@@ -160,6 +160,7 @@ export class PipelineOrchestratorService {
       title: taskData.title,
       description: taskData.description,
       payloadUrl: taskData.payloadUrl || '',
+      displayMode: (taskData.metadata?.['_displayMode'] as Task['displayMode']) || undefined,
       metadata: {
         ...taskData.metadata,
         _source: source,
