@@ -1,0 +1,514 @@
+@use 'styles/variables' as *;
+
+.skill-assignments-container {
+  padding: $spacing-6;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-6;
+
+  .header-content {
+    h1 {
+      font-size: $font-size-2xl;
+      font-weight: $font-weight-bold;
+      color: $color-gray-900;
+      margin: 0 0 $spacing-1 0;
+    }
+
+    .subtitle {
+      color: $color-gray-500;
+      font-size: $font-size-sm;
+      margin: 0;
+    }
+  }
+}
+
+// Messages
+.message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-3 $spacing-4;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-4;
+  font-size: $font-size-sm;
+  border: $border-width-thin solid transparent;
+
+  &.success {
+    background: $color-success-bg;
+    color: $color-success;
+    border-color: rgba($color-success, 0.15);
+  }
+
+  &.error {
+    background: $color-error-bg;
+    color: $color-error;
+    border-color: rgba($color-error, 0.15);
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: $font-size-xl;
+    cursor: pointer;
+    color: inherit;
+    padding: 0;
+    line-height: 1;
+  }
+}
+
+// Filters
+.filters-bar {
+  margin-bottom: $spacing-4;
+
+  .search-input {
+    width: 100%;
+    max-width: 400px;
+    padding: $spacing-2 $spacing-3;
+    border: $border-width-thin solid $border-color;
+    border-radius: $border-radius-md;
+    font-size: $font-size-sm;
+    background: $color-white;
+    color: $color-gray-900;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 2px rgba($color-primary, 0.15);
+    }
+  }
+}
+
+.loading {
+  text-align: center;
+  padding: $spacing-8;
+  color: $color-gray-400;
+  font-size: $font-size-sm;
+}
+
+// Agent list
+.agents-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.agent-card {
+  background: $color-white;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $color-gray-300;
+  }
+
+  .agent-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-4;
+    cursor: pointer;
+
+    &:hover {
+      background: $color-gray-50;
+    }
+  }
+
+  .agent-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+  }
+
+  .agent-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: $color-primary;
+    color: $color-white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: $font-weight-bold;
+    font-size: $font-size-base;
+  }
+
+  .agent-details {
+    h3 {
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      color: $color-gray-900;
+      margin: 0;
+    }
+
+    .agent-username {
+      font-size: $font-size-xs;
+      color: $color-gray-400;
+    }
+  }
+
+  .agent-skill-summary {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+
+    .skill-count {
+      font-size: $font-size-sm;
+      color: $color-gray-500;
+    }
+
+    .expand-icon {
+      transition: transform $transition-fast;
+      color: $color-gray-400;
+
+      &.expanded {
+        transform: rotate(180deg);
+      }
+    }
+  }
+}
+
+// Expanded detail
+.agent-skills-detail {
+  padding: 0 $spacing-4 $spacing-4;
+  border-top: $border-width-thin solid $border-color;
+}
+
+.skills-table {
+  .skill-row {
+    display: grid;
+    grid-template-columns: 1fr 120px 200px;
+    gap: $spacing-3;
+    align-items: center;
+    padding: $spacing-2 $spacing-3;
+    border-radius: $border-radius-sm;
+
+    &.header-row {
+      font-size: $font-size-xs;
+      font-weight: $font-weight-semibold;
+      color: $color-gray-500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: $border-width-thin solid $border-color;
+      margin-bottom: $spacing-1;
+    }
+
+    &:not(.header-row):hover {
+      background: $color-gray-50;
+    }
+
+    .col-name {
+      font-size: $font-size-sm;
+      color: $color-gray-900;
+    }
+
+    .col-proficiency {
+      display: flex;
+      align-items: center;
+      gap: $spacing-2;
+    }
+  }
+}
+
+// Proficiency dots
+.proficiency-bar {
+  display: flex;
+  gap: 3px;
+}
+
+.prof-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $color-gray-200;
+
+  &.filled {
+    &.prof-novice { background: #ef4444; }
+    &.prof-basic { background: #f97316; }
+    &.prof-intermediate { background: #eab308; }
+    &.prof-advanced { background: #22c55e; }
+    &.prof-expert { background: #3b82f6; }
+  }
+}
+
+.prof-label {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}
+
+.no-skills {
+  padding: $spacing-4;
+  text-align: center;
+  color: $color-gray-400;
+  font-size: $font-size-sm;
+}
+
+// Category badge
+.category-badge {
+  font-size: $font-size-xs;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-full;
+  background: $color-gray-100;
+  color: $color-gray-600;
+
+  &[data-category='language'] { background: #e0f2fe; color: #0369a1; }
+  &[data-category='product'] { background: #fef3c7; color: #92400e; }
+  &[data-category='technical'] { background: #ede9fe; color: #6d28d9; }
+  &[data-category='process'] { background: #d1fae5; color: #065f46; }
+  &[data-category='certification'] { background: #fce7f3; color: #9d174d; }
+}
+
+// Buttons
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-4;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  border: $border-width-thin solid transparent;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &-primary {
+    background: $color-primary;
+    color: $color-white;
+    border-color: $color-primary;
+
+    &:hover { background: $color-primary-dark; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+
+  &-secondary {
+    background: $color-white;
+    color: $color-gray-700;
+    border-color: $border-color;
+
+    &:hover { background: $color-gray-50; }
+  }
+
+  &-sm {
+    padding: $spacing-1 $spacing-3;
+    font-size: $font-size-xs;
+  }
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: $border-radius-md;
+  border: none;
+  background: transparent;
+  color: $color-gray-500;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover { background: $color-gray-100; color: $color-gray-700; }
+  &.danger:hover { background: $color-error-bg; color: $color-error; }
+}
+
+// Empty state
+.empty-state {
+  text-align: center;
+  padding: $spacing-12 $spacing-4;
+  color: $color-gray-400;
+
+  p {
+    font-size: $font-size-sm;
+    margin: 0;
+  }
+}
+
+// Modal
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-xl;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  &.modal-wide {
+    max-width: 700px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-4 $spacing-6;
+    border-bottom: $border-width-thin solid $border-color;
+
+    h2 {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      margin: 0;
+      color: $color-gray-900;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: $font-size-2xl;
+      color: $color-gray-400;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+
+      &:hover { color: $color-gray-600; }
+    }
+  }
+
+  .modal-body {
+    padding: $spacing-6;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: $spacing-3;
+    padding: $spacing-4 $spacing-6;
+    border-top: $border-width-thin solid $border-color;
+  }
+}
+
+// Sections in modal
+.section {
+  margin-bottom: $spacing-6;
+
+  h3 {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-700;
+    margin: 0 0 $spacing-3 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.assigned-skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.assigned-skill-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  background: $color-gray-50;
+
+  .skill-name {
+    flex: 1;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-gray-900;
+  }
+}
+
+// Proficiency selector buttons
+.proficiency-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.prof-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: $border-radius-sm;
+  border: $border-width-thin solid $border-color;
+  background: $color-white;
+  color: $color-gray-500;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+
+  &.selected {
+    border-color: $color-primary;
+    color: $color-white;
+  }
+
+  &.prof-novice.selected { background: #ef4444; border-color: #ef4444; }
+  &.prof-basic.selected { background: #f97316; border-color: #f97316; }
+  &.prof-intermediate.selected { background: #eab308; border-color: #eab308; }
+  &.prof-advanced.selected { background: #22c55e; border-color: #22c55e; }
+  &.prof-expert.selected { background: #3b82f6; border-color: #3b82f6; }
+}
+
+.prof-level-label {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  margin-left: $spacing-2;
+  min-width: 80px;
+}
+
+// Add skill form
+.add-skill-section {
+  border-top: $border-width-thin solid $border-color;
+  padding-top: $spacing-4;
+}
+
+.add-skill-form {
+  display: flex;
+  gap: $spacing-3;
+  align-items: center;
+
+  .form-input {
+    padding: $spacing-2 $spacing-3;
+    border: $border-width-thin solid $border-color;
+    border-radius: $border-radius-md;
+    font-size: $font-size-sm;
+    color: $color-gray-900;
+    background: $color-white;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+    }
+  }
+
+  .form-input:first-child {
+    flex: 1;
+  }
+
+  .proficiency-input {
+    width: 160px;
+  }
+}
+
+.no-skills-hint,
+.all-assigned-hint {
+  font-size: $font-size-sm;
+  color: $color-gray-400;
+  margin: $spacing-2 0;
+}

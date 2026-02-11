@@ -1,0 +1,216 @@
+<div class="skills-container">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Skill Designer</h1>
+      <p class="subtitle">Configure skills for agent-task routing</p>
+    </div>
+    <div class="header-actions">
+      <div class="skill-stats">
+        <span class="stat">{{ activeSkillCount() }} active</span>
+        <span class="stat-divider">/</span>
+        <span class="stat muted">{{ totalSkillCount() }} total</span>
+      </div>
+      <button class="btn btn-primary" (click)="openNewEditor()">
+        + New Skill
+      </button>
+    </div>
+  </header>
+
+  <!-- Messages -->
+  @if (successMessage()) {
+    <div class="message success">
+      {{ successMessage() }}
+      <button class="close-btn" (click)="clearMessages()">&times;</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="message error">
+      {{ errorMessage() }}
+      <button class="close-btn" (click)="clearMessages()">&times;</button>
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <input
+      type="text"
+      class="search-input"
+      placeholder="Search skills..."
+      [ngModel]="searchTerm()"
+      (ngModelChange)="searchTerm.set($event)"
+    />
+    <select
+      class="filter-select"
+      [ngModel]="filterCategory()"
+      (ngModelChange)="filterCategory.set($event)"
+    >
+      <option value="">All Categories</option>
+      @for (cat of categories(); track cat.id) {
+        <option [value]="cat.id">{{ cat.name }}</option>
+      }
+    </select>
+    <select
+      class="filter-select"
+      [ngModel]="filterActive()"
+      (ngModelChange)="filterActive.set($event)"
+    >
+      <option value="">All Status</option>
+      <option value="true">Active</option>
+      <option value="false">Inactive</option>
+    </select>
+    @if (filterCategory() || filterActive() || searchTerm()) {
+      <button
+        class="btn btn-text"
+        (click)="clearFilters()"
+      >
+        Clear Filters
+      </button>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="loading">Loading skills...</div>
+  }
+
+  <!-- Skills by Category -->
+  @if (!isLoading()) {
+    <div class="skills-content">
+      @for (group of skillsByCategory(); track group.category) {
+        <div class="category-section">
+          <div class="category-header">
+            <h2>{{ getCategoryName(group.category) }}</h2>
+            <span class="category-count">{{ group.skills.length }} skill(s)</span>
+          </div>
+
+          <div class="skills-grid">
+            @for (skill of group.skills; track skill.id) {
+              <div
+                class="skill-card"
+                [class.inactive]="!skill.active"
+              >
+                <div class="card-header">
+                  <div class="card-title">
+                    <h3>{{ skill.name }}</h3>
+                    <span class="skill-id">{{ skill.id }}</span>
+                  </div>
+                  <div class="card-actions">
+                    <button
+                      class="btn-icon"
+                      (click)="toggleSkillActive(skill)"
+                      [title]="skill.active ? 'Deactivate' : 'Activate'"
+                    >
+                      <span class="toggle-indicator" [class.active]="skill.active"></span>
+                    </button>
+                    <button class="btn-icon" (click)="openEditEditor(skill)" title="Edit">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </button>
+                    <button class="btn-icon danger" (click)="deleteSkill(skill)" title="Delete">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                @if (skill.description) {
+                  <p class="card-description">
+                    {{ skill.description }}
+                  </p>
+                }
+
+                <div class="card-meta">
+                  <span class="category-badge" [attr.data-category]="skill.category">
+                    {{ getCategoryName(skill.category) }}
+                  </span>
+                  <span class="status-badge" [class.active]="skill.active" [class.inactive]="!skill.active">
+                    {{ skill.active ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Empty State -->
+      @if (filteredSkills().length === 0 && !isLoading()) {
+        <div class="empty-state">
+          @if (skills().length === 0) {
+            <p>No skills configured yet. Click "New Skill" to create one.</p>
+          }
+          @if (skills().length > 0) {
+            <p>No skills match the current filters.</p>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Editor Modal -->
+  @if (showEditor()) {
+    <div class="modal-overlay" (click)="closeEditor()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ editingSkill() ? 'Edit Skill' : 'New Skill' }}</h2>
+          <button class="close-btn" (click)="closeEditor()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="skillName">Skill Name *</label>
+            <input
+              type="text"
+              id="skillName"
+              class="form-input"
+              placeholder="e.g., Spanish Language, Claims Processing"
+              [ngModel]="formData().name"
+              (ngModelChange)="updateFormField('name', $event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="skillCategory">Category *</label>
+            <select
+              id="skillCategory"
+              class="form-input"
+              [ngModel]="formData().category"
+              (ngModelChange)="updateFormField('category', $event)"
+            >
+              @for (cat of categories(); track cat.id) {
+                <option [value]="cat.id">{{ cat.name }}</option>
+              }
+            </select>
+            <span class="form-hint">
+              Group related skills for easier management
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label for="skillDescription">Description</label>
+            <textarea
+              id="skillDescription"
+              class="form-input"
+              rows="3"
+              placeholder="Optional description of this skill"
+              [ngModel]="formData().description"
+              (ngModelChange)="updateFormField('description', $event)"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeEditor()">Cancel</button>
+          <button class="btn btn-primary" (click)="saveSkill()">
+            {{ editingSkill() ? 'Update Skill' : 'Create Skill' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

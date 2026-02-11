@@ -76,24 +76,26 @@ export class AppShellComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Operations — Team Dashboard, Queue Monitor
+    // Operations — Team Dashboard, Queue Monitor, Skill Assignments
     if (this.canAccessManager()) {
       sections.push({
         title: 'Operations',
         items: [
           { label: 'Team Dashboard', path: '/manager/team', icon: 'team' },
           { label: 'Queue Monitor', path: '/manager/queues', icon: 'queue' },
+          { label: 'Skill Assignments', path: '/manager/skills', icon: 'skills' },
         ],
       });
     }
 
-    // Configuration — Data Sources, Pipelines, Dispositions, Work States
+    // Configuration — Data Sources, Pipelines, Skills, Dispositions, Work States
     if (this.canAccessDesigner()) {
       sections.push({
         title: 'Configuration',
         items: [
           { label: 'Data Sources', path: '/admin/volume-loaders', icon: 'loader' },
           { label: 'Pipelines', path: '/admin/pipelines', icon: 'pipeline' },
+          { label: 'Skills', path: '/admin/skills', icon: 'skills' },
           { label: 'Dispositions', path: '/admin/dispositions', icon: 'disposition' },
           { label: 'Work States', path: '/admin/work-states', icon: 'states' },
         ],
@@ -165,6 +167,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
         admin: 'Configuration',
         team: 'Team Dashboard',
         queues: 'Queue Monitor',
+        skills: 'Skills',
         pipelines: 'Pipelines',
         dispositions: 'Dispositions',
         'work-states': 'Work States',

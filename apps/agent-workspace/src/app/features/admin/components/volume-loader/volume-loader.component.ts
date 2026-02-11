@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { VolumeLoaderApiService, CsvUploadResult, LoaderDeleteImpact, UploadLimits } from '../../services/volume-loader.service';
 import { PipelineApiService } from '../../services/pipeline.service';
+import { SkillApiService } from '../../services/skill.service';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import {
   VolumeLoader,
@@ -33,6 +34,8 @@ import {
   DetectedField,
   ParseSampleFileResult,
   DetectedFieldType,
+  Skill,
+  SkillCategory,
 } from '@nexus-queue/shared-models';
 
 @Component({
@@ -45,6 +48,7 @@ import {
 export class VolumeLoaderComponent implements OnInit {
   private readonly loaderService = inject(VolumeLoaderApiService);
   private readonly pipelineService = inject(PipelineApiService);
+  private readonly skillService = inject(SkillApiService);
 
   // Data
   loaders = signal<VolumeLoader[]>([]);
@@ -126,6 +130,13 @@ export class VolumeLoaderComponent implements OnInit {
   newQueueDescription = signal('');
   newQueuePriority = signal(5);
   newQueueSkills = signal('');
+
+  // Skill selection for queue setup (populated from configured skills)
+  availableSkills = signal<Skill[]>([]);
+  selectedQueueSkills = signal<string[]>([]);
+  showInlineSkillCreator = signal(false);
+  inlineSkillName = signal('');
+  inlineSkillCategory = signal<SkillCategory>('process');
 
   // Routing rules state (Step 9)
   pipelineRoutingRules = signal<RoutingRule[]>([]);
@@ -1943,6 +1954,12 @@ export class VolumeLoaderComponent implements OnInit {
       next: (rules) => this.pipelineRoutingRules.set(rules),
       error: () => this.pipelineRoutingRules.set([]),
     });
+
+    // Load available skills for queue skill selection
+    this.skillService.getAllSkills().subscribe({
+      next: (skills) => this.availableSkills.set(skills.filter((s) => s.active)),
+      error: () => this.availableSkills.set([]),
+    });
   }
 
   /**
@@ -1953,10 +1970,14 @@ export class VolumeLoaderComponent implements OnInit {
     const name = this.newQueueName();
     if (!pipelineId || !name?.trim()) return;
 
-    const skills = this.newQueueSkills()
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s);
+    // Use selectedQueueSkills (from skill picker) or fall back to comma-separated input
+    let skills = this.selectedQueueSkills();
+    if (skills.length === 0 && this.newQueueSkills()) {
+      skills = this.newQueueSkills()
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s);
+    }
 
     this.pipelineService.createQueue(pipelineId, {
       name: name.trim(),
@@ -1971,12 +1992,57 @@ export class VolumeLoaderComponent implements OnInit {
         this.newQueueDescription.set('');
         this.newQueuePriority.set(5);
         this.newQueueSkills.set('');
+        this.selectedQueueSkills.set([]);
         this.successMessage.set(`Queue "${queue.name}" created`);
       },
       error: (err) => {
         this.errorMessage.set(this.extractErrorMessage(err, 'Failed to create queue'));
       },
     });
+  }
+
+  /**
+   * Toggle a skill in the selected queue skills list
+   */
+  toggleQueueSkill(skillId: string): void {
+    this.selectedQueueSkills.update((skills) => {
+      if (skills.includes(skillId)) {
+        return skills.filter((s) => s !== skillId);
+      }
+      return [...skills, skillId];
+    });
+  }
+
+  /**
+   * Create a new skill inline during data source onboarding
+   */
+  createInlineSkill(): void {
+    const name = this.inlineSkillName().trim();
+    if (!name) return;
+
+    this.skillService.createSkill({
+      name,
+      category: this.inlineSkillCategory(),
+    }).subscribe({
+      next: (skill) => {
+        this.availableSkills.update((skills) => [...skills, skill]);
+        this.selectedQueueSkills.update((selected) => [...selected, skill.id]);
+        this.inlineSkillName.set('');
+        this.showInlineSkillCreator.set(false);
+        this.modalSuccessMessage.set(`Skill "${skill.name}" created and selected`);
+      },
+      error: () => {
+        this.modalErrorMessage.set('Failed to create skill');
+      },
+    });
+  }
+
+  /**
+   * Get skill name by ID from loaded skills
+   */
+  getSkillNameById(skillId: string): string {
+    const skill = this.availableSkills().find((s) => s.id === skillId);
+    return skill?.name || skillId;
   }
 
   /**

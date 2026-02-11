@@ -1094,13 +1094,57 @@
                       />
                     </div>
                     <div class="form-group">
-                      <label>Required Skills (comma-separated)</label>
-                      <input
-                        type="text"
-                        [ngModel]="newQueueSkills()"
-                        (ngModelChange)="newQueueSkills.set($event)"
-                        placeholder="e.g., orders, priority"
-                      />
+                      <label>Required Skills</label>
+                      <!-- Skill chips for selected skills -->
+                      <div class="skill-chips" *ngIf="selectedQueueSkills().length > 0">
+                        <span class="skill-chip" *ngFor="let skillId of selectedQueueSkills()">
+                          {{ getSkillNameById(skillId) }}
+                          <button class="chip-remove" (click)="toggleQueueSkill(skillId)">&times;</button>
+                        </span>
+                      </div>
+                      <!-- Skill picker from configured skills -->
+                      <div class="skill-picker" *ngIf="availableSkills().length > 0">
+                        <div class="skill-option" *ngFor="let skill of availableSkills()">
+                          <label class="skill-checkbox">
+                            <input
+                              type="checkbox"
+                              [checked]="selectedQueueSkills().includes(skill.id)"
+                              (change)="toggleQueueSkill(skill.id)"
+                            />
+                            <span>{{ skill.name }}</span>
+                            <small class="skill-category-hint">({{ skill.category }})</small>
+                          </label>
+                        </div>
+                      </div>
+                      <p class="form-hint" *ngIf="availableSkills().length === 0">
+                        No skills configured yet.
+                      </p>
+                      <!-- Inline skill creation -->
+                      @if (showInlineSkillCreator()) {
+                        <div class="inline-skill-creator">
+                          <input
+                            type="text"
+                            [ngModel]="inlineSkillName()"
+                            (ngModelChange)="inlineSkillName.set($event)"
+                            placeholder="New skill name..."
+                          />
+                          <select
+                            [ngModel]="inlineSkillCategory()"
+                            (ngModelChange)="inlineSkillCategory.set($event)"
+                          >
+                            <option value="process">Process</option>
+                            <option value="language">Language</option>
+                            <option value="product">Product</option>
+                            <option value="technical">Technical</option>
+                            <option value="certification">Certification</option>
+                            <option value="other">Other</option>
+                          </select>
+                          <button class="btn-primary btn-sm" (click)="createInlineSkill()" [disabled]="!inlineSkillName()?.trim()">Create</button>
+                          <button class="btn-secondary btn-sm" (click)="showInlineSkillCreator.set(false)">Cancel</button>
+                        </div>
+                      } @else {
+                        <button class="btn-text btn-sm" (click)="showInlineSkillCreator.set(true)">+ Create New Skill</button>
+                      }
                     </div>
                     <div class="add-queue-actions">
                       <button class="btn-primary" (click)="createQueue()" [disabled]="!newQueueName()?.trim()">

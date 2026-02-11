@@ -542,3 +542,76 @@
     opacity: 1;
   }
 }
+
+// Skill picker
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+  margin-bottom: $spacing-2;
+}
+
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-full;
+  background: rgba($color-primary, 0.1);
+  color: $color-primary;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  .chip-remove {
+    background: none;
+    border: none;
+    color: $color-primary;
+    cursor: pointer;
+    font-size: $font-size-sm;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+
+    &:hover { opacity: 1; }
+  }
+}
+
+.skill-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  padding: $spacing-2;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+  background: $color-gray-50;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: $spacing-1;
+}
+
+.skill-option {
+  .skill-checkbox {
+    display: flex;
+    align-items: center;
+    gap: $spacing-1;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    padding: 2px $spacing-2;
+    border-radius: $border-radius-sm;
+
+    &:hover { background: $color-gray-100; }
+
+    input[type='checkbox'] { cursor: pointer; }
+
+    .skill-category-hint {
+      color: $color-gray-400;
+      font-size: $font-size-xs;
+    }
+  }
+}
+
+.form-hint-text {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  margin: $spacing-1 0;
+}
