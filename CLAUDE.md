@@ -26,11 +26,17 @@ nexus-queue/
 │   ├── agent-workspace/          # Angular frontend (port 4200)
 │   │   └── src/
 │   │       ├── app/
-│   │       │   ├── core/         # Guards (auth.guard) & Services (auth, queue, socket, logger)
+│   │       │   ├── core/         # Guards (auth, permission, agent) & Services
+│   │       │   ├── shared/
+│   │       │   │   └── components/
+│   │       │   │       └── layout/   # AppShellComponent (SPA shell), PageLayoutComponent
 │   │       │   └── features/
-│   │       │       ├── login/    # Login component
-│   │       │       └── workspace/  # Main workspace container
-│   │       │           └── components/  # header, sidebar, main-stage, action-bar, log-viewer
+│   │       │       ├── login/        # Persona selector login
+│   │       │       ├── dashboard/    # Default landing page
+│   │       │       ├── workspace/    # Agent workspace (fullscreen)
+│   │       │       │   └── components/  # header, sidebar, main-stage, action-bar, log-viewer
+│   │       │       ├── admin/        # Designer + Admin routes (lazy)
+│   │       │       └── manager/      # Manager routes (lazy)
 │   │       ├── environments/     # environment.ts, environment.prod.ts
 │   │       └── styles/           # Global SCSS
 │   └── api-server/               # NestJS backend (port 3000, prefix /api)
@@ -42,6 +48,7 @@ nexus-queue/
 │   └── shared-models/            # @nexus-queue/shared-models library
 │       └── src/lib/              # task.interface.ts, agent.interface.ts
 ├── ARCHITECTURE.md               # System design, state machine, roadmap
+├── ARCHITECTURE-V2.md            # Pipeline-centric orchestration redesign
 ├── BRANCH_STRATEGY.md            # Git workflow (Git Flow)
 ├── AGENT.md                      # Detailed AI agent development guidelines
 └── CLAUDE.md                     # This file
@@ -219,9 +226,41 @@ export const environment = {
 
 Backend: Port configurable via `PORT` env var (default 3000). CORS enabled for `localhost:4200`.
 
+## SPA Architecture
+
+The frontend uses a **persistent layout shell** pattern for true SPA behaviour.
+
+### Route Structure
+
+```
+/login          → LoginComponent (outside shell, no auth required)
+/               → AppShellComponent (persistent shell with router-outlet)
+  ├── /         → DashboardComponent (default landing page)
+  ├── /workspace → WorkspaceComponent (fullscreen mode, no sidebar/topbar)
+  ├── /admin/*  → Admin/Designer routes (lazy-loaded)
+  └── /manager/* → Manager routes (lazy-loaded)
+```
+
+### AppShellComponent
+
+- Uses `<router-outlet>` (not `<ng-content>`) so the shell persists across route transitions
+- Sidebar, top-bar with breadcrumbs, and footer do NOT re-render during navigation
+- Route data `{ fullscreen: true }` hides all shell chrome (used by Workspace)
+- Sidebar navigation is organized by **functional area** (Home, Workspace, Operations, Configuration, System) — not by role
+
+### Fullscreen Mode
+
+The Workspace route uses `data: { fullscreen: true }` to bypass the shell's sidebar/topbar/footer. The workspace manages its own header with agent controls, stats, and user switching. The shell component still wraps it (for SPA persistence) but renders no visual chrome.
+
+### Default Routes
+
+- **AGENT** → `/workspace` (direct to task queue)
+- **All other roles** → `/` (dashboard with role-appropriate quick-nav cards)
+
 ## Related Documentation
 
 - **ARCHITECTURE.md** — Full system design, state diagrams, component layout, and roadmap
+- **ARCHITECTURE-V2.md** — Pipeline-centric orchestration redesign (Queue Manager, SLA Monitor, Distribution Engine)
 - **BRANCH_STRATEGY.md** — Detailed branching workflows, PR templates, merge strategies
 - **AGENT.md** — Comprehensive AI agent development guidelines, checklists, code patterns
 - **README.md** — Getting started guide
@@ -230,5 +269,7 @@ Backend: Port configurable via `PORT` env var (default 3000). CORS enabled for `
 
 - **Phase 1 (Foundation):** Complete — Mock auth, state machine, basic task distribution
 - **Phase 2 (Real-time Push):** Complete — WebSocket gateway, Force Mode, task actions
+- **Phase 2.5 (SPA Architecture):** Complete — Persistent layout shell, dashboard, fullscreen workspace, architectural navigation
+- **Phase 2.5 (Orchestration Core):** Planned — See ARCHITECTURE-V2.md
 - **Phase 3 (Logic Builder):** Planned — Drag-and-drop queue criteria configuration
 - **Phase 4 (GCS Integration):** Planned — Google Cloud Storage event-driven ingestion

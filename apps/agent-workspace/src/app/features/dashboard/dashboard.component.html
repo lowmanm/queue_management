@@ -1,0 +1,63 @@
+<div class="dashboard">
+  <div class="welcome-section">
+    <h1 class="welcome-title">Welcome, {{ userName() }}</h1>
+    <p class="welcome-subtitle">Select an area to get started</p>
+  </div>
+
+  <div class="quick-nav">
+    @if (canAccessWorkspace()) {
+      <button class="nav-card" (click)="navigateTo('/workspace')">
+        <div class="card-icon workspace-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="9"></rect>
+            <rect x="14" y="3" width="7" height="5"></rect>
+            <rect x="14" y="12" width="7" height="9"></rect>
+            <rect x="3" y="16" width="7" height="5"></rect>
+          </svg>
+        </div>
+        <h3 class="card-title">Agent Workspace</h3>
+        <p class="card-description">Connect to queue and work tasks</p>
+      </button>
+    }
+
+    @if (canAccessOperations()) {
+      <button class="nav-card" (click)="navigateTo('/manager/team')">
+        <div class="card-icon operations-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <h3 class="card-title">Operations</h3>
+        <p class="card-description">Team dashboard and queue monitoring</p>
+      </button>
+    }
+
+    @if (canAccessConfiguration()) {
+      <button class="nav-card" (click)="navigateTo('/admin/pipelines')">
+        <div class="card-icon config-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <h3 class="card-title">Configuration</h3>
+        <p class="card-description">Pipelines, data sources, and workflow design</p>
+      </button>
+    }
+
+    @if (canAccessSystem()) {
+      <button class="nav-card" (click)="navigateTo('/admin/users')">
+        <div class="card-icon system-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <h3 class="card-title">System</h3>
+        <p class="card-description">User management and administration</p>
+      </button>
+    }
+  </div>
+</div>
