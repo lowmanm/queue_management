@@ -54,6 +54,11 @@ export class QueueService implements OnDestroy {
   public reservationCountdown$: Observable<number> =
     this.reservationCountdownSubject.asObservable();
 
+  // === Agent Ready Signal ===
+  private agentReadySubject = new Subject<void>();
+  /** Emits when the agent explicitly signals ready for next task */
+  public agentReady$: Observable<void> = this.agentReadySubject.asObservable();
+
   // === Session Metrics ===
   private sessionMetrics = {
     tasksCompleted: 0,
@@ -130,13 +135,31 @@ export class QueueService implements OnDestroy {
   // === State Machine Transitions ===
 
   /**
-   * Handle task assigned via WebSocket (Force Mode)
+   * Handle task assigned via WebSocket (Force-Push Mode).
+   * Auto-accepts the task immediately, skipping the RESERVED state.
+   * The agent is locked to the task until completion/transfer/skip.
    */
   handleTaskAssigned(task: Task): void {
-    this.logger.info(LOG_CONTEXT, 'Task assigned via WebSocket', { taskId: task.id, workType: task.workType });
-    this.currentTaskSubject.next(task);
-    this.transitionTo('RESERVED');
-    this.startReservationTimer(task.reservationTimeout || 30);
+    this.logger.info(LOG_CONTEXT, 'Task assigned via WebSocket (force-push)', { taskId: task.id, workType: task.workType });
+
+    const now = new Date().toISOString();
+    const updatedTask: Task = {
+      ...task,
+      status: 'ACTIVE' as TaskStatus,
+      acceptedAt: now,
+      startedAt: now,
+    };
+
+    this.currentTaskSubject.next(updatedTask);
+    this.transitionTo('ACTIVE');
+
+    // Notify server of auto-accept
+    const agentId = this.authService.currentAgent?.id;
+    if (agentId) {
+      this.socketService.sendTaskAction(agentId, task.id, 'accept');
+    }
+
+    this.logger.info(LOG_CONTEXT, 'Task auto-accepted (force-push)', { taskId: task.id });
   }
 
   /**
@@ -392,7 +415,8 @@ export class QueueService implements OnDestroy {
   }
 
   /**
-   * Manually set agent to IDLE (e.g., after break)
+   * Manually set agent to IDLE and signal ready for work.
+   * Called when agent clicks "Get Next Task" or returns from break.
    */
   setReady(): void {
     if (this.currentTask) {
@@ -405,6 +429,9 @@ export class QueueService implements OnDestroy {
     if (agentId) {
       this.socketService.sendAgentReady(agentId);
     }
+
+    // Emit ready signal so workspace can clear post-disposition state
+    this.agentReadySubject.next();
   }
 
   /**

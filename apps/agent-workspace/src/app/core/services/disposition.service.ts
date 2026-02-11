@@ -78,10 +78,16 @@ export class DispositionService {
   }
 
   /**
-   * Complete a task with a disposition
+   * Complete a task with a disposition.
+   * Sends all required fields to the backend including agent/task context.
    */
   completeTaskWithDisposition(
-    request: CompleteTaskRequest
+    request: CompleteTaskRequest & {
+      agentId?: string;
+      workType?: string;
+      queue?: string;
+      assignedAt?: string;
+    }
   ): Observable<TaskCompletion> {
     return this.http
       .post<TaskCompletion>(

@@ -27,8 +27,11 @@ import { SocketService } from '../../core/services/socket.service';
 export class WorkspaceComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   agentState: AgentState = 'OFFLINE';
+  private previousState: AgentState = 'OFFLINE';
   isConnected = false;
   showLogViewer = false;
+  /** True when agent just completed a task (in post-disposition flow) */
+  isPostDisposition = false;
 
   constructor(
     private queueService: QueueService,
@@ -40,6 +43,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.queueService.agentState$
       .pipe(takeUntil(this.destroy$))
       .subscribe((state) => {
+        // Track post-disposition state: if transitioning from WRAP_UP to IDLE
+        if (state === 'IDLE' && this.previousState === 'WRAP_UP') {
+          this.isPostDisposition = true;
+        } else if (state !== 'IDLE') {
+          this.isPostDisposition = false;
+        }
+        this.previousState = this.agentState;
         this.agentState = state;
       });
 
@@ -49,6 +59,11 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
       .subscribe((status) => {
         this.isConnected = status.connected;
       });
+
+    // When agent explicitly requests next task, clear post-disposition state
+    this.queueService.agentReady$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.isPostDisposition = false;
+    });
 
     // Initialize queue service (connects to WebSocket)
     this.queueService.initialize();
@@ -61,11 +76,12 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Check if the workspace is in "waiting" state
-   * (connected but waiting for task in Force Mode)
+   * Check if the workspace is in "waiting" state.
+   * Shows the waiting overlay only when connected, IDLE, and NOT in post-disposition flow
+   * (post-disposition IDLE shows the "Get Next Task" action bar instead).
    */
   get isWaitingForTask(): boolean {
-    return this.isConnected && this.agentState === 'IDLE';
+    return this.isConnected && this.agentState === 'IDLE' && !this.isPostDisposition;
   }
 
   /**

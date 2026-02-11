@@ -396,3 +396,77 @@
   padding: $spacing-4 $spacing-5;
   border-top: $border-width-thin solid $border-color;
 }
+
+// Post-disposition actions (Get Next Task + Work States)
+.post-disposition-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+
+  @media (min-width: $breakpoint-md) {
+    gap: $spacing-4;
+  }
+}
+
+.get-next {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  background-color: $color-primary;
+  color: $color-white;
+  padding: $spacing-2 $spacing-5;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+
+  &:hover:not(:disabled) {
+    background-color: $color-primary-dark;
+    box-shadow: $shadow-sm;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba($color-white, 0.3);
+  border-top-color: $color-white;
+  border-radius: $border-radius-full;
+  animation: spin 0.6s linear infinite;
+  margin-right: $spacing-1;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.divider-text {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+  letter-spacing: $letter-spacing-wide;
+}
+
+.work-state-options {
+  display: flex;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+}
+
+.work-state-btn {
+  padding: $spacing-1-5 $spacing-3;
+  font-size: $font-size-xs;
+  background-color: $color-gray-100;
+  color: $color-gray-600;
+  border: $border-width-thin solid $color-gray-200;
+
+  &:hover:not(:disabled) {
+    background-color: $color-gray-200;
+    border-color: $color-gray-300;
+  }
+}

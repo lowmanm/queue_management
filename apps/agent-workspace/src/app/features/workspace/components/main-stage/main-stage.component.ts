@@ -11,7 +11,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Observable, Subject, takeUntil } from 'rxjs';
-import { Task } from '@nexus-queue/shared-models';
+import { Task, AgentState } from '@nexus-queue/shared-models';
 import { QueueService, LoggerService, AuthService } from '../../../../core/services';
 import { environment } from '../../../../../environments/environment';
 
@@ -90,6 +90,8 @@ export class MainStageComponent implements OnInit, OnDestroy {
   private embeddableCache = new Map<string, boolean>();
   /** Timeout for iframe load detection */
   private iframeLoadTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** Interval for polling popup.closed status */
+  private popupPollInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private queueService: QueueService,
@@ -119,6 +121,13 @@ export class MainStageComponent implements OnInit, OnDestroy {
       } else {
         this.hasPayloadUrl = false;
         this.removeMessageListener();
+      }
+    });
+
+    // Close popup when agent transitions to IDLE (disposition complete)
+    this.queueService.agentState$.pipe(takeUntil(this.destroy$)).subscribe((state: AgentState) => {
+      if (state === 'IDLE' || state === 'OFFLINE') {
+        this.closePopupWindow();
       }
     });
   }
@@ -167,7 +176,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
     this.activeDisplayMode = 'iframe';
     this.iframeBlocked = false;
     this.iframeBlockedReason = '';
-    this.closePopup();
+    this.closePopupWindow();
 
     const newOrigin = this.extractOrigin(task.payloadUrl!);
 
@@ -226,6 +235,9 @@ export class MainStageComponent implements OnInit, OnDestroy {
       );
       this.logger.info(LOG_CONTEXT, 'Opened popup window for task', { taskId: task.id, url });
     }
+
+    // Poll for popup closure
+    this.startPopupPolling();
   }
 
   /**
@@ -251,12 +263,41 @@ export class MainStageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Close the popup window
+   * Close the popup window and stop polling.
+   * Called when agent finishes disposition or goes offline.
    */
-  private closePopup(): void {
+  private closePopupWindow(): void {
+    this.stopPopupPolling();
     if (this.popupWindow && !this.popupWindow.closed) {
-      // Don't close the popup when switching tasks — the agent may need to continue their session
-      // The popup is only closed on component destroy
+      this.logger.info(LOG_CONTEXT, 'Closing popup window (disposition complete)');
+      this.popupWindow.close();
+      this.popupWindow = null;
+    }
+  }
+
+  /**
+   * Start polling for popup closure (detect if user manually closed the window)
+   */
+  private startPopupPolling(): void {
+    this.stopPopupPolling();
+    this.popupPollInterval = setInterval(() => {
+      if (this.popupWindow && this.popupWindow.closed) {
+        this.ngZone.run(() => {
+          this.logger.info(LOG_CONTEXT, 'Popup window was closed by user');
+          this.popupWindow = null;
+          this.stopPopupPolling();
+        });
+      }
+    }, 2000);
+  }
+
+  /**
+   * Stop polling for popup closure
+   */
+  private stopPopupPolling(): void {
+    if (this.popupPollInterval) {
+      clearInterval(this.popupPollInterval);
+      this.popupPollInterval = null;
     }
   }
 
@@ -365,6 +406,7 @@ export class MainStageComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     this.removeMessageListener();
     this.clearIframeLoadTimeout();
+    this.stopPopupPolling();
 
     if (this.securityHandler) {
       document.removeEventListener('securitypolicyviolation', this.securityHandler);
