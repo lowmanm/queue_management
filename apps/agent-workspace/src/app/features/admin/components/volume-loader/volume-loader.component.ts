@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, computed, ViewChild, ElementRef } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { VolumeLoaderApiService, CsvUploadResult, LoaderDeleteImpact } from '../../services/volume-loader.service';
+import { VolumeLoaderApiService, CsvUploadResult, LoaderDeleteImpact, UploadLimits } from '../../services/volume-loader.service';
 import { PipelineApiService } from '../../services/pipeline.service';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import {
@@ -108,6 +108,11 @@ export class VolumeLoaderComponent implements OnInit {
   uploadResult = signal<CsvUploadResult | null>(null);
   isUploading = signal(false);
   dryRunMode = signal(true); // Preview mode by default
+  uploadLimits = signal<UploadLimits>({ maxRows: 10000, maxFileSizeBytes: 50 * 1024 * 1024, maxFileSizeMb: 50 });
+
+  // Modal-specific messages (displayed inside the modal, not behind it)
+  modalErrorMessage = signal('');
+  modalSuccessMessage = signal('');
 
   // Inline pipeline creation state
   showInlinePipelineCreator = signal(false);
@@ -256,6 +261,10 @@ export class VolumeLoaderComponent implements OnInit {
 
     this.loaderService.getSummary().subscribe({
       next: (summary) => this.summary.set(summary),
+    });
+
+    this.loaderService.getUploadLimits().subscribe({
+      next: (limits) => this.uploadLimits.set(limits),
     });
 
     // Load pipelines for the selector
@@ -1703,7 +1712,7 @@ export class VolumeLoaderComponent implements OnInit {
     this.csvContent.set('');
     this.uploadResult.set(null);
     this.dryRunMode.set(true);
-    this.clearMessages();
+    this.clearModalMessages();
   }
 
   /**
@@ -1715,6 +1724,7 @@ export class VolumeLoaderComponent implements OnInit {
     this.csvContent.set('');
     this.uploadResult.set(null);
     this.routingPreview.set(null);
+    this.clearModalMessages();
   }
 
   /**
@@ -1765,12 +1775,12 @@ export class VolumeLoaderComponent implements OnInit {
 
     const content = this.csvContent();
     if (!content.trim()) {
-      this.errorMessage.set('Please provide CSV content');
+      this.modalErrorMessage.set('Please provide CSV content');
       return;
     }
 
     this.isUploading.set(true);
-    this.clearMessages();
+    this.clearModalMessages();
 
     this.loaderService.uploadCsv(loader.id, content, dryRun).subscribe({
       next: (result) => {
@@ -1778,7 +1788,7 @@ export class VolumeLoaderComponent implements OnInit {
         this.isUploading.set(false);
         if (result.success) {
           if (dryRun) {
-            this.successMessage.set(
+            this.modalSuccessMessage.set(
               `Preview: ${result.recordsFound} records found, ${result.recordsProcessed} valid, ` +
               `${result.recordsFailed} errors`
             );
@@ -1804,11 +1814,11 @@ export class VolumeLoaderComponent implements OnInit {
             this.loadData();
           }
         } else {
-          this.errorMessage.set(result.error || 'Upload failed');
+          this.modalErrorMessage.set(result.error || 'Upload failed');
         }
       },
       error: (err) => {
-        this.errorMessage.set(this.extractErrorMessage(err, 'Failed to upload CSV'));
+        this.modalErrorMessage.set(this.extractErrorMessage(err, 'Failed to upload CSV'));
         this.isUploading.set(false);
       },
     });
@@ -1847,6 +1857,11 @@ export class VolumeLoaderComponent implements OnInit {
   clearMessages(): void {
     this.errorMessage.set('');
     this.successMessage.set('');
+  }
+
+  clearModalMessages(): void {
+    this.modalErrorMessage.set('');
+    this.modalSuccessMessage.set('');
   }
 
   // ============ Pipeline Helpers ============

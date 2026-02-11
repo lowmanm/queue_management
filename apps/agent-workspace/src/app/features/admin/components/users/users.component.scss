@@ -485,3 +485,60 @@
   color: $color-gray-600;
   font-family: $font-family-mono;
 }
+
+// Modal error banner
+.modal-error {
+  margin-bottom: $spacing-4;
+}
+
+// Toast Notification
+.toast-notification {
+  position: fixed;
+  bottom: $spacing-6;
+  right: $spacing-6;
+  padding: $spacing-3 $spacing-5;
+  border-radius: $border-radius-md;
+  color: $color-white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  z-index: 10000;
+  box-shadow: $shadow-lg;
+  animation: slideInRight 0.3s ease-out;
+
+  &.toast-success {
+    background: $color-success;
+  }
+
+  &.toast-error {
+    background: $color-error;
+  }
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: $color-white;
+  font-size: $font-size-lg;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.8;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
