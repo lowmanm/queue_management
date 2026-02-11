@@ -16,13 +16,22 @@ export interface PermissionRouteData {
 }
 
 /**
+ * Redirect to the user's role-appropriate landing page.
+ * Falls back to /login if no default route is available.
+ */
+function redirectToLanding(router: Router, authService: AuthService): false {
+  const defaultRoute = authService.getDefaultRoute();
+  router.navigate([defaultRoute]);
+  return false;
+}
+
+/**
  * Guard that checks if user has required permissions
  */
-export const permissionGuard: CanActivateFn = (route, state) => {
+export const permissionGuard: CanActivateFn = (route) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  // Check authentication first
   if (!authService.isAuthenticated) {
     router.navigate(['/login']);
     return false;
@@ -30,28 +39,23 @@ export const permissionGuard: CanActivateFn = (route, state) => {
 
   const data = route.data as PermissionRouteData;
 
-  // If no permissions or roles specified, allow access
   if (!data?.permissions?.length && !data?.roles?.length) {
     return true;
   }
 
-  // Check roles first
   if (data.roles?.length) {
     if (!authService.hasAnyRole(data.roles)) {
-      router.navigate(['/unauthorized']);
-      return false;
+      return redirectToLanding(router, authService);
     }
   }
 
-  // Check permissions
   if (data.permissions?.length) {
     const hasAccess = data.requireAll
       ? authService.hasAllPermissions(data.permissions)
       : authService.hasAnyPermission(data.permissions);
 
     if (!hasAccess) {
-      router.navigate(['/unauthorized']);
-      return false;
+      return redirectToLanding(router, authService);
     }
   }
 
@@ -59,9 +63,9 @@ export const permissionGuard: CanActivateFn = (route, state) => {
 };
 
 /**
- * Guard that requires user to be an agent (or have task:work permission)
+ * Guard that requires user to have tasks:work permission (agents, managers, admins)
  */
-export const agentGuard: CanActivateFn = (route, state) => {
+export const agentGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -71,17 +75,16 @@ export const agentGuard: CanActivateFn = (route, state) => {
   }
 
   if (!authService.hasPermission('tasks:work')) {
-    router.navigate(['/unauthorized']);
-    return false;
+    return redirectToLanding(router, authService);
   }
 
   return true;
 };
 
 /**
- * Guard that requires user to be a manager
+ * Guard that requires user to be a manager or admin
  */
-export const managerGuard: CanActivateFn = (route, state) => {
+export const managerGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -91,17 +94,16 @@ export const managerGuard: CanActivateFn = (route, state) => {
   }
 
   if (!authService.hasAnyRole(['MANAGER', 'ADMIN'])) {
-    router.navigate(['/unauthorized']);
-    return false;
+    return redirectToLanding(router, authService);
   }
 
   return true;
 };
 
 /**
- * Guard that requires user to be a designer
+ * Guard that requires user to be a designer or admin
  */
-export const designerGuard: CanActivateFn = (route, state) => {
+export const designerGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -111,8 +113,7 @@ export const designerGuard: CanActivateFn = (route, state) => {
   }
 
   if (!authService.hasAnyRole(['DESIGNER', 'ADMIN'])) {
-    router.navigate(['/unauthorized']);
-    return false;
+    return redirectToLanding(router, authService);
   }
 
   return true;
@@ -121,7 +122,7 @@ export const designerGuard: CanActivateFn = (route, state) => {
 /**
  * Guard that requires user to be an admin
  */
-export const adminGuard: CanActivateFn = (route, state) => {
+export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -131,8 +132,7 @@ export const adminGuard: CanActivateFn = (route, state) => {
   }
 
   if (!authService.hasRole('ADMIN')) {
-    router.navigate(['/unauthorized']);
-    return false;
+    return redirectToLanding(router, authService);
   }
 
   return true;

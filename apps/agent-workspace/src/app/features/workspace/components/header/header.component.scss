@@ -351,6 +351,40 @@
   }
 }
 
+// Switch User & Logout Buttons
+.switch-user-btn,
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: $color-gray-400;
+  border: $border-width-thin solid rgba(255, 255, 255, 0.1);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover,
+  &.active {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: $color-white;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary-light;
+    outline-offset: 2px;
+  }
+}
+
+.logout-btn:hover {
+  color: $color-error-light;
+  border-color: rgba($color-error-light, 0.3);
+}
+
 // Debug Button
 .debug-btn {
   padding: $spacing-1-5 $spacing-3;
@@ -591,5 +625,177 @@
   50% {
     opacity: 0.7;
     transform: scale(1.2);
+  }
+}
+
+// User Switcher Panel
+.switcher-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba($color-black, 0.3);
+  z-index: $z-overlay;
+}
+
+.user-switcher-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 90vw;
+  background-color: $color-white;
+  z-index: $z-modal;
+  display: flex;
+  flex-direction: column;
+  box-shadow: $shadow-xl;
+  animation: slideInRight $transition-normal;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-4 $spacing-5;
+  border-bottom: $border-width-thin solid $border-color;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-900;
+  }
+}
+
+.switcher-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: $color-gray-400;
+  cursor: pointer;
+  border-radius: $border-radius-sm;
+  transition: all $transition-fast;
+
+  &:hover {
+    color: $color-gray-900;
+    background-color: $color-gray-100;
+  }
+}
+
+.switcher-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-3 0;
+}
+
+.switcher-loading {
+  text-align: center;
+  padding: $spacing-8;
+  color: $color-gray-400;
+  font-size: $font-size-sm;
+}
+
+.switcher-group {
+  margin-bottom: $spacing-2;
+}
+
+.switcher-group-label {
+  padding: $spacing-1-5 $spacing-5;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: $letter-spacing-wider;
+  color: $color-gray-400;
+}
+
+.switcher-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: $spacing-2 $spacing-5;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color $transition-fast;
+
+  &:hover {
+    background-color: $color-gray-50;
+  }
+
+  &.current {
+    background-color: $color-primary-subtle;
+  }
+}
+
+.switcher-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-0-5;
+  min-width: 0;
+}
+
+.switcher-user-name {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-gray-900;
+}
+
+.switcher-user-detail {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}
+
+.switcher-user-skills {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  font-style: italic;
+}
+
+.current-badge {
+  padding: $spacing-0-5 $spacing-2;
+  background-color: $color-primary;
+  color: $color-white;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  flex-shrink: 0;
+}
+
+.switcher-footer {
+  padding: $spacing-3 $spacing-5;
+  border-top: $border-width-thin solid $border-color;
+  flex-shrink: 0;
+}
+
+.switcher-logout {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  padding: $spacing-2 $spacing-3;
+  background: none;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+  color: $color-gray-600;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background-color: $color-gray-50;
+    border-color: $color-gray-300;
+    color: $color-gray-900;
   }
 }
