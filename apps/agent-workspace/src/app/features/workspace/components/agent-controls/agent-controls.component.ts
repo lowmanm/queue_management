@@ -262,25 +262,25 @@ export class AgentControlsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get icon for a state
+   * Get icon symbol for a state (Unicode symbols, no icon font required)
    */
   getStateIcon(state: AgentWorkState): string {
     const icons: Record<AgentWorkState, string> = {
-      LOGGED_OUT: 'logout',
-      LOGGED_IN: 'login',
-      READY: 'check_circle',
-      RESERVED: 'schedule',
-      ACTIVE: 'work',
-      WRAP_UP: 'edit_note',
-      BREAK: 'coffee',
-      LUNCH: 'restaurant',
-      MEETING: 'groups',
-      TRAINING: 'school',
-      COACHING: 'psychology',
-      PROJECT: 'folder',
-      TECHNICAL_ISSUE: 'build',
-      SUPERVISOR: 'support_agent',
+      LOGGED_OUT: '\u23FB',    // power symbol
+      LOGGED_IN: '\u2713',     // check
+      READY: '\u25CF',         // filled circle
+      RESERVED: '\u23F1',      // stopwatch
+      ACTIVE: '\u25B6',        // play
+      WRAP_UP: '\u270E',       // pencil
+      BREAK: '\u2615',         // hot beverage
+      LUNCH: '\u{1F37D}',      // fork and knife with plate
+      MEETING: '\u{1F465}',    // busts in silhouette
+      TRAINING: '\u{1F393}',   // graduation cap
+      COACHING: '\u{1F4AC}',   // speech balloon
+      PROJECT: '\u{1F4C1}',    // file folder
+      TECHNICAL_ISSUE: '\u26A0', // warning sign
+      SUPERVISOR: '\u{1F464}', // bust in silhouette
     };
-    return icons[state] || 'help';
+    return icons[state] || '\u2753';
   }
 }

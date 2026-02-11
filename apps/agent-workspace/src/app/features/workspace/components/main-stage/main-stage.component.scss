@@ -1,5 +1,11 @@
 @use 'styles/variables' as *;
 
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .main-stage {
   flex: 1;
   display: flex;

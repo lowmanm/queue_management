@@ -1,5 +1,11 @@
 @use 'styles/variables' as *;
 
+:host {
+  display: flex;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
 .workspace-sidebar {
   width: $sidebar-width;
   min-width: $sidebar-width;

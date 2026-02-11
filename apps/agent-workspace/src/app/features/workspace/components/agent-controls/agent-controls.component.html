@@ -17,7 +17,7 @@
         (click)="login()"
         [disabled]="loading()"
       >
-        <span class="btn-icon">login</span>
+        <span class="btn-icon">&#x2192;</span>
         <span class="btn-label">Login</span>
       </button>
     } @else {
@@ -28,7 +28,7 @@
           (click)="setReady()"
           [disabled]="loading()"
         >
-          <span class="btn-icon">check_circle</span>
+          <span class="btn-icon">&#x25CF;</span>
           <span class="btn-label">Ready</span>
         </button>
       }
@@ -41,7 +41,7 @@
           (click)="toggleStateMenu()"
           [disabled]="loading() || currentState() === 'ACTIVE' || currentState() === 'RESERVED'"
         >
-          <span class="btn-icon">more_horiz</span>
+          <span class="btn-icon">&#x22EF;</span>
           <span class="btn-label">Status</span>
         </button>
 
@@ -56,7 +56,7 @@
                 (click)="setReady()"
                 [disabled]="currentState() === 'ACTIVE' || currentState() === 'RESERVED'"
               >
-                <span class="item-icon">check_circle</span>
+                <span class="item-icon">&#x25CF;</span>
                 <span class="item-label">Ready</span>
               </button>
             }
@@ -90,7 +90,7 @@
         [disabled]="loading() || currentState() === 'ACTIVE' || currentState() === 'RESERVED'"
         title="Logout"
       >
-        <span class="btn-icon">logout</span>
+        <span class="btn-icon">&#x2190;</span>
       </button>
     }
   </div>
