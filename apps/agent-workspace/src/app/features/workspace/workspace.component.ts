@@ -27,7 +27,6 @@ import { SocketService } from '../../core/services/socket.service';
 export class WorkspaceComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   agentState: AgentState = 'OFFLINE';
-  private previousState: AgentState = 'OFFLINE';
   isConnected = false;
   showLogViewer = false;
   /** True when agent just completed a task (in post-disposition flow) */
@@ -43,13 +42,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     this.queueService.agentState$
       .pipe(takeUntil(this.destroy$))
       .subscribe((state) => {
-        // Track post-disposition state: if transitioning from WRAP_UP to IDLE
-        if (state === 'IDLE' && this.previousState === 'WRAP_UP') {
+        // Track post-disposition state: if transitioning from WRAP_UP to IDLE.
+        // At this point this.agentState still holds the OLD state.
+        if (state === 'IDLE' && this.agentState === 'WRAP_UP') {
           this.isPostDisposition = true;
         } else if (state !== 'IDLE') {
           this.isPostDisposition = false;
         }
-        this.previousState = this.agentState;
         this.agentState = state;
       });
 
