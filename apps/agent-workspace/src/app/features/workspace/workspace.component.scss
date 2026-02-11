@@ -57,6 +57,21 @@
     font-size: $font-size-sm;
     color: $color-gray-500;
   }
+
+  .hint {
+    margin-top: $spacing-4;
+    font-size: $font-size-xs;
+    color: $color-gray-400;
+
+    a {
+      color: $color-primary;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
 }
 
 // Connecting state

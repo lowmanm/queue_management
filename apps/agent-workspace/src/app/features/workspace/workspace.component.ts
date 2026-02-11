@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { AgentState } from '@nexus-queue/shared-models';
 import { HeaderComponent } from './components/header/header.component';
@@ -15,6 +16,7 @@ import { SocketService } from '../../core/services/socket.service';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     HeaderComponent,
     SidebarComponent,
     MainStageComponent,

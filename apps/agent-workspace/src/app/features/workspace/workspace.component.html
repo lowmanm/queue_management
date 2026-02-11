@@ -18,13 +18,14 @@
         </div>
       }
 
-      <!-- Waiting for task overlay (Force Mode) -->
+      <!-- Waiting for task overlay -->
       @if (isWaitingForTask) {
         <div class="status-overlay waiting">
           <div class="status-content">
             <div class="pulse-ring"></div>
             <h2>Ready for Work</h2>
             <p>Waiting for next task assignment...</p>
+            <p class="hint">Upload and execute a CSV file via the <a routerLink="/admin">Admin Panel</a> to populate the queue.</p>
           </div>
         </div>
       }
