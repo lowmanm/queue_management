@@ -1,0 +1,100 @@
+@use 'styles/variables' as *;
+
+.dashboard {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.welcome-section {
+  margin-bottom: $spacing-8;
+}
+
+.welcome-title {
+  margin: 0;
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  color: $color-gray-900;
+
+  @media (max-width: $breakpoint-md) {
+    font-size: $font-size-2xl;
+  }
+}
+
+.welcome-subtitle {
+  margin: $spacing-2 0 0;
+  font-size: $font-size-base;
+  color: $color-gray-500;
+}
+
+.quick-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: $spacing-4;
+
+  @media (max-width: $breakpoint-sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nav-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: $spacing-6;
+  background-color: $color-white;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
+  cursor: pointer;
+  transition: all $transition-fast;
+  text-align: left;
+
+  &:hover {
+    border-color: $color-gray-300;
+    box-shadow: $shadow-md;
+    transform: translateY(-1px);
+  }
+}
+
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-4;
+
+  &.workspace-icon {
+    background-color: $color-success-bg;
+    color: $color-success;
+  }
+
+  &.operations-icon {
+    background-color: $color-info-bg;
+    color: $color-info;
+  }
+
+  &.config-icon {
+    background-color: rgba($color-claims, 0.08);
+    color: $color-claims;
+  }
+
+  &.system-icon {
+    background-color: $color-error-bg;
+    color: $color-error;
+  }
+}
+
+.card-title {
+  margin: 0;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-900;
+}
+
+.card-description {
+  margin: $spacing-1 0 0;
+  font-size: $font-size-sm;
+  color: $color-gray-500;
+  line-height: $line-height-normal;
+}

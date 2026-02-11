@@ -3,6 +3,14 @@
 $sidebar-width-expanded: 248px;
 $sidebar-width-collapsed: 60px;
 $top-bar-height: 48px;
+$footer-height: 36px;
+
+// Fullscreen mode: content fills entire viewport
+.fullscreen-mode {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+}
 
 .app-shell {
   display: flex;
@@ -237,6 +245,7 @@ $top-bar-height: 48px;
   flex-direction: column;
   margin-left: $sidebar-width-expanded;
   min-width: 0;
+  min-height: 100vh;
   transition: margin-left $transition-normal;
 
   .sidebar-collapsed & {
@@ -273,6 +282,49 @@ $top-bar-height: 48px;
   align-items: center;
   gap: $spacing-3;
   flex-shrink: 0;
+}
+
+.user-display-name {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-gray-700;
+
+  @media (max-width: $breakpoint-md) {
+    display: none;
+  }
+}
+
+.user-role-badge {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  background-color: $color-primary-subtle;
+  padding: $spacing-0-5 $spacing-2;
+  border-radius: $border-radius-full;
+  text-transform: uppercase;
+  letter-spacing: $letter-spacing-wide;
+
+  @media (max-width: $breakpoint-sm) {
+    display: none;
+  }
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-1-5;
+  background: none;
+  border: none;
+  color: $color-gray-400;
+  cursor: pointer;
+  border-radius: $border-radius-sm;
+  transition: all $transition-fast;
+
+  &:hover {
+    background-color: $color-error-bg;
+    color: $color-error;
+  }
 }
 
 .menu-toggle {
@@ -360,4 +412,27 @@ $top-bar-height: 48px;
   @media (max-width: $breakpoint-md) {
     padding: $spacing-4;
   }
+}
+
+// Footer
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  height: $footer-height;
+  padding: 0 $spacing-5;
+  border-top: $border-width-thin solid $border-color;
+  background-color: $color-white;
+  flex-shrink: 0;
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+}
+
+.footer-brand {
+  font-weight: $font-weight-medium;
+}
+
+.footer-separator {
+  color: $color-gray-300;
 }

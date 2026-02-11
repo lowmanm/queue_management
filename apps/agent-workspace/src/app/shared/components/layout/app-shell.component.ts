@@ -2,15 +2,12 @@ import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { Subject, filter, takeUntil } from 'rxjs';
-import { UserRole } from '@nexus-queue/shared-models';
 import { AuthService } from '../../../core/services/auth.service';
 
 interface NavItem {
   label: string;
   path: string;
   icon: string;
-  permission?: string;
-  roles: UserRole[];
 }
 
 interface NavSection {
@@ -35,51 +32,80 @@ export class AppShellComponent implements OnInit, OnDestroy {
   mobileMenuOpen = signal(false);
   currentPath = signal('');
 
-  // Breadcrumb data
+  /** Whether the current route requests fullscreen mode (hides shell chrome) */
+  fullscreen = signal(false);
+
+  /** Breadcrumb data */
   breadcrumbs = signal<{ label: string; path: string }[]>([]);
 
-  // Navigation sections
+  /** Current user display info */
+  userName = computed(() => this.authService.currentUser?.displayName ?? '');
+  userRole = computed(() => {
+    const role = this.authService.currentRole;
+    const labels: Record<string, string> = {
+      AGENT: 'Agent',
+      MANAGER: 'Manager',
+      DESIGNER: 'Designer',
+      ADMIN: 'Admin',
+    };
+    return role ? labels[role] ?? role : '';
+  });
+
+  /**
+   * Navigation sections — organized by functional area, not role.
+   * RBAC still controls visibility.
+   */
   navSections = computed<NavSection[]>(() => {
     const sections: NavSection[] = [];
 
-    // Agent section - always show workspace
+    // Home — always visible
     sections.push({
-      title: 'Workspace',
+      title: 'Home',
       items: [
-        { label: 'Agent Workspace', path: '/', icon: 'workspace', roles: ['AGENT', 'MANAGER', 'DESIGNER', 'ADMIN'] },
+        { label: 'Dashboard', path: '/', icon: 'dashboard' },
       ],
     });
 
-    // Manager section
+    // Workspace — only for roles with tasks:work permission
+    if (this.authService.hasPermission('tasks:work')) {
+      sections.push({
+        title: 'Workspace',
+        items: [
+          { label: 'Agent Workspace', path: '/workspace', icon: 'workspace' },
+        ],
+      });
+    }
+
+    // Operations — Team Dashboard, Queue Monitor
     if (this.canAccessManager()) {
       sections.push({
-        title: 'Manager',
+        title: 'Operations',
         items: [
-          { label: 'Team Dashboard', path: '/manager/team', icon: 'team', roles: ['MANAGER', 'ADMIN'] },
-          { label: 'Queue Monitor', path: '/manager/queues', icon: 'queue', roles: ['MANAGER', 'ADMIN'] },
+          { label: 'Team Dashboard', path: '/manager/team', icon: 'team' },
+          { label: 'Queue Monitor', path: '/manager/queues', icon: 'queue' },
         ],
       });
     }
 
-    // Designer section
+    // Configuration — Data Sources, Pipelines, Dispositions, Work States
     if (this.canAccessDesigner()) {
       sections.push({
-        title: 'Design',
+        title: 'Configuration',
         items: [
-          { label: 'Data Sources', path: '/admin/volume-loaders', icon: 'loader', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Pipelines', path: '/admin/pipelines', icon: 'pipeline', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Dispositions', path: '/admin/dispositions', icon: 'disposition', roles: ['DESIGNER', 'ADMIN'] },
-          { label: 'Work States', path: '/admin/work-states', icon: 'states', roles: ['DESIGNER', 'ADMIN'] },
+          { label: 'Data Sources', path: '/admin/volume-loaders', icon: 'loader' },
+          { label: 'Pipelines', path: '/admin/pipelines', icon: 'pipeline' },
+          { label: 'Dispositions', path: '/admin/dispositions', icon: 'disposition' },
+          { label: 'Work States', path: '/admin/work-states', icon: 'states' },
         ],
       });
     }
 
-    // Admin section
+    // System — User Management
     if (this.canAccessAdmin()) {
       sections.push({
-        title: 'Administration',
+        title: 'System',
         items: [
-          { label: 'User Management', path: '/admin/users', icon: 'users', roles: ['ADMIN'] },
+          { label: 'User Management', path: '/admin/users', icon: 'users' },
         ],
       });
     }
@@ -88,7 +114,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    // Track current route
+    // Track current route and resolve route data
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -97,18 +123,32 @@ export class AppShellComponent implements OnInit, OnDestroy {
       .subscribe((event) => {
         this.currentPath.set(event.urlAfterRedirects);
         this.updateBreadcrumbs(event.urlAfterRedirects);
-        // Close mobile menu on navigation
+        this.resolveRouteData();
         this.mobileMenuOpen.set(false);
       });
 
-    // Initialize current path
+    // Initialize
     this.currentPath.set(this.router.url);
     this.updateBreadcrumbs(this.router.url);
+    this.resolveRouteData();
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Walk the activated route tree to find the deepest child route data
+   * and check for fullscreen flag.
+   */
+  private resolveRouteData(): void {
+    let child = this.route;
+    while (child.firstChild) {
+      child = child.firstChild;
+    }
+    const data = child.snapshot.data;
+    this.fullscreen.set(!!data['fullscreen']);
   }
 
   private updateBreadcrumbs(url: string): void {
@@ -120,15 +160,16 @@ export class AppShellComponent implements OnInit, OnDestroy {
 
     if (segments.length > 0) {
       const pathMap: Record<string, string> = {
-        manager: 'Manager',
-        admin: 'Admin',
+        workspace: 'Workspace',
+        manager: 'Operations',
+        admin: 'Configuration',
         team: 'Team Dashboard',
         queues: 'Queue Monitor',
         pipelines: 'Pipelines',
         dispositions: 'Dispositions',
         'work-states': 'Work States',
         'volume-loaders': 'Data Sources',
-        users: 'Users',
+        users: 'User Management',
       };
 
       let currentPath = '';
@@ -175,7 +216,6 @@ export class AppShellComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    // Navigate to previous breadcrumb or home
     const crumbs = this.breadcrumbs();
     if (crumbs.length > 1) {
       this.router.navigate([crumbs[crumbs.length - 2].path]);
@@ -187,5 +227,10 @@ export class AppShellComponent implements OnInit, OnDestroy {
   navigateTo(path: string): void {
     this.router.navigate([path]);
     this.closeMobileMenu();
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 }

@@ -314,23 +314,14 @@ export class AuthService {
 
   /**
    * Get the default landing route for the current user's role.
-   * - AGENT/MANAGER with tasks:work → workspace (/)
-   * - MANAGER → /manager/team
-   * - DESIGNER → /admin/volume-loaders
-   * - ADMIN → /admin/users
+   * Agents go directly to /workspace; all other roles land on the dashboard.
    */
   getDefaultRoute(): string {
     const role = this.currentRole;
 
     switch (role) {
       case 'AGENT':
-        return '/';
-      case 'MANAGER':
-        return '/manager/team';
-      case 'DESIGNER':
-        return '/admin/volume-loaders';
-      case 'ADMIN':
-        return '/admin/users';
+        return '/workspace';
       default:
         return '/';
     }
