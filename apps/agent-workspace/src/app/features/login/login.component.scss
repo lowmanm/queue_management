@@ -13,12 +13,17 @@
 
 .login-card {
   text-align: center;
-  padding: $spacing-10 $spacing-8;
+  padding: $spacing-8 $spacing-6;
   background-color: $color-white;
   border: $border-width-thin solid $border-color;
   border-radius: $border-radius-xl;
   box-shadow: $shadow-lg;
-  min-width: 380px;
+  width: 90vw;
+  max-width: 380px;
+
+  @media (min-width: $breakpoint-sm) {
+    padding: $spacing-10 $spacing-8;
+  }
 
   h1 {
     margin: 0 0 $spacing-1;

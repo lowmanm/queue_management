@@ -120,6 +120,11 @@
   flex-direction: column;
   box-shadow: $shadow-xl;
 
+  @media (max-width: $breakpoint-sm) {
+    border-radius: $border-radius-lg;
+    max-height: 95vh;
+  }
+
   &.large {
     max-width: 720px;
   }
@@ -127,6 +132,12 @@
   &.wizard-modal {
     max-width: 800px;
     min-height: 500px;
+
+    @media (max-width: $breakpoint-sm) {
+      min-height: auto;
+      max-height: 100vh;
+      border-radius: $border-radius-md;
+    }
   }
 }
 
@@ -225,7 +236,7 @@
   grid-template-columns: 1fr 1fr;
   gap: $spacing-4;
 
-  @media (max-width: $breakpoint-sm) {
+  @media (max-width: $breakpoint-md) {
     grid-template-columns: 1fr;
   }
 }
@@ -616,7 +627,7 @@
   }
 
   .step-desc {
-    font-size: 10px;
+    font-size: $font-size-xs;
     color: $color-gray-400;
     white-space: nowrap;
   }

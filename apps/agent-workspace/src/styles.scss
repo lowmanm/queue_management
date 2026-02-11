@@ -20,6 +20,7 @@ body {
   padding: 0;
   height: 100%;
   width: 100%;
+  overflow-x: hidden;
   font-family: $font-family-base;
   font-size: 14px;
   line-height: $line-height-normal;

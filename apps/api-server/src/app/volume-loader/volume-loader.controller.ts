@@ -256,34 +256,6 @@ export class VolumeLoaderController {
   }
 
   // ==========================================================================
-  // DIAGNOSTICS
-  // ==========================================================================
-
-  /**
-   * Get service dependency diagnostics (useful for debugging).
-   */
-  @Get('diagnostics/status')
-  getDiagnostics() {
-    return this.volumeLoaderService.getDiagnostics();
-  }
-
-  /**
-   * Test routing rules against a loader's staged records or sample data.
-   * Returns routing results without creating tasks (dry run).
-   */
-  @Post(':id/test-routing')
-  testRouting(@Param('id') id: string, @Body() body?: { maxRecords?: number }) {
-    const result = this.volumeLoaderService.testRouting(
-      id,
-      body?.maxRecords ?? 10
-    );
-    if (!result.success) {
-      throw new HttpException(result.error || 'Failed to test routing', HttpStatus.BAD_REQUEST);
-    }
-    return result;
-  }
-
-  // ==========================================================================
   // DIRECT CSV UPLOAD (Unified Data Loading)
   // ==========================================================================
 
