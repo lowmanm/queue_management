@@ -1,24 +1,26 @@
 # Nexus Queue - Queue Management System
 
-A monorepo containing an Angular frontend and NestJS backend for queue management.
+A real-time Queue Orchestration Layer built with Angular 21 and NestJS 11 in an Nx monorepo. Replaces legacy queue systems by aggregating tasks from multiple business lines and intelligently pushing the next best action to agents.
 
 ## Project Structure
 
 ```
-/
+nexus-queue/
 ├── apps/
-│   ├── agent-workspace/    # Angular 17+ frontend
-│   └── api-server/         # NestJS backend
+│   ├── agent-workspace/    # Angular 21.x frontend (SPA with persistent layout shell)
+│   └── api-server/         # NestJS 11.x backend (REST + WebSocket)
 ├── libs/
-│   └── shared-models/      # Shared TypeScript interfaces
-└── package.json
+│   └── shared-models/      # Shared TypeScript interfaces (@nexus-queue/shared-models)
+├── ARCHITECTURE.md         # System design & orchestration flow
+├── BRANCH_STRATEGY.md      # Git workflow (Git Flow)
+└── CLAUDE.md               # AI agent context & conventions
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - npm 9+
 
 ### Installation
@@ -35,51 +37,66 @@ Start both applications:
 npm run start:all
 ```
 
-Or start them individually:
+Or start individually:
 
 ```bash
-# Start the API server (http://localhost:3000/api)
+# API server (http://localhost:3000/api)
 npm run start:api
 
-# Start the Angular app (http://localhost:4200)
+# Angular app (http://localhost:4200)
 npm run start:web
 ```
 
-### Build
+### Build & Test
 
 ```bash
 npm run build:all
+npm run test:all
+
+# Individual projects
+npx nx build agent-workspace
+npx nx build api-server
+npx nx test agent-workspace
+npx nx test api-server
+npx nx lint agent-workspace
+npx nx lint api-server
 ```
 
 ## Applications
 
 ### Agent Workspace (Angular)
 
-The frontend application for agents to manage their queue tasks.
+A single-page application with a persistent layout shell (sidebar, top-bar, breadcrumbs, footer) that persists across route transitions.
 
-**Features:**
-- Auto-login in development mode (Test_Agent_01)
-- Status toggle (Available/Busy)
-- Task info sidebar
-- iFrame-based task display
+**Key features:**
+- **Dashboard** — Role-adaptive landing page with quick-nav cards
+- **Agent Workspace** — Fullscreen task processing with iFrame-based "screen-in-screen" display
+- **Admin/Designer views** — Pipeline configuration, data sources, dispositions, work states, user management
+- **Manager views** — Team dashboard, queue monitoring
+- **RBAC** — Four personas (Agent, Manager, Designer, Admin) with cascading permissions
+- **Real-time** — WebSocket-driven agent state machine and task push (Force Mode)
 
 ### API Server (NestJS)
 
-The backend API server.
+Backend orchestration server with pipeline-centric task flow.
 
-**Endpoints:**
-- `GET /api/tasks/next` - Get the next available task
+**Key capabilities:**
+- Pipeline Orchestrator — validate, transform, route, and enqueue tasks
+- Priority Queue Manager with Dead Letter Queue (DLQ)
+- SLA Monitor with automatic priority escalation
+- Distribution Engine for agent-task matching
+- WebSocket Gateway for real-time agent communication
+- RBAC service for role-based access control
+- Volume Loader for CSV/external data source ingestion
 
-## Shared Models
+### Shared Models
 
-The `@nexus-queue/shared-models` library contains shared TypeScript interfaces:
+The `@nexus-queue/shared-models` library provides 11 TypeScript interface files covering tasks, agents, pipelines, dispositions, routing, rules, RBAC, volume loaders, and work states.
 
-```typescript
-interface Task {
-  id: string;
-  title: string;
-  payloadUrl: string;
-  priority: number;
-  status: 'PENDING' | 'ASSIGNED' | 'COMPLETED';
-}
-```
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, orchestration flow, state machine, project structure |
+| [BRANCH_STRATEGY.md](BRANCH_STRATEGY.md) | Git Flow branching, commit conventions, PR templates |
+| [CLAUDE.md](CLAUDE.md) | AI agent context, development conventions, quick reference |
