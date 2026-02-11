@@ -12,8 +12,9 @@ import {
   CreateWorkStateRequest,
   UpdateWorkStateRequest,
 } from '@nexus-queue/shared-models';
+import { environment } from '../../../environments/environment';
 
-const API_BASE = 'http://localhost:3000/api/sessions';
+const API_BASE = `${environment.apiUrl}/sessions`;
 
 export interface LoginRequest {
   agentId: string;

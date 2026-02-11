@@ -2,8 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, catchError, map, interval, switchMap, startWith } from 'rxjs';
 import { AgentStateType } from '@nexus-queue/shared-models';
+import { environment } from '../../../environments/environment';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = environment.apiUrl;
 
 export interface AgentWithMetrics {
   socketId: string;

@@ -1,9 +1,15 @@
 import { Module } from '@nestjs/common';
-import { QueuesController } from './queues.controller';
 import { ServicesModule } from '../services';
 
+/**
+ * QueuesModule now delegates all /queues routes to the QueueController
+ * in PipelineModule (pipeline.controller.ts) which bridges PipelineService
+ * (queue config) and QueueManagerService (live task data).
+ *
+ * The legacy QueuesController was removed to eliminate the duplicate
+ * @Controller('queues') route collision.
+ */
 @Module({
   imports: [ServicesModule],
-  controllers: [QueuesController],
 })
 export class QueuesModule {}
