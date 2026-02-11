@@ -38,6 +38,11 @@
   transition: opacity $transition-slow;
 }
 
+.checking-hint {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+}
+
 .loading-spinner {
   width: 36px;
   height: 36px;
@@ -58,8 +63,139 @@
   background-color: $color-white;
   opacity: 0;
   transition: opacity $transition-slow;
+
+  &.hidden {
+    display: none;
+  }
 }
 
+// Iframe Blocked State (CSP / X-Frame-Options)
+.iframe-blocked {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $color-gray-50;
+  z-index: 2;
+}
+
+.blocked-content {
+  text-align: center;
+  padding: $spacing-8;
+  max-width: 480px;
+}
+
+.blocked-icon {
+  margin-bottom: $spacing-5;
+  color: $color-warning;
+}
+
+.blocked-content h2 {
+  margin: 0 0 $spacing-3;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-800;
+}
+
+.blocked-reason {
+  margin: 0 0 $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  background: $color-warning-bg;
+  border-radius: $border-radius-md;
+  font-size: $font-size-xs;
+  font-family: $font-family-mono;
+  color: $color-warning-dark;
+  word-break: break-all;
+}
+
+.blocked-explanation {
+  margin: 0 0 $spacing-5;
+  font-size: $font-size-sm;
+  color: $color-gray-500;
+  line-height: $line-height-relaxed;
+}
+
+.blocked-actions {
+  display: flex;
+  justify-content: center;
+  gap: $spacing-3;
+}
+
+// Popup Mode (Screen Pop)
+.popup-mode {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-content {
+  text-align: center;
+  padding: $spacing-8;
+  max-width: 480px;
+}
+
+.popup-icon {
+  margin-bottom: $spacing-5;
+  color: $color-primary;
+}
+
+.popup-content h2 {
+  margin: 0 0 $spacing-3;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-800;
+}
+
+.popup-url {
+  margin: 0 0 $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  background: $color-gray-100;
+  border-radius: $border-radius-md;
+  font-size: $font-size-xs;
+  font-family: $font-family-mono;
+  color: $color-gray-600;
+  word-break: break-all;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-hint {
+  margin: 0 0 $spacing-5;
+  font-size: $font-size-sm;
+  color: $color-gray-500;
+  line-height: $line-height-relaxed;
+}
+
+.popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: $spacing-3;
+}
+
+// Shared button styles
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-3 $spacing-5;
+  background: $color-primary;
+  color: $color-white;
+  border: none;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: background $transition-fast;
+
+  &:hover {
+    background: $color-primary-dark;
+  }
+}
+
+// Empty state
 .empty-state {
   flex: 1;
   display: flex;

@@ -15,6 +15,7 @@ import { RoutingModule } from './routing/routing.module';
 import { SessionsModule } from './sessions';
 import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
 import { PipelineModule } from './pipelines/pipeline.module';
+import { ProxyModule } from './proxy/proxy.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PipelineModule } from './pipelines/pipeline.module';
     SessionsModule,
     VolumeLoaderModule,
     PipelineModule,
+    ProxyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

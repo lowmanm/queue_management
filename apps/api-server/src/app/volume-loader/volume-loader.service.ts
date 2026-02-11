@@ -1248,6 +1248,11 @@ export class VolumeLoaderService {
       urlData
     );
 
+    // Propagate displayMode from loader defaults to task metadata
+    if (loader.defaults?.displayMode) {
+      metadata['_displayMode'] = loader.defaults.displayMode;
+    }
+
     return {
       externalId,
       workType,

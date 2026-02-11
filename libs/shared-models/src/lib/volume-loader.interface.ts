@@ -370,6 +370,13 @@ export interface VolumeTaskDefaults {
   queueId?: string;
   skills?: string[];
   payloadUrlTemplate?: string;
+  /**
+   * How the external URL should be displayed in the workspace.
+   * - 'iframe' — Embed directly in the workspace (requires site to allow framing)
+   * - 'popup' — Open in a managed popup window (for sites that block iframes)
+   * - 'auto' — Server checks embeddability and picks the best mode (default)
+   */
+  displayMode?: 'iframe' | 'popup' | 'auto';
 }
 
 /**

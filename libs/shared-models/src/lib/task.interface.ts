@@ -22,6 +22,14 @@ export interface Task {
   /** URL to load in the iframe for task execution */
   payloadUrl: string;
 
+  /**
+   * How the external URL should be displayed in the workspace.
+   * - 'iframe' — Embed directly (requires site to allow framing)
+   * - 'popup' — Open in a managed popup window (for sites blocking iframes)
+   * - 'auto' — Auto-detect embeddability (default)
+   */
+  displayMode?: 'iframe' | 'popup' | 'auto';
+
   /** Pass-through parameters for iFrame URL */
   metadata?: Record<string, string>;
 
