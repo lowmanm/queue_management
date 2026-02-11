@@ -1,0 +1,185 @@
+<div class="admin-container">
+  <div class="admin-header">
+    <h1>Ingestion Pipeline</h1>
+    <a class="back-link" routerLink="/">Back to Workspace</a>
+  </div>
+
+  <!-- Store State Summary -->
+  @if (storeState) {
+    <div class="store-state-card">
+      <h3>Record Store</h3>
+      <div class="state-grid">
+        <div class="state-item">
+          <span class="state-value">{{ storeState.totalRecords }}</span>
+          <span class="state-label">Total Records</span>
+        </div>
+        <div class="state-item">
+          <span class="state-value">{{ storeState.validRecords }}</span>
+          <span class="state-label">Valid</span>
+        </div>
+        <div class="state-item">
+          <span class="state-value">{{ storeState.pendingRecords }}</span>
+          <span class="state-label">Pending</span>
+        </div>
+        <div class="state-item">
+          <span class="state-value">{{ storeState.routedRecords }}</span>
+          <span class="state-label">Routed</span>
+        </div>
+      </div>
+      @if (storeState.lastUpload) {
+        <p class="last-upload">
+          Last upload: {{ storeState.lastUpload.fileName }}
+          ({{ storeState.lastUpload.totalRows }} rows)
+          at {{ storeState.lastUpload.uploadedAt }}
+        </p>
+      }
+    </div>
+  }
+
+  <!-- Error Message -->
+  @if (errorMessage) {
+    <div class="message error">{{ errorMessage }}</div>
+  }
+
+  <!-- Stage: Idle - Upload Form -->
+  @if (stage === 'idle' || stage === 'uploading') {
+    <div class="pipeline-card">
+      <h2>Step 1: Upload CSV</h2>
+      <p>
+        Select a CSV file with at least <code>title</code> and <code>workType</code> columns.
+        Supported work types: ORDERS, RETURNS, CLAIMS.
+      </p>
+      <label class="file-input-label">
+        @if (stage === 'uploading') {
+          <span class="spinner-inline"></span> Uploading...
+        } @else {
+          Choose CSV File
+        }
+        <input
+          type="file"
+          accept=".csv"
+          (change)="onFileSelected($event)"
+          [disabled]="stage === 'uploading'"
+          hidden
+        />
+      </label>
+    </div>
+  }
+
+  <!-- Stage: Upload Complete -->
+  @if (uploadResult) {
+    <div class="pipeline-card" [class.success]="uploadResult.validRows > 0" [class.warning]="uploadResult.validRows === 0">
+      <h2>Upload Result</h2>
+      <p class="result-message">{{ uploadResult.message }}</p>
+      <div class="result-grid">
+        <div class="result-item">
+          <span class="result-value">{{ uploadResult.totalRows }}</span>
+          <span class="result-label">Total Rows</span>
+        </div>
+        <div class="result-item success">
+          <span class="result-value">{{ uploadResult.validRows }}</span>
+          <span class="result-label">Valid</span>
+        </div>
+        <div class="result-item" [class.error]="uploadResult.invalidRows > 0">
+          <span class="result-value">{{ uploadResult.invalidRows }}</span>
+          <span class="result-label">Invalid</span>
+        </div>
+        <div class="result-item">
+          <span class="result-value">{{ uploadResult.skippedRows }}</span>
+          <span class="result-label">Skipped</span>
+        </div>
+      </div>
+
+      <!-- Validation Errors -->
+      @if (uploadResult.errors.length > 0) {
+        <div class="errors-section">
+          <h4>Validation Errors (first {{ uploadResult.errors.length }})</h4>
+          <table class="errors-table">
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>Field</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (err of uploadResult.errors; track err.row + err.field) {
+                <tr>
+                  <td>{{ err.row }}</td>
+                  <td>{{ err.field }}</td>
+                  <td>{{ err.message }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Stage: Execute -->
+  @if (stage === 'uploaded' || stage === 'executing') {
+    <div class="pipeline-card">
+      <h2>Step 2: Execute Routing</h2>
+      <p>Route {{ uploadResult?.validRows || 0 }} valid records through the routing engine and queue them for agent delivery.</p>
+      <button
+        class="btn-primary"
+        (click)="runNow()"
+        [disabled]="stage === 'executing' || (uploadResult?.validRows || 0) === 0"
+      >
+        @if (stage === 'executing') {
+          <span class="spinner-inline"></span> Executing...
+        } @else {
+          Run Now
+        }
+      </button>
+    </div>
+  }
+
+  <!-- Stage: Execution Complete -->
+  @if (executionResult) {
+    <div class="pipeline-card" [class.success]="executionResult.routedRecords > 0" [class.warning]="executionResult.routedRecords === 0">
+      <h2>Execution Result</h2>
+      <p class="result-message">{{ executionResult.message }}</p>
+      <div class="result-grid">
+        <div class="result-item">
+          <span class="result-value">{{ executionResult.totalRecords }}</span>
+          <span class="result-label">Processed</span>
+        </div>
+        <div class="result-item success">
+          <span class="result-value">{{ executionResult.routedRecords }}</span>
+          <span class="result-label">Routed</span>
+        </div>
+        <div class="result-item" [class.warning]="executionResult.filteredRecords > 0">
+          <span class="result-value">{{ executionResult.filteredRecords }}</span>
+          <span class="result-label">Filtered</span>
+        </div>
+        <div class="result-item" [class.error]="executionResult.failedRecords > 0">
+          <span class="result-value">{{ executionResult.failedRecords }}</span>
+          <span class="result-label">Failed</span>
+        </div>
+      </div>
+
+      <!-- Work Type Breakdown -->
+      @if (executionResult.routedRecords > 0) {
+        <div class="breakdown-section">
+          <h4>Routed by Work Type</h4>
+          <ul>
+            @for (entry of workTypeEntries; track entry[0]) {
+              <li><strong>{{ entry[0] }}:</strong> {{ entry[1] }} records</li>
+            }
+          </ul>
+        </div>
+      }
+
+      <p class="duration">Completed in {{ executionResult.durationMs }}ms</p>
+    </div>
+  }
+
+  <!-- Reset -->
+  @if (stage === 'executed') {
+    <div class="pipeline-card">
+      <button class="btn-secondary" (click)="reset()">Upload Another File</button>
+    </div>
+  }
+</div>

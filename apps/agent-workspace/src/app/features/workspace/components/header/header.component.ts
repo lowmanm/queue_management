@@ -1,5 +1,6 @@
 import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AgentState } from '@nexus-queue/shared-models';
 import { AuthService, Agent } from '../../../../core/services/auth.service';
@@ -8,7 +9,7 @@ import { QueueService } from '../../../../core/services/queue.service';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
 })

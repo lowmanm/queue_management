@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Task, TaskAction } from '@nexus-queue/shared-models';
+import { ExecutionService } from '../ingestion/execution.service';
 
 interface MockTaskTemplate {
   workType: string;
@@ -20,6 +21,10 @@ export class TaskDistributorService {
 
   // Task counter for unique IDs
   private taskCounter = 1000;
+
+  constructor(
+    @Optional() private readonly executionService?: ExecutionService
+  ) {}
 
   // Mock task templates
   private readonly taskTemplates: MockTaskTemplate[] = [
@@ -91,13 +96,24 @@ export class TaskDistributorService {
 
   /**
    * Get the next task for a specific agent.
-   * In a real implementation, this would:
-   * - Query pending tasks from database
-   * - Match agent skills to task requirements
-   * - Apply priority and routing rules
+   *
+   * Priority order:
+   * 1. Real tasks from the execution pipeline (CSV → Route → Task)
+   * 2. Mock-generated tasks as fallback (POC demo mode)
    */
   getNextTaskForAgent(agentId: string): Task | null {
-    // For POC, always return a task (simulating work always available)
+    // First: try to pull a real task from the execution pipeline
+    if (this.executionService) {
+      const realTask = this.executionService.getNextPendingTask(agentId);
+      if (realTask) {
+        this.logger.log(
+          `Assigned real task ${realTask.id} (${realTask.workType}) to agent ${agentId} — ${this.executionService.getPendingTaskCount()} remaining`
+        );
+        return realTask;
+      }
+    }
+
+    // Fallback: generate a mock task (POC demo mode)
     return this.generateTask(agentId);
   }
 
@@ -141,7 +157,7 @@ export class TaskDistributorService {
       actions: template.actions,
     };
 
-    this.logger.log(`Generated task ${taskId} (${template.workType}) for agent ${agentId}`);
+    this.logger.log(`Generated mock task ${taskId} (${template.workType}) for agent ${agentId}`);
     return task;
   }
 
@@ -152,6 +168,18 @@ export class TaskDistributorService {
     pendingTasks: number;
     workTypes: Record<string, number>;
   } {
+    // If execution service is available, report real stats
+    const pendingFromExecution = this.executionService
+      ? this.executionService.getPendingTaskCount()
+      : 0;
+
+    if (pendingFromExecution > 0) {
+      return {
+        pendingTasks: pendingFromExecution,
+        workTypes: {}, // Detailed breakdown available via ingestion API
+      };
+    }
+
     // Mock stats for POC
     return {
       pendingTasks: Math.floor(Math.random() * 50) + 10,
