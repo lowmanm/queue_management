@@ -1,12 +1,12 @@
 import { Route } from '@angular/router';
-import { authGuard } from './core/guards';
+import { authGuard, agentGuard } from './core/guards';
 import { WorkspaceComponent } from './features/workspace';
 
 export const appRoutes: Route[] = [
   {
     path: '',
     component: WorkspaceComponent,
-    canActivate: [authGuard],
+    canActivate: [agentGuard],
   },
   {
     path: 'login',

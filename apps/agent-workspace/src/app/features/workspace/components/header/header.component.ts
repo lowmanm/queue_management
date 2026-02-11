@@ -1,8 +1,9 @@
 import { Component, OnInit, OnDestroy, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, map, filter, takeUntil } from 'rxjs';
-import { AgentState, UserRole, AgentSessionStats, formatDuration } from '@nexus-queue/shared-models';
+import { AgentState, UserRole, User, Team, AgentSessionStats, formatDuration } from '@nexus-queue/shared-models';
 import {
   AuthService,
   Agent,
@@ -11,6 +12,7 @@ import {
 import { QueueService } from '../../../../core/services/queue.service';
 import { AgentStatsService } from '../../../../core/services/agent-stats.service';
 import { AgentControlsComponent } from '../agent-controls/agent-controls.component';
+import { environment } from '../../../../../environments/environment';
 
 interface HeaderStats {
   tasksCompleted: number;
@@ -31,6 +33,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   private agentStatsService = inject(AgentStatsService);
   private router = inject(Router);
+  private http = inject(HttpClient);
   private destroy$ = new Subject<void>();
 
 
@@ -41,9 +44,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
   headerStats$!: Observable<HeaderStats>;
 
   showRoleSwitcher = false;
+  showUserSwitcher = false;
   showMobileNav = false;
   currentUrl = '';
   roles: UserRole[] = ['AGENT', 'MANAGER', 'DESIGNER', 'ADMIN'];
+
+  /** Available users for the quick-switch panel */
+  switchableUsers: User[] = [];
+  switchableTeams: Team[] = [];
+  switcherLoaded = false;
 
   constructor(
     private authService: AuthService,
@@ -200,5 +209,74 @@ export class HeaderComponent implements OnInit, OnDestroy {
    */
   onToggleLogs(): void {
     this.toggleLogs.emit();
+  }
+
+  /**
+   * Toggle the user switcher panel (for admins/testing)
+   */
+  toggleUserSwitcher(): void {
+    this.showUserSwitcher = !this.showUserSwitcher;
+    if (this.showUserSwitcher && !this.switcherLoaded) {
+      this.loadSwitchableUsers();
+    }
+  }
+
+  /**
+   * Load available users from API for quick-switch
+   */
+  private loadSwitchableUsers(): void {
+    this.http.get<User[]>(`${environment.apiUrl}/rbac/users`).subscribe({
+      next: (users) => {
+        this.switchableUsers = users.filter((u) => u.active);
+        this.switcherLoaded = true;
+      },
+      error: () => {
+        this.switchableUsers = [];
+        this.switcherLoaded = true;
+      },
+    });
+
+    this.http.get<Team[]>(`${environment.apiUrl}/rbac/teams`).subscribe({
+      next: (teams) => {
+        this.switchableTeams = teams;
+      },
+      error: () => {
+        this.switchableTeams = [];
+      },
+    });
+  }
+
+  /**
+   * Switch to a different user persona (for testing)
+   */
+  switchToUser(user: User): void {
+    this.authService.loginWithUser(user);
+    this.showUserSwitcher = false;
+    const route = this.authService.getDefaultRoute();
+    this.router.navigate([route]);
+  }
+
+  /**
+   * Get team name by ID
+   */
+  getTeamName(teamId?: string): string {
+    if (!teamId) return '';
+    const team = this.switchableTeams.find((t) => t.id === teamId);
+    return team?.name || teamId;
+  }
+
+  /**
+   * Get users grouped by role for the switcher
+   */
+  getUsersByRole(role: UserRole): User[] {
+    return this.switchableUsers.filter((u) => u.role === role);
+  }
+
+  /**
+   * Logout and return to persona selector
+   */
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 }

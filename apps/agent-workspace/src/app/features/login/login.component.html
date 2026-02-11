@@ -1,9 +1,117 @@
 <div class="login-container">
-  <div class="login-card">
-    <h1>Nexus Queue</h1>
-    <p>Agent Workspace Login</p>
-    <button class="login-button" (click)="login()">
-      Sign In
-    </button>
+  <div class="login-panel">
+    <!-- Header -->
+    <div class="login-header">
+      <div class="login-logo">NQ</div>
+      <h1>Nexus Queue</h1>
+      <p class="login-subtitle">Select a persona to begin testing</p>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="Search by name, skill, or team..."
+        class="search-input"
+        aria-label="Search personas"
+      />
+      @if (searchQuery) {
+        <button class="search-clear" (click)="searchQuery = ''" aria-label="Clear search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      }
+    </div>
+
+    <!-- Loading State -->
+    @if (loading) {
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading personas...</p>
+      </div>
+    }
+
+    <!-- Persona List -->
+    @if (!loading) {
+      <div class="persona-list">
+        @for (group of filteredGroups; track group.role) {
+          <div class="role-group">
+            <div class="role-group-header">
+              <div class="role-indicator" [style.background-color]="group.color"></div>
+              <div class="role-group-info">
+                <span class="role-group-label">{{ group.label }}</span>
+                <span class="role-group-desc">{{ group.description }}</span>
+              </div>
+              <span class="role-group-meta">{{ getPermissionCount(group.role) }} permissions</span>
+            </div>
+
+            <div class="user-cards">
+              @for (user of group.users; track user.id) {
+                <button
+                  class="user-card"
+                  [class.selected]="selectedUser?.id === user.id"
+                  (click)="selectUser(user)"
+                  (dblclick)="quickLogin(user)"
+                >
+                  <div class="user-avatar" [style.background-color]="group.color">
+                    {{ user.displayName.charAt(0) }}
+                  </div>
+                  <div class="user-details">
+                    <span class="user-name">{{ user.displayName }}</span>
+                    <span class="user-meta">{{ user.username }}</span>
+                    @if (user.teamId) {
+                      <span class="user-team">{{ getTeamName(user.teamId) }}</span>
+                    }
+                    @if (user.skills && user.skills.length > 0) {
+                      <div class="user-skills">
+                        @for (skill of user.skills; track skill) {
+                          <span class="skill-tag">{{ skill }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <svg class="select-indicator" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        @if (filteredGroups.length === 0) {
+          <div class="empty-search">
+            <p>No personas match "{{ searchQuery }}"</p>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Selected User Preview & Login -->
+    @if (selectedUser) {
+      <div class="login-footer">
+        <div class="selected-preview">
+          <span class="preview-label">Logging in as:</span>
+          <strong>{{ selectedUser.displayName }}</strong>
+          <span class="preview-role">{{ selectedUser.role }}</span>
+        </div>
+        <button class="login-button" (click)="loginAsSelected()">
+          Sign In
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    }
+
+    <p class="login-hint">Double-click a persona for quick login</p>
   </div>
 </div>

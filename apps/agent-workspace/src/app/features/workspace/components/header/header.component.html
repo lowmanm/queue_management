@@ -102,7 +102,7 @@
             class="role-badge"
             [class.active]="showRoleSwitcher"
             (click)="toggleRoleSwitcher()"
-            title="Switch Role (Demo)"
+            title="Switch Role (Quick)"
             [attr.aria-expanded]="showRoleSwitcher"
             aria-haspopup="true"
           >
@@ -123,6 +123,29 @@
             </div>
           }
         </div>
+
+        <!-- Switch User button (testing) -->
+        <button
+          class="switch-user-btn"
+          [class.active]="showUserSwitcher"
+          (click)="toggleUserSwitcher()"
+          title="Switch User Persona"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <polyline points="16 11 18 13 22 9"></polyline>
+          </svg>
+        </button>
+
+        <!-- Logout button -->
+        <button class="logout-btn" (click)="logout()" title="Logout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
       </div>
     }
 
@@ -184,4 +207,66 @@
       }
     </div>
   </nav>
+}
+
+<!-- User Switcher Panel (Testing) -->
+@if (showUserSwitcher) {
+  <div class="switcher-overlay" (click)="showUserSwitcher = false" (keydown.escape)="showUserSwitcher = false" tabindex="-1" role="presentation"></div>
+  <div class="user-switcher-panel">
+    <div class="switcher-header">
+      <h3>Switch User Persona</h3>
+      <button class="switcher-close" (click)="showUserSwitcher = false" aria-label="Close user switcher">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="switcher-body">
+      @if (!switcherLoaded) {
+        <div class="switcher-loading">Loading users...</div>
+      } @else {
+        @for (role of roles; track role) {
+          @if (getUsersByRole(role).length > 0) {
+            <div class="switcher-group">
+              <div class="switcher-group-label">{{ role }}</div>
+              @for (u of getUsersByRole(role); track u.id) {
+                <button
+                  class="switcher-user"
+                  [class.current]="(user$ | async)?.id === u.id"
+                  (click)="switchToUser(u)"
+                >
+                  <div class="switcher-user-info">
+                    <span class="switcher-user-name">{{ u.displayName }}</span>
+                    <span class="switcher-user-detail">
+                      {{ u.username }}
+                      @if (u.teamId) {
+                        · {{ getTeamName(u.teamId) }}
+                      }
+                    </span>
+                    @if (u.skills && u.skills.length > 0) {
+                      <span class="switcher-user-skills">{{ u.skills.join(', ') }}</span>
+                    }
+                  </div>
+                  @if ((user$ | async)?.id === u.id) {
+                    <span class="current-badge">Current</span>
+                  }
+                </button>
+              }
+            </div>
+          }
+        }
+      }
+    </div>
+    <div class="switcher-footer">
+      <button class="switcher-logout" (click)="logout()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        Back to Persona Selector
+      </button>
+    </div>
+  </div>
 }

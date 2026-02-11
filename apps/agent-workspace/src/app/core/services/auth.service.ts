@@ -1,13 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of, tap, catchError, map } from 'rxjs';
+import { BehaviorSubject, Observable, map } from 'rxjs';
 import {
   User,
   Permission,
   UserRole,
   getUserPermissions,
 } from '@nexus-queue/shared-models';
-import { environment } from '../../../environments/environment';
 
 /**
  * Extended user with computed permissions
@@ -42,28 +41,38 @@ export class AuthService {
   );
 
   constructor() {
-    this.initializeAuth();
+    this.restoreSession();
   }
 
-  private initializeAuth(): void {
-    // Auto-login in development mode
-    if (!environment.production) {
-      this.autoLoginDev();
+  /**
+   * Restore session from localStorage if available.
+   * No auto-login — user must select a persona from the login page.
+   */
+  private restoreSession(): void {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        const user: AuthenticatedUser = JSON.parse(savedUser);
+        this.currentUserSubject.next(user);
+      } catch {
+        localStorage.removeItem('currentUser');
+      }
     }
   }
 
   /**
-   * Auto-login with a specific role for development.
-   * Defaults to ADMIN so all features (including User Management) are accessible.
-   * Override via localStorage: localStorage.setItem('devRole', 'AGENT')
+   * Persist session to localStorage
    */
-  private autoLoginDev(): void {
-    const savedRole = localStorage.getItem('devRole') as UserRole || 'ADMIN';
-    this.loginAsRole(savedRole);
+  private persistSession(user: AuthenticatedUser | null): void {
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
   }
 
   /**
-   * Login as a specific role (for development/demo)
+   * Login as a specific role (for development/demo quick-switch)
    */
   loginAsRole(role: UserRole): void {
     const users: Record<UserRole, AuthenticatedUser> = {
@@ -175,8 +184,9 @@ export class AuthService {
       },
     };
 
-    localStorage.setItem('devRole', role);
-    this.currentUserSubject.next(users[role]);
+    const user = users[role];
+    this.currentUserSubject.next(user);
+    this.persistSession(user);
   }
 
   /**
@@ -271,10 +281,11 @@ export class AuthService {
       ],
     };
     this.currentUserSubject.next(user);
+    this.persistSession(user);
   }
 
   /**
-   * Login with full user data
+   * Login with full user data (primary login method for persona selector)
    */
   loginWithUser(user: User): void {
     const authenticatedUser: AuthenticatedUser = {
@@ -282,20 +293,46 @@ export class AuthService {
       permissions: getUserPermissions(user),
     };
     this.currentUserSubject.next(authenticatedUser);
+    this.persistSession(authenticatedUser);
   }
 
   /**
    * Logout current user
    */
   logout(): void {
+    localStorage.removeItem('currentUser');
     localStorage.removeItem('devRole');
     this.currentUserSubject.next(null);
   }
 
   /**
-   * Switch role (for development/demo)
+   * Switch role (for development/demo — re-logins as a hardcoded user for that role)
    */
   switchRole(role: UserRole): void {
     this.loginAsRole(role);
+  }
+
+  /**
+   * Get the default landing route for the current user's role.
+   * - AGENT/MANAGER with tasks:work → workspace (/)
+   * - MANAGER → /manager/team
+   * - DESIGNER → /admin/volume-loaders
+   * - ADMIN → /admin/users
+   */
+  getDefaultRoute(): string {
+    const role = this.currentRole;
+
+    switch (role) {
+      case 'AGENT':
+        return '/';
+      case 'MANAGER':
+        return '/manager/team';
+      case 'DESIGNER':
+        return '/admin/volume-loaders';
+      case 'ADMIN':
+        return '/admin/users';
+      default:
+        return '/';
+    }
   }
 }
