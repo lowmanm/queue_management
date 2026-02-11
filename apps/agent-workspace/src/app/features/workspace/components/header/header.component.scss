@@ -4,27 +4,38 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 $spacing-4;
+  padding: 0 $spacing-3;
   height: $header-height;
   background-color: $color-gray-900;
   color: $color-white;
   position: relative;
   z-index: $z-header;
+  gap: $spacing-2;
+
+  @media (min-width: $breakpoint-md) {
+    padding: 0 $spacing-4;
+    gap: $spacing-3;
+  }
 
   @media (min-width: $breakpoint-lg) {
     padding: 0 $spacing-5;
+    gap: $spacing-4;
   }
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: $spacing-3;
+  gap: $spacing-2;
   flex: 0 1 auto;
   min-width: 0;
 
+  @media (min-width: $breakpoint-md) {
+    gap: $spacing-3;
+  }
+
   @media (min-width: $breakpoint-lg) {
-    gap: $spacing-5;
+    gap: $spacing-4;
   }
 }
 
@@ -32,16 +43,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: $spacing-1-5;
+  padding: $spacing-2;
   background: none;
   border: none;
-  color: $color-gray-400;
+  color: $color-gray-300;
   cursor: pointer;
   border-radius: $border-radius-sm;
-  transition: color $transition-fast;
+  transition: all $transition-fast;
+  min-width: 44px;
+  min-height: 44px;
 
   &:hover {
     color: $color-white;
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary-light;
+    outline-offset: 2px;
   }
 
   @media (min-width: $breakpoint-lg) {
@@ -60,6 +79,7 @@
   color: $color-white;
   letter-spacing: $letter-spacing-tight;
   white-space: nowrap;
+  line-height: $line-height-tight;
 
   @media (min-width: $breakpoint-md) {
     font-size: $font-size-lg;
@@ -79,7 +99,7 @@
 
 .nav-link {
   padding: $spacing-1-5 $spacing-3;
-  color: $color-gray-400;
+  color: $color-gray-300;
   text-decoration: none;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
@@ -95,6 +115,11 @@
   &.active {
     color: $color-white;
     background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary-light;
+    outline-offset: 2px;
   }
 }
 
@@ -114,7 +139,7 @@
   align-items: center;
   gap: $spacing-1;
   padding: $spacing-1-5 $spacing-3;
-  color: $color-gray-400;
+  color: $color-gray-300;
   background: none;
   border: none;
   font-size: $font-size-sm;
@@ -128,6 +153,11 @@
   &.active {
     color: $color-white;
     background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary-light;
+    outline-offset: 2px;
   }
 
   svg {
@@ -152,9 +182,9 @@
   box-shadow: $shadow-lg;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-4px);
-  transition: all $transition-fast;
-  z-index: $z-dropdown;
+  transform: translateY(-8px);
+  transition: all $transition-normal cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: $z-sticky;
 }
 
 .dropdown-link {
@@ -184,7 +214,7 @@
   justify-content: center;
   flex: 1;
 
-  @media (min-width: $breakpoint-xl) {
+  @media (min-width: $breakpoint-2xl) {
     display: flex;
   }
 }
@@ -202,7 +232,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: $spacing-0-5;
 }
 
 .metric-value {
@@ -213,7 +243,7 @@
 }
 
 .metric-label {
-  font-size: 10px;
+  font-size: $font-size-xs;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wider;
   color: $color-gray-400;
@@ -223,10 +253,14 @@
 .header-right {
   display: flex;
   align-items: center;
-  gap: $spacing-2;
+  gap: $spacing-1-5;
   flex: 0 0 auto;
 
   @media (min-width: $breakpoint-md) {
+    gap: $spacing-2;
+  }
+
+  @media (min-width: $breakpoint-lg) {
     gap: $spacing-3;
   }
 }
@@ -273,6 +307,11 @@
     border-color: rgba(255, 255, 255, 0.2);
     color: $color-white;
   }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary-light;
+    outline-offset: 2px;
+  }
 }
 
 .role-dropdown {
@@ -285,7 +324,7 @@
   border-radius: $border-radius-lg;
   box-shadow: $shadow-lg;
   overflow: hidden;
-  z-index: $z-dropdown;
+  z-index: $z-sticky;
   min-width: 120px;
 }
 
@@ -316,7 +355,7 @@
 .debug-btn {
   padding: $spacing-1-5 $spacing-3;
   background-color: rgba(255, 255, 255, 0.06);
-  color: $color-gray-400;
+  color: $color-gray-300;
   border: $border-width-thin solid rgba(255, 255, 255, 0.1);
   border-radius: $border-radius-sm;
   font-size: $font-size-xs;
@@ -329,6 +368,11 @@
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.2);
     color: $color-white;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary-light;
+    outline-offset: 2px;
   }
 }
 
@@ -379,16 +423,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: $spacing-1-5;
+  padding: $spacing-2;
   background: none;
   border: none;
   color: $color-gray-500;
   cursor: pointer;
   border-radius: $border-radius-sm;
+  min-width: 44px;
+  min-height: 44px;
+  transition: all $transition-fast;
 
   &:hover {
     background-color: $color-gray-100;
     color: $color-gray-900;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
   }
 }
 
@@ -404,7 +456,7 @@
 
 .mobile-nav-section-title {
   padding: $spacing-2 $spacing-4;
-  font-size: 10px;
+  font-size: $font-size-xs;
   font-weight: $font-weight-semibold;
   text-transform: uppercase;
   letter-spacing: $letter-spacing-wider;
@@ -415,19 +467,32 @@
   display: flex;
   align-items: center;
   gap: $spacing-3;
-  padding: $spacing-2 $spacing-4;
+  padding: $spacing-3 $spacing-4;
   color: $color-gray-600;
   text-decoration: none;
   font-size: $font-size-base;
   transition: all $transition-fast;
+  min-height: 44px;
 
   &:hover {
     background-color: $color-gray-50;
     color: $color-gray-900;
   }
 
+  &:focus-visible {
+    background-color: $color-gray-100;
+    outline: 2px solid $color-primary;
+    outline-offset: -2px;
+  }
+
+  &:active {
+    background-color: $color-gray-100;
+    color: $color-gray-900;
+  }
+
   svg {
     color: $color-gray-400;
+    flex-shrink: 0;
   }
 }
 

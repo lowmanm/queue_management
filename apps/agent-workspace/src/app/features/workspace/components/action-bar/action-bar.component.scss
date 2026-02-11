@@ -4,11 +4,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: $spacing-5;
-  padding: $spacing-3 $spacing-5;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
   background-color: $color-white;
   border-top: $border-width-thin solid $border-color;
   min-height: $action-bar-height;
+
+  @media (min-width: $breakpoint-md) {
+    gap: $spacing-5;
+    padding: $spacing-3 $spacing-5;
+  }
 }
 
 // Work type badge
@@ -44,6 +50,7 @@
   margin-left: $spacing-1;
   color: $color-gray-700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 
   &.urgent {
     color: $color-error;
@@ -209,7 +216,12 @@
 .reservation-actions {
   display: flex;
   align-items: center;
-  gap: $spacing-5;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+
+  @media (min-width: $breakpoint-md) {
+    gap: $spacing-4;
+  }
 }
 
 .reservation-prompt {
@@ -226,13 +238,19 @@
 .task-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: $spacing-3;
 }
 
 .disposition-actions {
   display: flex;
   align-items: center;
-  gap: $spacing-5;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+
+  @media (min-width: $breakpoint-md) {
+    gap: $spacing-4;
+  }
 }
 
 .disposition-prompt {
@@ -245,6 +263,8 @@
   display: flex;
   gap: $spacing-2;
   flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
 }
 
 // Note Modal
@@ -256,6 +276,7 @@
   align-items: center;
   justify-content: center;
   z-index: $z-modal;
+  padding: $spacing-4;
   backdrop-filter: blur(2px);
 }
 
@@ -267,6 +288,10 @@
   max-width: 480px;
   box-shadow: $shadow-xl;
   animation: modalFadeIn 0.15s ease-out;
+
+  @media (max-width: $breakpoint-sm) {
+    border-radius: $border-radius-lg;
+  }
 }
 
 @keyframes modalFadeIn {
@@ -300,12 +325,18 @@
     font-size: $font-size-xl;
     cursor: pointer;
     color: $color-gray-400;
-    padding: 0;
+    padding: $spacing-1;
     line-height: 1;
-    transition: color $transition-fast;
+    border-radius: $border-radius-sm;
+    transition: all $transition-fast;
 
     &:hover {
       color: $color-gray-900;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $color-primary;
+      outline-offset: 2px;
     }
   }
 }

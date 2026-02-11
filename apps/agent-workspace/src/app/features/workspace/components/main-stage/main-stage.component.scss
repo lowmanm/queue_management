@@ -70,6 +70,8 @@
 .empty-state-content {
   text-align: center;
   color: $color-gray-500;
+  padding: $spacing-6;
+  max-width: 320px;
 }
 
 .empty-icon {
@@ -87,5 +89,5 @@
 .empty-state-content p {
   margin: 0;
   font-size: $font-size-sm;
-  color: $color-gray-400;
+  color: $color-gray-500;
 }

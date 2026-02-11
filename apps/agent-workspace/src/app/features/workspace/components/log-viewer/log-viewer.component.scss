@@ -10,6 +10,10 @@
   align-items: center;
   padding: $spacing-4;
   backdrop-filter: blur(2px);
+
+  @media (max-width: $breakpoint-sm) {
+    padding: $spacing-2;
+  }
 }
 
 .log-viewer-panel {
@@ -67,12 +71,18 @@
     font-size: $font-size-2xl;
     color: $color-gray-400;
     cursor: pointer;
-    padding: 0;
+    padding: $spacing-1;
     line-height: 1;
-    transition: color $transition-fast;
+    border-radius: $border-radius-sm;
+    transition: all $transition-fast;
 
     &:hover {
       color: $color-gray-900;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $color-primary;
+      outline-offset: 2px;
     }
   }
 }
@@ -113,7 +123,11 @@
     }
 
     input {
-      min-width: 150px;
+      min-width: 120px;
+
+      @media (min-width: $breakpoint-md) {
+        min-width: 150px;
+      }
     }
   }
 
@@ -166,7 +180,8 @@
     justify-content: center;
     height: 100%;
     min-height: 200px;
-    color: $color-gray-400;
+    color: $color-gray-500;
+    padding: $spacing-6;
 
     p {
       margin: 0;
@@ -175,7 +190,7 @@
 
     small {
       font-size: $font-size-sm;
-      color: $color-gray-300;
+      color: $color-gray-400;
     }
   }
 }
@@ -216,7 +231,7 @@
 
       &.level-debug .level-badge {
         background: $color-gray-100;
-        color: $color-gray-500;
+        color: $color-gray-600;
       }
 
       &.level-info .level-badge {
@@ -253,6 +268,7 @@
     width: 100px;
     color: $color-gray-500;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .col-level {
@@ -271,6 +287,9 @@
     width: 120px;
     color: $color-primary;
     font-weight: $font-weight-medium;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .col-message {
@@ -288,9 +307,14 @@
       border-radius: $border-radius-sm;
       font-size: $font-size-xs;
       white-space: pre-wrap;
-      word-break: break-all;
+      word-break: break-word;
       max-height: 100px;
+      max-width: 280px;
       overflow: auto;
+    }
+
+    @media (max-width: $breakpoint-lg) {
+      display: none;
     }
   }
 }
