@@ -9,9 +9,9 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { Observable, map, Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 import { Task } from '@nexus-queue/shared-models';
-import { QueueService, LoggerService } from '../../../../core/services';
+import { QueueService, LoggerService, AuthService } from '../../../../core/services';
 
 const LOG_CONTEXT = 'MainStage';
 
@@ -39,12 +39,22 @@ export class MainStageComponent implements OnInit, OnDestroy {
   @ViewChild('taskIframe') iframeRef?: ElementRef<HTMLIFrameElement>;
 
   currentTask$!: Observable<Task | null>;
-  safePayloadUrl$!: Observable<SafeResourceUrl | null>;
+
+  /** The current safe iframe URL — only changes when the origin differs */
+  safePayloadUrl: SafeResourceUrl | null = null;
+  /** Whether any task has a payload URL (controls iframe visibility) */
+  hasPayloadUrl = false;
   iframeLoaded = false;
+  /** Whether the iframe app has signaled READY (session is initialized) */
+  iframeReady = false;
 
   private logger = inject(LoggerService);
+  private authService = inject(AuthService);
   private destroy$ = new Subject<void>();
   private messageHandler: ((event: MessageEvent) => void) | null = null;
+
+  /** Track the current iframe origin to detect same-origin task transitions */
+  private currentIframeOrigin = '';
 
   constructor(
     private queueService: QueueService,
@@ -55,23 +65,80 @@ export class MainStageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;
 
-    this.safePayloadUrl$ = this.currentTask$.pipe(
-      map((task) => {
-        if (task?.payloadUrl) {
-          this.iframeLoaded = false;
-          return this.sanitizer.bypassSecurityTrustResourceUrl(task.payloadUrl);
-        }
-        return null;
-      })
-    );
-
-    // Subscribe to task changes to manage iframe communication
+    // Subscribe to task changes — manage iframe lifecycle with session persistence
     this.currentTask$.pipe(takeUntil(this.destroy$)).subscribe((task) => {
-      if (task) {
+      if (task?.payloadUrl) {
+        this.hasPayloadUrl = true;
+        this.handleTaskPayload(task);
         this.setupMessageListener(task);
       } else {
+        this.hasPayloadUrl = false;
         this.removeMessageListener();
+        // Don't clear safePayloadUrl or destroy iframe — preserve session for next task
       }
+    });
+  }
+
+  /**
+   * Determine whether to reload the iframe or send task context via postMessage.
+   * If the origin hasn't changed, keep the iframe alive and push context instead.
+   */
+  private handleTaskPayload(task: Task): void {
+    const newOrigin = this.extractOrigin(task.payloadUrl!);
+    const originChanged = newOrigin !== this.currentIframeOrigin;
+
+    if (originChanged || !this.safePayloadUrl) {
+      // Origin changed (or first load): reload iframe with new URL
+      this.logger.info(LOG_CONTEXT, 'Loading new iframe URL', {
+        taskId: task.id,
+        origin: newOrigin,
+        previousOrigin: this.currentIframeOrigin || '(none)',
+      });
+      this.iframeLoaded = false;
+      this.iframeReady = false;
+      this.currentIframeOrigin = newOrigin;
+      this.safePayloadUrl = this.sanitizer.bypassSecurityTrustResourceUrl(task.payloadUrl!);
+    } else {
+      // Same origin: keep iframe alive, send task context via postMessage
+      this.logger.info(LOG_CONTEXT, 'Same origin — sending task context via postMessage', {
+        taskId: task.id,
+        origin: newOrigin,
+      });
+      this.sendTaskContext(task);
+    }
+  }
+
+  /**
+   * Extract the origin (protocol + host) from a URL.
+   * Returns empty string for invalid URLs.
+   */
+  private extractOrigin(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.origin;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Send task context to the iframe via postMessage.
+   * Used when the origin hasn't changed to preserve session state.
+   */
+  private sendTaskContext(task: Task): void {
+    const user = this.authService.currentUser;
+    this.sendMessageToIframe({
+      type: 'NEXUS_TASK_UPDATE',
+      taskId: task.id,
+      payloadUrl: task.payloadUrl,
+      workType: task.workType,
+      priority: task.priority,
+      metadata: task.metadata || {},
+      agent: user ? {
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+      } : undefined,
     });
   }
 
@@ -230,12 +297,29 @@ export class MainStageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle READY message - source app finished initializing
+   * Handle READY message - source app finished initializing.
+   * Send full session context so the iframe app can authenticate/initialize.
    */
   private handleIframeReady(payload?: Record<string, unknown>): void {
     this.logger.info(LOG_CONTEXT, 'Source app is ready', payload);
-    // Could send initial data to the iframe
-    this.sendMessageToIframe({ type: 'NEXUS_CONNECTED', taskId: this.queueService.currentTask?.id });
+    this.iframeReady = true;
+
+    const task = this.queueService.currentTask;
+    const user = this.authService.currentUser;
+
+    this.sendMessageToIframe({
+      type: 'NEXUS_CONNECTED',
+      taskId: task?.id,
+      payloadUrl: task?.payloadUrl,
+      workType: task?.workType,
+      priority: task?.priority,
+      metadata: task?.metadata || {},
+      agent: user ? {
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+      } : undefined,
+    });
   }
 
   /**

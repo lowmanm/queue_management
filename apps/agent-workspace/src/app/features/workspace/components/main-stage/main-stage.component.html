@@ -1,5 +1,5 @@
 <main class="main-stage">
-  @if (safePayloadUrl$ | async; as url) {
+  @if (hasPayloadUrl && safePayloadUrl) {
     <div class="iframe-container" [class.loaded]="iframeLoaded">
       @if (!iframeLoaded) {
         <div class="iframe-loading">
@@ -10,9 +10,9 @@
       <iframe
         #taskIframe
         class="task-iframe"
-        [src]="url"
+        [src]="safePayloadUrl"
         title="Task Content"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
         (load)="onIframeLoad()"
         (error)="onIframeError()"
       ></iframe>

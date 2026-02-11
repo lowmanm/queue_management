@@ -1344,6 +1344,14 @@
       </div>
 
       <div class="modal-body">
+        <!-- Modal-level Messages (visible inside the modal) -->
+        @if (modalErrorMessage()) {
+          <div class="message error">{{ modalErrorMessage() }}</div>
+        }
+        @if (modalSuccessMessage()) {
+          <div class="message success">{{ modalSuccessMessage() }}</div>
+        }
+
         <!-- Help Text -->
         <div class="upload-help">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1355,6 +1363,10 @@
             Upload a CSV file to create tasks using this loader's field mappings.
             The data will be processed according to the configured mappings and
             dynamic URLs will be generated using placeholders like <code>{{ '{' }}externalId{{ '}' }}</code>.
+          </p>
+          <p class="upload-limits-info">
+            Limits: up to <strong>{{ uploadLimits().maxRows | number }}</strong> rows,
+            max file size <strong>{{ uploadLimits().maxFileSizeMb }} MB</strong>.
           </p>
         </div>
 

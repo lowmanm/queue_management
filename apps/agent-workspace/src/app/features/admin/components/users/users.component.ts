@@ -38,9 +38,16 @@ export class UsersComponent implements OnInit {
   loading = true;
   error: string | null = null;
 
+  // Toast notification state
+  toastMessage = '';
+  toastType: 'success' | 'error' = 'success';
+  toastVisible = false;
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null;
+
   // Modal state
   showModal = false;
   modalMode: 'create' | 'edit' = 'create';
+  modalError: string | null = null;
   editingUser: User | null = null;
 
   // Form data
@@ -160,11 +167,27 @@ export class UsersComponent implements OnInit {
   }
 
   /**
+   * Show a toast notification
+   */
+  showToast(message: string, type: 'success' | 'error' = 'success'): void {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.toastVisible = true;
+    if (this.toastTimeout) {
+      clearTimeout(this.toastTimeout);
+    }
+    this.toastTimeout = setTimeout(() => {
+      this.toastVisible = false;
+    }, 4000);
+  }
+
+  /**
    * Open modal for creating new user
    */
   openCreateModal(): void {
     this.modalMode = 'create';
     this.editingUser = null;
+    this.modalError = null;
     this.formData = {
       username: '',
       displayName: '',
@@ -183,6 +206,7 @@ export class UsersComponent implements OnInit {
   openEditModal(user: User): void {
     this.modalMode = 'edit';
     this.editingUser = user;
+    this.modalError = null;
     this.formData = {
       username: user.username,
       displayName: user.displayName,
@@ -224,15 +248,17 @@ export class UsersComponent implements OnInit {
    * Create new user
    */
   private createUser(): void {
+    this.modalError = null;
     this.http
       .post<User>(`${environment.apiUrl}/rbac/users`, this.formData)
       .subscribe({
         next: (user) => {
           this.users.push(user);
           this.closeModal();
+          this.showToast(`User "${user.displayName}" created successfully`);
         },
         error: (err) => {
-          this.error = err.error?.message || 'Failed to create user';
+          this.modalError = err.error?.message || 'Failed to create user';
           console.error('Failed to create user:', err);
         },
       });
@@ -244,6 +270,7 @@ export class UsersComponent implements OnInit {
   private updateUser(): void {
     if (!this.editingUser) return;
 
+    this.modalError = null;
     const updateRequest: UpdateUserRequest = {
       displayName: this.formData.displayName,
       email: this.formData.email,
@@ -264,9 +291,10 @@ export class UsersComponent implements OnInit {
             this.users[index] = user;
           }
           this.closeModal();
+          this.showToast(`User "${user.displayName}" updated successfully`);
         },
         error: (err) => {
-          this.error = err.error?.message || 'Failed to update user';
+          this.modalError = err.error?.message || 'Failed to update user';
           console.error('Failed to update user:', err);
         },
       });
@@ -290,9 +318,12 @@ export class UsersComponent implements OnInit {
         if (index >= 0) {
           this.users[index] = updatedUser;
         }
+        this.showToast(
+          `User "${updatedUser.displayName}" ${updatedUser.active ? 'activated' : 'deactivated'}`
+        );
       },
       error: (err) => {
-        this.error = 'Failed to update user status';
+        this.showToast('Failed to update user status', 'error');
         console.error('Failed to toggle user active:', err);
       },
     });

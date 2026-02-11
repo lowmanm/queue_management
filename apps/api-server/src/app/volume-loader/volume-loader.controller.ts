@@ -20,6 +20,11 @@ import {
   VolumeFieldMapping,
 } from '@nexus-queue/shared-models';
 
+/** Maximum number of rows allowed per CSV upload */
+const MAX_CSV_ROWS = 10000;
+/** Maximum CSV payload size in bytes (50 MB) */
+const MAX_CSV_SIZE_BYTES = 50 * 1024 * 1024;
+
 @Controller('volume-loaders')
 export class VolumeLoaderController {
   private readonly logger = new Logger(VolumeLoaderController.name);
@@ -71,6 +76,18 @@ export class VolumeLoaderController {
   @Get('diagnostics/status')
   getDiagnostics() {
     return this.volumeLoaderService.getDiagnostics();
+  }
+
+  /**
+   * Get CSV upload limits so the frontend can display them to the user.
+   */
+  @Get('upload-limits')
+  getUploadLimits() {
+    return {
+      maxRows: MAX_CSV_ROWS,
+      maxFileSizeBytes: MAX_CSV_SIZE_BYTES,
+      maxFileSizeMb: MAX_CSV_SIZE_BYTES / (1024 * 1024),
+    };
   }
 
   // ==========================================================================
@@ -280,6 +297,24 @@ export class VolumeLoaderController {
 
     if (!body.csvContent) {
       throw new HttpException('csvContent is required', HttpStatus.BAD_REQUEST);
+    }
+
+    // Enforce size limit
+    const contentSize = Buffer.byteLength(body.csvContent, 'utf-8');
+    if (contentSize > MAX_CSV_SIZE_BYTES) {
+      throw new HttpException(
+        `CSV content exceeds the maximum size of ${MAX_CSV_SIZE_BYTES / (1024 * 1024)} MB`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Enforce row limit
+    const lineCount = body.csvContent.split('\n').filter((line: string) => line.trim()).length - 1; // Subtract header row
+    if (lineCount > MAX_CSV_ROWS) {
+      throw new HttpException(
+        `CSV contains ${lineCount} data rows, which exceeds the maximum of ${MAX_CSV_ROWS} rows per upload`,
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Process the CSV content using the loader's configuration

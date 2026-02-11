@@ -211,6 +211,15 @@ export class VolumeLoaderApiService {
   }
 
   /**
+   * Get upload limits from the server (max rows, max file size).
+   */
+  getUploadLimits(): Observable<UploadLimits> {
+    return this.http.get<UploadLimits>(`${API_BASE}/upload-limits`).pipe(
+      catchError(() => of({ maxRows: 10000, maxFileSizeBytes: 50 * 1024 * 1024, maxFileSizeMb: 50 }))
+    );
+  }
+
+  /**
    * Test routing rules against staged records (dry run).
    * Returns per-record routing results and queue volume preview.
    */
@@ -272,6 +281,15 @@ export interface RoutingTestResult {
     totalUnrouted: number;
     totalErrors: number;
   };
+}
+
+/**
+ * CSV upload limits returned by the server
+ */
+export interface UploadLimits {
+  maxRows: number;
+  maxFileSizeBytes: number;
+  maxFileSizeMb: number;
 }
 
 /**
