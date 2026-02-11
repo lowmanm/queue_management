@@ -15,9 +15,10 @@ import {
   CreateRoutingRuleRequest,
   UpdateRoutingRuleRequest,
 } from '@nexus-queue/shared-models';
+import { environment } from '../../../../environments/environment';
 
-const API_BASE = 'http://localhost:3000/api/pipelines';
-const QUEUES_API = 'http://localhost:3000/api/queues';
+const API_BASE = `${environment.apiUrl}/pipelines`;
+const QUEUES_API = `${environment.apiUrl}/queues`;
 
 @Injectable({
   providedIn: 'root',

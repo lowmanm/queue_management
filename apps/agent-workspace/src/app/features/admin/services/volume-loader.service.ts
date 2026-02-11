@@ -12,8 +12,9 @@ import {
   TriggerVolumeLoaderRequest,
   VolumeFieldMapping,
 } from '@nexus-queue/shared-models';
+import { environment } from '../../../../environments/environment';
 
-const API_BASE = 'http://localhost:3000/api/volume-loaders';
+const API_BASE = `${environment.apiUrl}/volume-loaders`;
 
 @Injectable({
   providedIn: 'root',
