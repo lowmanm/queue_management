@@ -42,6 +42,9 @@ export class SocketService implements OnDestroy {
   private storedAgentName: string | null = null;
   private intentionalDisconnect = false;
 
+  /** Bound handler for browser close/navigation events */
+  private beforeUnloadHandler = this.onBeforeUnload.bind(this);
+
   // Connection status
   private connectionStatusSubject = new BehaviorSubject<ConnectionStatus>({
     connected: false,
@@ -89,6 +92,9 @@ export class SocketService implements OnDestroy {
     this.intentionalDisconnect = false;
     this.reconnectAttempts = 0;
 
+    // Register browser close handler to ensure graceful disconnect
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+
     this.establishConnection(agentId, agentName);
   }
 
@@ -122,6 +128,8 @@ export class SocketService implements OnDestroy {
   disconnect(): void {
     this.intentionalDisconnect = true;
     this.cancelReconnect();
+
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
 
     if (this.socket) {
       this.socket.removeAllListeners();
@@ -262,6 +270,30 @@ export class SocketService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.disconnect();
+  }
+
+  /**
+   * Handle browser close / navigation away.
+   * Sends a synchronous disconnect signal so the server can clean up the agent's active task.
+   */
+  private onBeforeUnload(): void {
+    if (this.socket?.connected && this.storedAgentId) {
+      this.logger.info(LOG_CONTEXT, 'Browser closing — sending graceful disconnect');
+
+      // Use sendBeacon for reliable delivery during page unload
+      const baseUrl = environment.apiUrl.replace('/api', '');
+      const payload = JSON.stringify({ agentId: this.storedAgentId });
+
+      const sent = navigator.sendBeacon(
+        `${baseUrl}/api/agents/disconnect`,
+        new Blob([payload], { type: 'application/json' })
+      );
+
+      if (!sent) {
+        // Fallback: emit socket event (may not arrive during unload)
+        this.socket.emit('agent:disconnect', { agentId: this.storedAgentId });
+      }
+    }
   }
 
   private setupEventListeners(agentId: string, agentName: string): void {

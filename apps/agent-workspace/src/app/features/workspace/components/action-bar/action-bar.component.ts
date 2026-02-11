@@ -56,6 +56,9 @@ export class ActionBarComponent implements OnInit, OnDestroy {
   // Disposition submission guard
   private dispositionInProgress = false;
 
+  // Timer to reset requestingNext if no task arrives
+  private requestingNextTimer: ReturnType<typeof setTimeout> | null = null;
+
   private logger = inject(LoggerService);
   private authService = inject(AuthService);
   private sessionApi = inject(SessionApiService);
@@ -112,6 +115,10 @@ export class ActionBarComponent implements OnInit, OnDestroy {
         this.requestingNext = false;
       } else {
         this.showPostDisposition = false;
+        // Reset requesting state when a task is assigned (ACTIVE/RESERVED)
+        if (state === 'ACTIVE' || state === 'RESERVED') {
+          this.requestingNext = false;
+        }
       }
     });
 
@@ -124,8 +131,16 @@ export class ActionBarComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearRequestingTimer();
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private clearRequestingTimer(): void {
+    if (this.requestingNextTimer) {
+      clearTimeout(this.requestingNextTimer);
+      this.requestingNextTimer = null;
+    }
   }
 
   /**
@@ -157,6 +172,15 @@ export class ActionBarComponent implements OnInit, OnDestroy {
 
     // Notify server that agent is ready for next task
     this.queueService.setReady();
+
+    // Reset requesting state after timeout if no task arrives
+    this.clearRequestingTimer();
+    this.requestingNextTimer = setTimeout(() => {
+      if (this.requestingNext) {
+        this.requestingNext = false;
+        this.showPostDisposition = true;
+      }
+    }, 5000);
   }
 
   /**

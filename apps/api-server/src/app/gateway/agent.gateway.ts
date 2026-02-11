@@ -96,6 +96,18 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     const agent = this.agentManager.getAgentBySocketId(client.id);
     const agentInfo = agent ? ` (Agent: ${agent.agentId})` : '';
     this.logger.log(`Client disconnected: ${client.id}${agentInfo} | Reason: socket closed`);
+
+    // If agent had an active/reserved task, requeue it so it's not lost
+    if (agent && agent.currentTaskId) {
+      const activeStates: AgentState[] = ['ACTIVE', 'RESERVED', 'WRAP_UP'];
+      if (activeStates.includes(agent.state)) {
+        this.logger.warn(
+          `Agent ${agent.agentId} disconnected with task ${agent.currentTaskId} in ${agent.state} state — requeueing task`
+        );
+        this.requeueTask(agent.currentTaskId, 'agent_disconnected');
+      }
+    }
+
     this.agentManager.removeAgentBySocketId(client.id);
   }
 
@@ -124,6 +136,21 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
 
     // Immediately try to assign a task (Force Mode)
     this.tryAssignTask(payload.agentId);
+  }
+
+  /**
+   * Graceful disconnect signal from client (browser closing).
+   * Triggers the same cleanup as a WebSocket disconnect.
+   */
+  @SubscribeMessage('agent:disconnect')
+  handleAgentDisconnect(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { agentId: string }
+  ): void {
+    this.logger.log(`Agent graceful disconnect: ${payload.agentId}`);
+    // handleDisconnect will fire automatically when the socket closes,
+    // but we trigger cleanup early to ensure task requeue happens
+    this.handleDisconnect(client);
   }
 
   /**
@@ -180,6 +207,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
         });
         break;
       case 'reject':
+        this.agentManager.clearAgentTask(payload.agentId);
         this.agentManager.updateAgentState(payload.agentId, 'IDLE');
         // Requeue the task if using V2 queue
         this.requeueTask(payload.taskId, 'agent_rejected');
@@ -191,6 +219,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
         this.taskStore?.updateStatus(payload.taskId, 'WRAP_UP' as TaskStatus);
         break;
       case 'transfer':
+        this.agentManager.clearAgentTask(payload.agentId);
         this.agentManager.updateAgentState(payload.agentId, 'IDLE');
         this.taskStore?.updateStatus(payload.taskId, 'TRANSFERRED' as TaskStatus);
         // Try to assign a new task
@@ -209,6 +238,7 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
   ): void {
     this.logger.log(`Agent ${payload.agentId} completed disposition for task ${payload.taskId}`);
 
+    this.agentManager.clearAgentTask(payload.agentId);
     this.agentManager.updateAgentState(payload.agentId, 'IDLE');
     this.taskStore?.updateStatus(payload.taskId, 'COMPLETED' as TaskStatus, {
       completedAt: new Date().toISOString(),
@@ -231,8 +261,8 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
 
     this.logger.log(`Force-pushing task ${task.id} to agent ${agentId}`);
     this.server.to(agent.socketId).emit('task:assigned', task);
-    // Set to RESERVED; client will auto-accept and send 'accept' action → ACTIVE
-    this.agentManager.updateAgentState(agentId, 'RESERVED');
+    // Set to RESERVED and track the task; client will auto-accept and send 'accept' action → ACTIVE
+    this.agentManager.assignTaskToAgent(agentId, task.id);
 
     return true;
   }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query, Logger, HttpCode } from '@nestjs/common';
 import { AgentManagerService, ConnectedAgent } from '../services/agent-manager.service';
 import { RbacService } from '../services/rbac.service';
 import { DispositionService } from '../services/disposition.service';
@@ -171,6 +171,29 @@ export class AgentsController {
       success: true,
       agent: this.enrichAgent(this.agentManager.getAgent(agentId)!),
     };
+  }
+
+  /**
+   * Beacon disconnect endpoint.
+   * Called via navigator.sendBeacon when the browser tab/window is closing.
+   * Triggers the same cleanup as a WebSocket disconnect.
+   */
+  @Post('disconnect')
+  @HttpCode(200)
+  handleBeaconDisconnect(
+    @Body() body: { agentId: string }
+  ): { success: boolean } {
+    if (!body?.agentId) {
+      return { success: false };
+    }
+
+    this.logger.log(`Beacon disconnect received for agent: ${body.agentId}`);
+    const agent = this.agentManager.getAgent(body.agentId);
+    if (agent) {
+      this.agentManager.removeAgent(body.agentId);
+    }
+
+    return { success: true };
   }
 
   /**

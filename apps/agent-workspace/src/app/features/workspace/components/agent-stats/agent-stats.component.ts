@@ -8,12 +8,14 @@ import { QueueService } from '../../../../core/services/queue.service';
 interface FormattedStats {
   tasksCompleted: number;
   tasksTransferred: number;
+  tasksRejected: number;
   tasksPerHour: number;
   avgHandleTime: string;
   avgWrapUpTime: string;
   totalLoggedInTime: string;
   totalIdleTime: string;
   totalActiveTime: string;
+  totalWrapUpTime: string;
   totalPausedTime: string;
   occupancyRate: number;
 }
@@ -56,12 +58,14 @@ export class AgentStatsComponent implements OnInit, OnDestroy {
     return {
       tasksCompleted: stats.tasksCompleted,
       tasksTransferred: stats.tasksTransferred,
+      tasksRejected: stats.tasksRejected,
       tasksPerHour: stats.tasksPerHour,
       avgHandleTime: this.formatTime(stats.averageHandleTime),
       avgWrapUpTime: this.formatTime(stats.averageWrapUpTime),
       totalLoggedInTime: this.formatTime(totalLoggedInTime),
       totalIdleTime: this.formatTime(stats.totalIdleTime),
       totalActiveTime: this.formatTime(stats.totalActiveTime),
+      totalWrapUpTime: this.formatTime(stats.totalWrapUpTime),
       totalPausedTime: this.formatTime(stats.totalPausedTime),
       occupancyRate: Math.round(stats.occupancyRate * 100),
     };
