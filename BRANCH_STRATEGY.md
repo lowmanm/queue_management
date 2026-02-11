@@ -341,24 +341,6 @@ git push origin --delete feature/NQ-xxx-description
 
 ---
 
-## Migration from Current State
-
-Since we're transitioning from initial POC development:
-
-1. **Immediate**: Create `develop` branch from current `main`
-   ```bash
-   git checkout main
-   git pull origin main
-   git checkout -b develop
-   git push -u origin develop
-   ```
-
-2. **Configure**: Set up branch protection rules in GitHub
-
-3. **Adopt**: All new work follows this strategy starting now
-
----
-
 ## Summary Diagram
 
 ```

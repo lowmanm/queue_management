@@ -26,7 +26,7 @@ nexus-queue/
 │   ├── agent-workspace/          # Angular frontend (port 4200)
 │   │   └── src/
 │   │       ├── app/
-│   │       │   ├── core/         # Guards (auth, permission, agent) & Services
+│   │       │   ├── core/         # Guards (auth, permission) & Services
 │   │       │   ├── shared/
 │   │       │   │   └── components/
 │   │       │   │       └── layout/   # AppShellComponent (SPA shell), PageLayoutComponent
@@ -34,24 +34,39 @@ nexus-queue/
 │   │       │       ├── login/        # Persona selector login
 │   │       │       ├── dashboard/    # Default landing page
 │   │       │       ├── workspace/    # Agent workspace (fullscreen)
-│   │       │       │   └── components/  # header, sidebar, main-stage, action-bar, log-viewer
+│   │       │       │   └── components/  # header, sidebar, main-stage, action-bar,
+│   │       │       │                    # agent-controls, agent-stats, log-viewer
 │   │       │       ├── admin/        # Designer + Admin routes (lazy)
+│   │       │       │   ├── components/  # volume-loader, pipelines, dispositions,
+│   │       │       │   │                # work-states, users
+│   │       │       │   └── services/    # disposition, pipeline, rules, volume-loader
 │   │       │       └── manager/      # Manager routes (lazy)
+│   │       │           └── components/  # team-dashboard, queue-monitor
 │   │       ├── environments/     # environment.ts, environment.prod.ts
 │   │       └── styles/           # Global SCSS
 │   └── api-server/               # NestJS backend (port 3000, prefix /api)
 │       └── src/app/
-│           ├── gateway/          # WebSocket gateway (agent.gateway.ts)
-│           ├── services/         # AgentManagerService, TaskDistributorService
-│           └── tasks/            # TasksController, TasksService (REST endpoints)
+│           ├── agents/           # AgentsController
+│           ├── dispositions/     # DispositionsController
+│           ├── gateway/          # AgentGateway (WebSocket)
+│           ├── metrics/          # MetricsController
+│           ├── pipelines/        # PipelineController, PipelineService
+│           ├── queues/           # QueuesController, QueuesService
+│           ├── rbac/             # RBACController
+│           ├── routing/          # RoutingController, RoutingService
+│           ├── rules/            # RulesController
+│           ├── services/         # 11 core services (see Key Services below)
+│           ├── sessions/         # SessionsController
+│           ├── task-sources/     # TaskSourcesController
+│           ├── tasks/            # TasksController, TasksService
+│           └── volume-loader/    # VolumeLoaderController, VolumeLoaderService
 ├── libs/
 │   └── shared-models/            # @nexus-queue/shared-models library
-│       └── src/lib/              # task.interface.ts, agent.interface.ts
-├── ARCHITECTURE.md               # System design, state machine, roadmap
-├── ARCHITECTURE-V2.md            # Pipeline-centric orchestration redesign
+│       └── src/lib/              # 11 interface files (see Shared Models below)
+├── ARCHITECTURE.md               # System design, orchestration, state machine, roadmap
 ├── BRANCH_STRATEGY.md            # Git workflow (Git Flow)
-├── AGENT.md                      # Detailed AI agent development guidelines
-└── CLAUDE.md                     # This file
+├── CLAUDE.md                     # This file
+└── README.md                     # Getting started guide
 ```
 
 ## Quick Start Commands
@@ -112,23 +127,47 @@ OFFLINE → IDLE → RESERVED → ACTIVE → WRAP_UP → IDLE
 
 ### Key Services
 
-**Frontend:**
+**Frontend (core/services/):**
+- `AuthService` — Authentication, RBAC, persona switching, role-based routing
 - `QueueService` — State machine, task management, reservation timers
 - `SocketService` — WebSocket connection with reconnection logic (max 5 attempts)
-- `AuthService` — Authentication with dev auto-login (Test_Agent_01)
 - `LoggerService` — Structured debug logging
+- `AgentStatsService` — Real-time agent performance metrics (tasks completed, avg handle time)
+- `DispositionService` — Task disposition management
+- `ManagerApiService` — Manager dashboard API calls (team status, queue stats)
+- `SessionApiService` — Agent session lifecycle API calls
 
-**Backend:**
-- `AgentManagerService` — Track agent connections and states
-- `TaskDistributorService` — Priority-based task assignment
-- `TasksService` — Mock task pool, task retrieval
-- `AgentGateway` — WebSocket event handling
+**Backend (services/):**
+- `PipelineOrchestratorService` — Central ingestion: validate → transform → route → enqueue
+- `QueueManagerService` — Priority queue with DLQ and backpressure
+- `TaskStoreService` — Single task lifecycle store
+- `TaskDistributorService` — Agent-task matching via scoring
+- `SLAMonitorService` — Periodic SLA compliance checking and escalation
+- `RuleEngineService` — Task transformation via configurable rule sets
+- `RoutingService` — Agent scoring (skill match, workload, idle time)
+- `AgentManagerService` — Agent connection and state tracking
+- `AgentSessionService` — Agent session lifecycle management
+- `DispositionService` — Disposition management and validation
+- `TaskSourceService` — CSV parsing and data source adapters
+- `RBACService` — Role-based access control
 
 ### Shared Models
 
 Import path: `@nexus-queue/shared-models`
 
-Key interfaces: `Task`, `Agent`, `TaskAction`, `TaskDisposition`, `AgentState`, `TaskStatus`
+| Interface File | Key Exports |
+|----------------|-------------|
+| `task.interface.ts` | `Task`, `TaskAction`, `TaskDisposition`, `TaskStatus` |
+| `agent.interface.ts` | `Agent`, `AgentState` |
+| `agent-stats.interface.ts` | `AgentStats`, `AgentPerformanceMetrics` |
+| `disposition.interface.ts` | `Disposition`, `DispositionCategory` |
+| `pipeline.interface.ts` | `Pipeline`, `PipelineConfig`, `RoutingRule` |
+| `rbac.interface.ts` | `UserRole`, `Permission`, `UserProfile` |
+| `routing.interface.ts` | `RoutingStrategy`, `AgentScore` |
+| `rule.interface.ts` | `Rule`, `RuleSet`, `RuleCondition`, `RuleAction` |
+| `task-source.interface.ts` | `TaskSource`, `TaskSourceConfig` |
+| `volume-loader.interface.ts` | `VolumeLoader`, `VolumeLoaderConfig` |
+| `work-state.interface.ts` | `WorkState`, `WorkStateType` |
 
 ## Development Conventions
 
@@ -259,10 +298,8 @@ The Workspace route uses `data: { fullscreen: true }` to bypass the shell's side
 
 ## Related Documentation
 
-- **ARCHITECTURE.md** — Full system design, state diagrams, component layout, and roadmap
-- **ARCHITECTURE-V2.md** — Pipeline-centric orchestration redesign (Queue Manager, SLA Monitor, Distribution Engine)
+- **ARCHITECTURE.md** — Full system design, orchestration flow, state machine, project structure, and roadmap
 - **BRANCH_STRATEGY.md** — Detailed branching workflows, PR templates, merge strategies
-- **AGENT.md** — Comprehensive AI agent development guidelines, checklists, code patterns
 - **README.md** — Getting started guide
 
 ## Project Status
@@ -270,6 +307,6 @@ The Workspace route uses `data: { fullscreen: true }` to bypass the shell's side
 - **Phase 1 (Foundation):** Complete — Mock auth, state machine, basic task distribution
 - **Phase 2 (Real-time Push):** Complete — WebSocket gateway, Force Mode, task actions
 - **Phase 2.5 (SPA Architecture):** Complete — Persistent layout shell, dashboard, fullscreen workspace, architectural navigation
-- **Phase 2.5 (Orchestration Core):** Planned — See ARCHITECTURE-V2.md
+- **Phase 2.5 (Orchestration Core):** In Progress — Pipeline Orchestrator, Queue Manager, SLA Monitor, Distribution Engine
 - **Phase 3 (Logic Builder):** Planned — Drag-and-drop queue criteria configuration
-- **Phase 4 (GCS Integration):** Planned — Google Cloud Storage event-driven ingestion
+- **Phase 4 (Persistence + Production):** Planned — PostgreSQL-backed queues, Redis, event sourcing
