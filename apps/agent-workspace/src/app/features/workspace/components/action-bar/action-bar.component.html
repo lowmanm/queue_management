@@ -1,33 +1,13 @@
 @if (showBar$ | async) {
   <div class="action-bar">
     @if (agentState$ | async; as state) {
-      <!-- Work Type Badge -->
-      @if (workType$ | async; as workType) {
-        <div class="work-type-badge" [attr.data-type]="workType">
-          {{ workType }}
-        </div>
-      }
-
-      <!-- Reserved State: Accept/Reject buttons with countdown -->
-      @if (state === 'RESERVED') {
-        <div class="reservation-actions">
-          <span class="reservation-prompt">
-            New task assigned
-            @if (countdown$ | async; as countdown) {
-              <span class="countdown" [class.urgent]="countdown <= 10">
-                ({{ countdown }}s)
-              </span>
-            }
-          </span>
-          <div class="reservation-buttons">
-            <button class="action-btn accept" (click)="onAccept()">
-              Accept
-            </button>
-            <button class="action-btn reject" (click)="onReject()">
-              Reject
-            </button>
+      <!-- Work Type Badge (only during active task) -->
+      @if (state === 'ACTIVE' || state === 'WRAP_UP') {
+        @if (workType$ | async; as workType) {
+          <div class="work-type-badge" [attr.data-type]="workType">
+            {{ workType }}
           </div>
-        </div>
+        }
       }
 
       <!-- Active State: Dynamic action buttons -->
@@ -74,6 +54,43 @@
               }
             }
           </div>
+        </div>
+      }
+
+      <!-- IDLE State: Post-disposition options (Get Next Task or Work State) -->
+      @if (state === 'IDLE' && showPostDisposition) {
+        <div class="post-disposition-actions">
+          <button
+            class="action-btn get-next"
+            (click)="onGetNextTask()"
+            [disabled]="requestingNext"
+          >
+            @if (requestingNext) {
+              <span class="btn-spinner"></span>
+              Requesting...
+            } @else {
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              Get Next Task
+            }
+          </button>
+
+          @if (selectableWorkStates.length > 0) {
+            <span class="divider-text">or</span>
+            <div class="work-state-options">
+              @for (ws of selectableWorkStates; track ws.id) {
+                <button
+                  class="action-btn work-state-btn"
+                  [title]="ws.name"
+                  (click)="onSelectWorkState(ws)"
+                >
+                  {{ ws.name }}
+                </button>
+              }
+            </div>
+          }
         </div>
       }
     }

@@ -219,7 +219,8 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
   }
 
   /**
-   * Push a task to a specific agent
+   * Push a task to a specific agent (Force-Push Mode).
+   * Sets agent directly to RESERVED; the client auto-accepts immediately.
    */
   pushTaskToAgent(agentId: string, task: Task): boolean {
     const agent = this.agentManager.getAgent(agentId);
@@ -228,8 +229,9 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       return false;
     }
 
-    this.logger.log(`Pushing task ${task.id} to agent ${agentId}`);
+    this.logger.log(`Force-pushing task ${task.id} to agent ${agentId}`);
     this.server.to(agent.socketId).emit('task:assigned', task);
+    // Set to RESERVED; client will auto-accept and send 'accept' action → ACTIVE
     this.agentManager.updateAgentState(agentId, 'RESERVED');
 
     return true;

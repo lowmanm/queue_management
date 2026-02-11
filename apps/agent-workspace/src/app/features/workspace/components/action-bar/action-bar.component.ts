@@ -16,12 +16,15 @@ import {
   TaskAction,
   AgentState,
   Disposition,
+  WorkStateConfig,
 } from '@nexus-queue/shared-models';
 import {
   QueueService,
   LoggerService,
   DispositionService,
+  AuthService,
 } from '../../../../core/services';
+import { SessionApiService } from '../../../../core/services/session-api.service';
 
 const LOG_CONTEXT = 'ActionBar';
 
@@ -37,16 +40,25 @@ export class ActionBarComponent implements OnInit, OnDestroy {
   agentState$!: Observable<AgentState>;
   actions$!: Observable<TaskAction[]>;
   showBar$!: Observable<boolean>;
-  countdown$!: Observable<number>;
   workType$!: Observable<string>;
   dispositions$!: Observable<Disposition[]>;
+
+  // Post-disposition state
+  showPostDisposition = false;
+  selectableWorkStates: WorkStateConfig[] = [];
+  requestingNext = false;
 
   // Modal state
   showNoteModal = false;
   noteText = '';
   selectedDisposition: Disposition | null = null;
 
+  // Disposition submission guard
+  private dispositionInProgress = false;
+
   private logger = inject(LoggerService);
+  private authService = inject(AuthService);
+  private sessionApi = inject(SessionApiService);
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -57,7 +69,6 @@ export class ActionBarComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;
     this.agentState$ = this.queueService.agentState$;
-    this.countdown$ = this.queueService.reservationCountdown$;
 
     // Extract actions from current task
     this.actions$ = this.currentTask$.pipe(
@@ -69,9 +80,9 @@ export class ActionBarComponent implements OnInit, OnDestroy {
       map((task) => task?.workType || '')
     );
 
-    // Show bar when in RESERVED, ACTIVE, or WRAP_UP state
+    // Show bar when in ACTIVE, WRAP_UP, or IDLE state (IDLE shows post-disposition options)
     this.showBar$ = this.agentState$.pipe(
-      map((state) => ['RESERVED', 'ACTIVE', 'WRAP_UP'].includes(state))
+      map((state) => ['ACTIVE', 'WRAP_UP', 'IDLE'].includes(state))
     );
 
     // Load dispositions from the backend
@@ -92,6 +103,24 @@ export class ActionBarComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe();
+
+    // Track state transitions to show post-disposition UI
+    this.agentState$.pipe(takeUntil(this.destroy$)).subscribe((state) => {
+      if (state === 'IDLE') {
+        // Show post-disposition options when transitioning to IDLE after wrap-up
+        this.showPostDisposition = true;
+        this.requestingNext = false;
+      } else {
+        this.showPostDisposition = false;
+      }
+    });
+
+    // Load selectable work states for post-disposition options
+    this.sessionApi.getSelectableStates().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (states) => {
+        this.selectableWorkStates = states.filter((s) => s.category === 'unavailable');
+      },
+    });
   }
 
   ngOnDestroy(): void {
@@ -120,17 +149,37 @@ export class ActionBarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Accept the reserved task
+   * Request the next task (Get Next Task button)
    */
-  onAccept(): void {
-    this.queueService.acceptTask();
+  onGetNextTask(): void {
+    this.requestingNext = true;
+    this.showPostDisposition = false;
+
+    // Notify server that agent is ready for next task
+    this.queueService.setReady();
   }
 
   /**
-   * Reject the reserved task
+   * Switch to a work state (break, lunch, etc.) after disposition
    */
-  onReject(): void {
-    this.queueService.rejectTask();
+  onSelectWorkState(state: WorkStateConfig): void {
+    const agentId = this.authService.currentAgent?.id;
+    if (!agentId) return;
+
+    this.showPostDisposition = false;
+
+    this.sessionApi.changeState(agentId, {
+      requestedState: state.id,
+      reason: 'Agent selected post-disposition work state',
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.logger.info(LOG_CONTEXT, 'Changed to work state', { state: state.id });
+        this.queueService.setOffline();
+      },
+      error: (err) => {
+        this.logger.error(LOG_CONTEXT, 'Failed to change work state', err);
+      },
+    });
   }
 
   /**
@@ -242,34 +291,53 @@ export class ActionBarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Complete task via REST API
+    // Prevent double-submission
+    if (this.dispositionInProgress) {
+      this.logger.warn(LOG_CONTEXT, 'Disposition already in progress, ignoring duplicate');
+      return;
+    }
+    this.dispositionInProgress = true;
+
+    const agentId = this.authService.currentAgent?.id || 'unknown';
+
+    // Complete task via REST API with all required fields
     this.dispositionService
       .completeTaskWithDisposition({
         taskId: task.id,
         dispositionId: disposition.id,
         note: note,
+        agentId,
+        workType: task.workType,
+        queue: task.queue,
+        assignedAt: task.acceptedAt || task.reservedAt || task.createdAt,
       })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          // Update local state via QueueService (skip socket notify since REST API already notified backend)
+          this.logger.info(LOG_CONTEXT, 'Task completed via REST API', {
+            taskId: task.id,
+            disposition: disposition.code,
+          });
+          // Update local state only (skip socket — REST API already notified backend)
           this.queueService.submitDisposition(
             {
               code: disposition.code,
               label: disposition.name,
               note: note,
             },
-            true // skipSocketNotify - already sent via REST API
+            true // skipSocketNotify
           );
+          this.dispositionInProgress = false;
         },
         error: (error) => {
-          this.logger.error(LOG_CONTEXT, 'Failed to complete task', error);
-          // Still submit locally but notify via socket since REST failed
+          this.logger.error(LOG_CONTEXT, 'REST disposition failed, using socket fallback', error);
+          // Fall back to socket-based completion
           this.queueService.submitDisposition({
             code: disposition.code,
             label: disposition.name,
             note: note,
           });
+          this.dispositionInProgress = false;
         },
       });
   }

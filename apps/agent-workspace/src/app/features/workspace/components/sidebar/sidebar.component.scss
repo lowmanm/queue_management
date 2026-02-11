@@ -7,7 +7,8 @@
   border-right: $border-width-thin solid $border-color;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
+  min-height: 0;
 
   @media (max-width: $breakpoint-lg) {
     width: 260px;
@@ -30,6 +31,7 @@
 .sidebar-header {
   padding: $spacing-3 $spacing-4;
   border-bottom: $border-width-thin solid $border-color;
+  flex-shrink: 0;
 
   h2 {
     margin: 0;
@@ -45,6 +47,7 @@
   padding: $spacing-4;
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .task-details {

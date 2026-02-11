@@ -39,15 +39,13 @@ export class SessionsController {
   }
 
   /**
-   * Get session for a specific agent
+   * Get session for a specific agent.
+   * Returns null (200) instead of 404 when no session exists,
+   * to prevent noisy console errors from frontend polling.
    */
   @Get('agent/:agentId')
   getAgentSession(@Param('agentId') agentId: string) {
-    const session = this.sessionService.getSession(agentId);
-    if (!session) {
-      throw new HttpException('No active session', HttpStatus.NOT_FOUND);
-    }
-    return session;
+    return this.sessionService.getSession(agentId) || null;
   }
 
   /**
