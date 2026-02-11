@@ -163,6 +163,7 @@
     &.logged-in { background-color: $color-primary; }
     &.active    { background-color: $color-success; }
     &.idle      { background-color: $color-warning; }
+    &.wrap-up   { background-color: $color-info; }
     &.paused    { background-color: $color-gray-400; }
   }
 

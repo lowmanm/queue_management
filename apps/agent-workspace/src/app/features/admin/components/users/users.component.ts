@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -31,6 +31,7 @@ interface RbacConfig {
 })
 export class UsersComponent implements OnInit {
   private http = inject(HttpClient);
+  private cdr = inject(ChangeDetectorRef);
 
   users: User[] = [];
   teams: Team[] = [];
@@ -84,10 +85,12 @@ export class UsersComponent implements OnInit {
         this.teams = config.teams;
         this.roles = config.roles;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.error = 'Failed to load users';
         this.loading = false;
+        this.cdr.detectChanges();
         console.error('Failed to load RBAC config:', err);
       },
     });

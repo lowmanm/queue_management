@@ -18,6 +18,12 @@
           <span class="stat-value">{{ stats.tasksPerHour }}</span>
           <span class="stat-label">Tasks/Hour</span>
         </div>
+        @if (stats.tasksRejected > 0) {
+          <div class="stat-card">
+            <span class="stat-value">{{ stats.tasksRejected }}</span>
+            <span class="stat-label">Skipped</span>
+          </div>
+        }
       </div>
 
       <!-- Time Metrics -->
@@ -54,6 +60,13 @@
             <span class="time-label">Idle</span>
             <span class="time-value">{{ stats.totalIdleTime }}</span>
           </div>
+          @if (stats.totalWrapUpTime !== '0:00') {
+            <div class="time-item">
+              <span class="time-indicator wrap-up"></span>
+              <span class="time-label">Wrap-Up</span>
+              <span class="time-value">{{ stats.totalWrapUpTime }}</span>
+            </div>
+          }
           @if (stats.totalPausedTime !== '0:00') {
             <div class="time-item">
               <span class="time-indicator paused"></span>

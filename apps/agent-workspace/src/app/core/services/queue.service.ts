@@ -59,6 +59,9 @@ export class QueueService implements OnDestroy {
   /** Emits when the agent explicitly signals ready for next task */
   public agentReady$: Observable<void> = this.agentReadySubject.asObservable();
 
+  // === Post-disposition cleanup timer ===
+  private postDispositionTimer: ReturnType<typeof setTimeout> | null = null;
+
   // === Session Metrics ===
   private sessionMetrics = {
     tasksCompleted: 0,
@@ -79,6 +82,7 @@ export class QueueService implements OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.stopReservationTimer();
+    this.cancelPostDispositionTimer();
   }
 
   // === Getters ===
@@ -141,6 +145,9 @@ export class QueueService implements OnDestroy {
    */
   handleTaskAssigned(task: Task): void {
     this.logger.info(LOG_CONTEXT, 'Task assigned via WebSocket (force-push)', { taskId: task.id, workType: task.workType });
+
+    // Cancel any pending post-disposition cleanup to prevent it from wiping this new task
+    this.cancelPostDispositionTimer();
 
     const now = new Date().toISOString();
     const updatedTask: Task = {
@@ -368,11 +375,8 @@ export class QueueService implements OnDestroy {
 
     this.currentTaskSubject.next(updatedTask);
 
-    // Clear task and return to IDLE after a brief delay
-    setTimeout(() => {
-      this.currentTaskSubject.next(null);
-      this.transitionTo('IDLE');
-    }, 500);
+    // Clear task and return to IDLE after a brief delay (cancellable if new task arrives)
+    this.startPostDispositionTimer();
   }
 
   /**
@@ -407,11 +411,8 @@ export class QueueService implements OnDestroy {
     this.sessionMetrics.tasksTransferred++;
     this.currentTaskSubject.next(updatedTask);
 
-    // Clear task and return to IDLE
-    setTimeout(() => {
-      this.currentTaskSubject.next(null);
-      this.transitionTo('IDLE');
-    }, 500);
+    // Clear task and return to IDLE (cancellable if new task arrives)
+    this.startPostDispositionTimer();
   }
 
   /**
@@ -532,6 +533,30 @@ export class QueueService implements OnDestroy {
 
     this.currentTaskSubject.next(null);
     this.transitionTo('IDLE');
+  }
+
+  /**
+   * Start a cancellable timer to clear the current task and transition to IDLE.
+   * Used after disposition/transfer to allow brief display of final state.
+   * Cancelled automatically if a new task arrives before it fires.
+   */
+  private startPostDispositionTimer(): void {
+    this.cancelPostDispositionTimer();
+    this.postDispositionTimer = setTimeout(() => {
+      this.postDispositionTimer = null;
+      this.currentTaskSubject.next(null);
+      this.transitionTo('IDLE');
+    }, 500);
+  }
+
+  /**
+   * Cancel the post-disposition cleanup timer (e.g. when a new task arrives immediately)
+   */
+  private cancelPostDispositionTimer(): void {
+    if (this.postDispositionTimer) {
+      clearTimeout(this.postDispositionTimer);
+      this.postDispositionTimer = null;
+    }
   }
 
   private calculateHandleTime(

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -26,6 +26,7 @@ export class LoginComponent implements OnInit {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
 
   users: User[] = [];
   teams: Team[] = [];
@@ -88,6 +89,7 @@ export class LoginComponent implements OnInit {
         this.users = this.getDefaultUsers();
         this.buildPersonaGroups();
         this.loading = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -97,10 +99,12 @@ export class LoginComponent implements OnInit {
       next: (teams) => {
         this.teams = teams;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.teams = [];
         this.loading = false;
+        this.cdr.detectChanges();
       },
     });
   }
