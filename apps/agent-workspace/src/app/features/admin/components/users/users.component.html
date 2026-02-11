@@ -244,15 +244,32 @@
         </div>
 
         <div class="form-group">
-          <label for="skills">Skills (comma-separated)</label>
-          <input
-            type="text"
-            id="skills"
-            [(ngModel)]="skillsInput"
-            placeholder="e.g., orders, returns, claims"
-            class="form-input"
-          />
-          <span class="form-hint">Skills are used for task routing</span>
+          <label>Skills</label>
+          <!-- Selected skills chips -->
+          <div class="skill-chips" *ngIf="(formData.skills || []).length > 0">
+            <span class="skill-chip" *ngFor="let skillId of formData.skills">
+              {{ getSkillName(skillId) }}
+              <button type="button" class="chip-remove" (click)="toggleFormSkill(skillId)">&times;</button>
+            </span>
+          </div>
+          <!-- Skill picker from configured skills -->
+          <div class="skill-picker" *ngIf="availableSkills.length > 0">
+            <div class="skill-option" *ngFor="let skill of availableSkills">
+              <label class="skill-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="(formData.skills || []).includes(skill.id)"
+                  (change)="toggleFormSkill(skill.id)"
+                />
+                <span>{{ skill.name }}</span>
+                <small class="skill-category-hint">({{ skill.category }})</small>
+              </label>
+            </div>
+          </div>
+          <p class="form-hint-text" *ngIf="availableSkills.length === 0">
+            No skills configured. Go to Configuration &gt; Skills to create skills.
+          </p>
+          <span class="form-hint">Skills determine which tasks are routed to this agent</span>
         </div>
 
         <!-- Role Permissions Preview -->

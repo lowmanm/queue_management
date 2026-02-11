@@ -147,18 +147,19 @@ export class RoutingService {
   }
 
   deleteSkill(id: string): boolean {
-    const deleted = this.skills.delete(id);
-    if (deleted) {
-      // Remove from agent assignments
-      this.agentSkills.forEach((skills, agentId) => {
-        this.agentSkills.set(
-          agentId,
-          skills.filter((s) => s.skillId !== id)
-        );
-      });
-      this.logger.log(`Deleted skill: ${id}`);
-    }
-    return deleted;
+    const skill = this.skills.get(id);
+    if (!skill) return false;
+
+    // Soft delete: deactivate the skill and remove from agent assignments
+    this.skills.set(id, { ...skill, active: false, updatedAt: new Date().toISOString() });
+    this.agentSkills.forEach((skills, agentId) => {
+      this.agentSkills.set(
+        agentId,
+        skills.filter((s) => s.skillId !== id)
+      );
+    });
+    this.logger.log(`Soft-deleted skill: ${id} (${skill.name})`);
+    return true;
   }
 
   // ==========================================================================

@@ -57,6 +57,10 @@ export type Permission =
   | 'design:rules'            // Manage routing rules
   | 'design:pipelines'        // Manage pipelines
   | 'design:volume_loaders'   // Manage data sources / volume loaders
+  | 'design:skills'           // Configure skills (add, edit, deactivate)
+
+  // Skill assignment permissions
+  | 'skills:assign'           // Assign/remove skills on agents (managers)
 
   // Admin permissions
   | 'admin:users'             // Manage users and roles
@@ -274,6 +278,7 @@ export const DEFAULT_ROLES: Role[] = [
       'agents:view_own',
       'agents:view_team',
       'agents:force_state',
+      'skills:assign',
       'stats:own',
       'stats:team',
       'stats:queue',
@@ -298,6 +303,7 @@ export const DEFAULT_ROLES: Role[] = [
       'design:rules',
       'design:pipelines',
       'design:volume_loaders',
+      'design:skills',
     ],
   },
   {
@@ -332,6 +338,8 @@ export const DEFAULT_ROLES: Role[] = [
       'design:rules',
       'design:pipelines',
       'design:volume_loaders',
+      'design:skills',
+      'skills:assign',
       'admin:users',
       'admin:settings',
       'admin:audit',
@@ -491,6 +499,20 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     name: 'Manage Data Sources',
     description: 'Configure volume loaders and data ingestion',
     category: 'DESIGN',
+  },
+  {
+    id: 'design:skills',
+    name: 'Manage Skills',
+    description: 'Create, edit, and deactivate skill definitions',
+    category: 'DESIGN',
+  },
+
+  // Skill assignment permissions
+  {
+    id: 'skills:assign',
+    name: 'Assign Skills',
+    description: 'Assign and remove skills on agents within managed teams',
+    category: 'AGENTS',
   },
 
   // Admin permissions

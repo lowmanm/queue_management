@@ -12,7 +12,9 @@ import {
   UpdateUserRequest,
   ALL_PERMISSIONS,
   DEFAULT_ROLES,
+  Skill,
 } from '@nexus-queue/shared-models';
+import { SkillApiService } from '../../services/skill.service';
 import { environment } from '../../../../../environments/environment';
 
 interface RbacConfig {
@@ -32,10 +34,12 @@ interface RbacConfig {
 export class UsersComponent implements OnInit {
   private http = inject(HttpClient);
   private cdr = inject(ChangeDetectorRef);
+  private skillApiService = inject(SkillApiService);
 
   users: User[] = [];
   teams: Team[] = [];
   roles: Role[] = DEFAULT_ROLES;
+  availableSkills: Skill[] = [];
   loading = true;
   error: string | null = null;
 
@@ -70,6 +74,7 @@ export class UsersComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadConfig();
+    this.loadAvailableSkills();
   }
 
   /**
@@ -94,6 +99,39 @@ export class UsersComponent implements OnInit {
         console.error('Failed to load RBAC config:', err);
       },
     });
+  }
+
+  /**
+   * Load available skills from routing config
+   */
+  loadAvailableSkills(): void {
+    this.skillApiService.getAllSkills().subscribe({
+      next: (skills) => {
+        this.availableSkills = skills.filter((s) => s.active);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  /**
+   * Toggle a skill in the form data
+   */
+  toggleFormSkill(skillId: string): void {
+    const skills = this.formData.skills || [];
+    if (skills.includes(skillId)) {
+      this.formData.skills = skills.filter((s) => s !== skillId);
+    } else {
+      this.formData.skills = [...skills, skillId];
+    }
+    this.skillsInput = (this.formData.skills || []).join(', ');
+  }
+
+  /**
+   * Get skill name by ID
+   */
+  getSkillName(skillId: string): string {
+    const skill = this.availableSkills.find((s) => s.id === skillId);
+    return skill?.name || skillId;
   }
 
   /**

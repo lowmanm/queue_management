@@ -25,4 +25,13 @@ export const MANAGER_ROUTES: Routes = [
     canActivate: [managerGuard],
     data: { permissions: ['queues:view'] },
   },
+  {
+    path: 'skills',
+    loadComponent: () =>
+      import('./components/skill-assignments/skill-assignments.component').then(
+        (m) => m.SkillAssignmentsComponent
+      ),
+    canActivate: [managerGuard],
+    data: { permissions: ['skills:assign'] },
+  },
 ];

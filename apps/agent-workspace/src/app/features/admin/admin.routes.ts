@@ -26,6 +26,15 @@ export const ADMIN_ROUTES: Routes = [
     data: { permissions: ['design:pipelines'] },
   },
   {
+    path: 'skills',
+    loadComponent: () =>
+      import('./components/skills/skills.component').then(
+        (m) => m.SkillsComponent
+      ),
+    canActivate: [designerGuard],
+    data: { permissions: ['design:skills'] },
+  },
+  {
     path: 'dispositions',
     loadComponent: () =>
       import('./components/dispositions/dispositions.component').then(

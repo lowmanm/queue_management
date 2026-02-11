@@ -1,0 +1,225 @@
+<div class="skill-assignments-container">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Skill Assignments</h1>
+      <p class="subtitle">Manage agent skill proficiency levels</p>
+    </div>
+  </header>
+
+  <!-- Messages -->
+  @if (successMessage()) {
+    <div class="message success">
+      {{ successMessage() }}
+      <button class="close-btn" (click)="clearMessages()">&times;</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="message error">
+      {{ errorMessage() }}
+      <button class="close-btn" (click)="clearMessages()">&times;</button>
+    </div>
+  }
+
+  <!-- Search -->
+  <div class="filters-bar">
+    <input
+      type="text"
+      class="search-input"
+      placeholder="Search agents..."
+      [ngModel]="searchTerm()"
+      (ngModelChange)="searchTerm.set($event)"
+    />
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="loading">Loading agents and skills...</div>
+  }
+
+  <!-- Agent List -->
+  @if (!isLoading()) {
+    <div class="agents-list">
+      @for (entry of filteredAgents(); track entry.agent.username) {
+        <div class="agent-card">
+          <div class="agent-row" (click)="toggleAgent(entry)">
+            <div class="agent-info">
+              <div class="agent-avatar">{{ entry.agent.displayName.charAt(0) }}</div>
+              <div class="agent-details">
+                <h3>{{ entry.agent.displayName }}</h3>
+                <span class="agent-username">{{ entry.agent.username }}</span>
+              </div>
+            </div>
+            <div class="agent-skill-summary">
+              <span class="skill-count">{{ entry.skills.length }} skill(s)</span>
+              <button class="btn btn-sm btn-primary" (click)="openAssignModal(entry); $event.stopPropagation()">
+                Manage Skills
+              </button>
+              <span class="expand-icon" [class.expanded]="entry.expanded">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </div>
+          </div>
+
+          <!-- Expanded skill list -->
+          @if (entry.expanded) {
+            <div class="agent-skills-detail">
+              @if (entry.skills.length > 0) {
+                <div class="skills-table">
+                  <div class="skill-row header-row">
+                    <span class="col-name">Skill</span>
+                    <span class="col-category">Category</span>
+                    <span class="col-proficiency">Proficiency</span>
+                  </div>
+                  @for (agentSkill of entry.skills; track agentSkill.skillId) {
+                    <div class="skill-row">
+                      <span class="col-name">{{ getSkillName(agentSkill.skillId) }}</span>
+                      <span class="col-category">
+                        <span class="category-badge" [attr.data-category]="getSkillCategory(agentSkill.skillId)">
+                          {{ getSkillCategory(agentSkill.skillId) }}
+                        </span>
+                      </span>
+                      <span class="col-proficiency">
+                        <span class="proficiency-bar">
+                          @for (level of proficiencyLevels; track level) {
+                            <span
+                              class="prof-dot"
+                              [class.filled]="level <= agentSkill.proficiency"
+                              [class]="level <= agentSkill.proficiency ? getProficiencyClass(agentSkill.proficiency) : ''"
+                            ></span>
+                          }
+                        </span>
+                        <span class="prof-label">{{ getProficiencyLabel(agentSkill.proficiency) }}</span>
+                      </span>
+                    </div>
+                  }
+                </div>
+              }
+              @if (entry.skills.length === 0) {
+                <div class="no-skills">
+                  No skills assigned. Click "Manage Skills" to add skills.
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Empty State -->
+      @if (filteredAgents().length === 0) {
+        <div class="empty-state">
+          @if (agents().length === 0) {
+            <p>No agents found. Agents must be created in User Management first.</p>
+          }
+          @if (agents().length > 0) {
+            <p>No agents match the search.</p>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Assignment Modal -->
+  @if (showAssignModal()) {
+    <div class="modal-overlay" (click)="closeAssignModal()">
+      <div class="modal modal-wide" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Manage Skills &mdash; {{ assignTarget()?.displayName }}</h2>
+          <button class="close-btn" (click)="closeAssignModal()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Current Skills -->
+          <div class="section">
+            <h3>Assigned Skills</h3>
+            @if (assignTargetSkills().length > 0) {
+              <div class="assigned-skills-list">
+                @for (agentSkill of assignTargetSkills(); track agentSkill.skillId) {
+                  <div class="assigned-skill-row">
+                    <span class="skill-name">{{ getSkillName(agentSkill.skillId) }}</span>
+                    <div class="proficiency-selector">
+                      @for (level of proficiencyLevels; track level) {
+                        <button
+                          class="prof-btn"
+                          [class.selected]="level === agentSkill.proficiency"
+                          [class]="level <= agentSkill.proficiency ? getProficiencyClass(agentSkill.proficiency) : ''"
+                          [title]="getProficiencyLabel(level)"
+                          (click)="updateProficiency(agentSkill, level)"
+                        >
+                          {{ level }}
+                        </button>
+                      }
+                      <span class="prof-level-label">{{ getProficiencyLabel(agentSkill.proficiency) }}</span>
+                    </div>
+                    <button class="btn-icon danger" (click)="removeSkillFromAgent(agentSkill)" title="Remove">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+            @if (assignTargetSkills().length === 0) {
+              <p class="no-skills-hint">
+                No skills assigned yet. Use the form below to add skills.
+              </p>
+            }
+          </div>
+
+          <!-- Add Skill -->
+          @if (getUnassignedSkills().length > 0) {
+            <div class="section add-skill-section">
+              <h3>Add Skill</h3>
+              <div class="add-skill-form">
+                <select
+                  class="form-input"
+                  [ngModel]="selectedSkillId()"
+                  (ngModelChange)="selectedSkillId.set($event)"
+                >
+                  <option value="">Select a skill...</option>
+                  @for (skill of getUnassignedSkills(); track skill.id) {
+                    <option [value]="skill.id">
+                      {{ skill.name }} ({{ skill.category }})
+                    </option>
+                  }
+                </select>
+                <select
+                  class="form-input proficiency-input"
+                  [ngModel]="selectedProficiency()"
+                  (ngModelChange)="setProficiencyFromEvent($event)"
+                >
+                  @for (level of proficiencyLevels; track level) {
+                    <option [value]="level">
+                      {{ level }} - {{ getProficiencyLabel(level) }}
+                    </option>
+                  }
+                </select>
+                <button
+                  class="btn btn-primary"
+                  (click)="addSkillToAgent()"
+                  [disabled]="!selectedSkillId()"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (getUnassignedSkills().length === 0 && activeSkills().length > 0) {
+            <p class="all-assigned-hint">
+              All available skills have been assigned.
+            </p>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeAssignModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
