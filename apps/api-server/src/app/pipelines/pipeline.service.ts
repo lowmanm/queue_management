@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { PipelineVersionService } from './pipeline-version.service';
 import {
   Pipeline,
   PipelineQueue,
@@ -7,6 +8,8 @@ import {
   AgentPipelineAccess,
   PipelineSummary,
   PipelineWithDetails,
+  PipelineValidationRequest,
+  PipelineValidationResult,
   CreatePipelineRequest,
   UpdatePipelineRequest,
   CreateQueueRequest,
@@ -29,7 +32,9 @@ export class PipelineService {
   private queues = new Map<string, PipelineQueue>();
   private agentAccess = new Map<string, AgentPipelineAccess[]>(); // pipelineId -> access[]
 
-  constructor() {
+  constructor(
+    @Optional() private readonly versionService?: PipelineVersionService,
+  ) {
     this.initializeDefaultData();
   }
 
@@ -149,6 +154,9 @@ export class PipelineService {
       }
     }
 
+    // Snapshot the current state before applying changes
+    this.versionService?.snapshotPipeline(pipeline, 'system', 'Pipeline configuration updated');
+
     const updated: Pipeline = {
       ...pipeline,
       ...(request.name !== undefined && { name: request.name }),
@@ -167,6 +175,33 @@ export class PipelineService {
     this.logger.log(`Updated pipeline: ${updated.name} (${id})`);
 
     return { success: true, pipeline: updated };
+  }
+
+  /**
+   * Restore a pipeline to a previous version snapshot.
+   */
+  rollbackPipeline(pipelineId: string, versionId: string): { success: boolean; pipeline?: Pipeline; error?: string } {
+    if (!this.versionService) {
+      return { success: false, error: 'Versioning service not available' };
+    }
+
+    const snapshot = this.versionService.rollback(pipelineId, versionId);
+    if (!snapshot) {
+      return { success: false, error: `Version ${versionId} not found for pipeline ${pipelineId}` };
+    }
+
+    // Snapshot current state before rollback
+    const current = this.pipelines.get(pipelineId);
+    if (current) {
+      this.versionService.snapshotPipeline(current, 'system', `Rolled back to version ${versionId}`);
+    }
+
+    // Restore the snapshot
+    const restored: Pipeline = { ...snapshot, updatedAt: new Date().toISOString() };
+    this.pipelines.set(pipelineId, restored);
+
+    this.logger.log(`Pipeline ${pipelineId} rolled back to version ${versionId}`);
+    return { success: true, pipeline: restored };
   }
 
   deletePipeline(id: string, cascade = false): { success: boolean; error?: string } {
@@ -808,17 +843,19 @@ export class PipelineService {
           return false;
         }
 
-      case 'in':
+      case 'in': {
         const inList = Array.isArray(compareValue)
           ? compareValue.map((v) => String(v).toLowerCase())
           : String(compareValue).split(',').map((v) => v.trim().toLowerCase());
         return inList.includes(fieldStr);
+      }
 
-      case 'not_in':
+      case 'not_in': {
         const notInList = Array.isArray(compareValue)
           ? compareValue.map((v) => String(v).toLowerCase())
           : String(compareValue).split(',').map((v) => v.trim().toLowerCase());
         return !notInList.includes(fieldStr);
+      }
 
       case 'greater_than':
         return Number(fieldValue) > Number(compareValue);
@@ -945,6 +982,106 @@ export class PipelineService {
     }
 
     return agentAccess.queueIds?.includes(queueId) ?? false;
+  }
+
+  // ===========================================================================
+  // VALIDATION (dry-run)
+  // ===========================================================================
+
+  /**
+   * Validate a pipeline configuration against sample task data.
+   * This is a pure dry-run: no pipeline state is mutated (matchCount not incremented).
+   */
+  validatePipelineConfig(
+    pipelineId: string,
+    request: PipelineValidationRequest
+  ): PipelineValidationResult {
+    const pipeline = this.pipelines.get(pipelineId);
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!pipeline) {
+      return { valid: false, errors: ['Pipeline not found'], warnings };
+    }
+
+    if (!pipeline.enabled) {
+      warnings.push('Pipeline is currently inactive');
+    }
+
+    // Build a TaskFromSource-compatible object from the sampleTask
+    const sampleTask = request.sampleTask;
+    const taskData: TaskFromSource = {
+      externalId: (sampleTask['externalId'] as string) || 'validation-sample',
+      workType: (sampleTask['workType'] as string) || pipeline.defaults?.workType || 'GENERAL',
+      title: (sampleTask['title'] as string) || 'Validation Sample Task',
+      description: sampleTask['description'] as string | undefined,
+      priority: (sampleTask['priority'] as number) ?? pipeline.defaults?.priority ?? 5,
+      queue: sampleTask['queue'] as string | undefined,
+      skills: sampleTask['skills'] as string[] | undefined,
+      payloadUrl: (sampleTask['payloadUrl'] as string) || '',
+      metadata: {} as Record<string, string>,
+    };
+
+    // Move remaining fields into metadata
+    for (const [key, value] of Object.entries(sampleTask)) {
+      if (!['externalId', 'workType', 'title', 'description', 'priority', 'queue', 'skills', 'payloadUrl'].includes(key)) {
+        taskData.metadata[key] = String(value);
+      }
+    }
+
+    // Validate work type
+    if (pipeline.allowedWorkTypes.length > 0 && !pipeline.allowedWorkTypes.includes(taskData.workType)) {
+      warnings.push(`Work type "${taskData.workType}" is not in the pipeline's allowed work types: [${pipeline.allowedWorkTypes.join(', ')}]`);
+    }
+
+    // Dry-run routing evaluation — evaluate rules WITHOUT mutating matchCount
+    const sortedRules = [...pipeline.routingRules]
+      .filter((r) => r.enabled)
+      .sort((a, b) => a.priority - b.priority);
+
+    let targetQueue: PipelineValidationResult['targetQueue'];
+    let routingRuleMatched: PipelineValidationResult['routingRuleMatched'];
+
+    for (const rule of sortedRules) {
+      const conditionResults = this.evaluateRuleDetailed(rule, taskData);
+      const matched =
+        rule.conditionLogic === 'AND'
+          ? conditionResults.every((c) => c.matched)
+          : conditionResults.some((c) => c.matched);
+
+      if (matched) {
+        const queue = this.queues.get(rule.targetQueueId);
+        targetQueue = queue
+          ? { id: queue.id, name: queue.name }
+          : { id: rule.targetQueueId, name: '(queue not found)' };
+        routingRuleMatched = { id: rule.id, name: rule.name };
+
+        if (!queue) {
+          errors.push(`Routing rule "${rule.name}" targets queue "${rule.targetQueueId}" which does not exist`);
+        }
+        break;
+      }
+    }
+
+    if (!routingRuleMatched) {
+      // Check default routing
+      if (pipeline.defaultRouting.behavior === 'route_to_queue' && pipeline.defaultRouting.defaultQueueId) {
+        const defaultQueue = this.queues.get(pipeline.defaultRouting.defaultQueueId);
+        targetQueue = defaultQueue
+          ? { id: defaultQueue.id, name: defaultQueue.name }
+          : { id: pipeline.defaultRouting.defaultQueueId, name: '(queue not found)' };
+        if (!defaultQueue) {
+          errors.push(`Default queue "${pipeline.defaultRouting.defaultQueueId}" does not exist`);
+        }
+      } else if (pipeline.defaultRouting.behavior === 'reject') {
+        errors.push('No routing rules matched and the default behavior is to reject the task');
+      } else {
+        warnings.push('No routing rules matched — task would be held');
+      }
+    }
+
+    const valid = errors.length === 0;
+    return { valid, targetQueue, routingRuleMatched, errors, warnings };
   }
 
   // ===========================================================================

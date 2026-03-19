@@ -11,3 +11,5 @@ export * from './task-store.service';
 export * from './queue-manager.service';
 export * from './pipeline-orchestrator.service';
 export * from './sla-monitor.service';
+// Phase 3 services
+export * from './pipeline-metrics.service';

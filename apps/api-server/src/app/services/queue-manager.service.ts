@@ -226,6 +226,39 @@ export class QueueManagerService {
     return removed;
   }
 
+  /**
+   * Get aggregate DLQ statistics broken down by reason, queue, and pipeline.
+   */
+  getDlqStats(): {
+    total: number;
+    byReason: Record<string, number>;
+    byQueue: Record<string, number>;
+    byPipeline: Record<string, number>;
+  } {
+    const byReason: Record<string, number> = {};
+    const byQueue: Record<string, number> = {};
+    const byPipeline: Record<string, number> = {};
+
+    for (const entry of this.dlq) {
+      // Normalize reason to the first colon-separated segment
+      const reasonKey = entry.reason.split(':')[0].trim();
+      byReason[reasonKey] = (byReason[reasonKey] ?? 0) + 1;
+
+      const queueId = entry.queuedTask.queueId;
+      byQueue[queueId] = (byQueue[queueId] ?? 0) + 1;
+
+      const pipelineId = entry.queuedTask.pipelineId;
+      byPipeline[pipelineId] = (byPipeline[pipelineId] ?? 0) + 1;
+    }
+
+    return {
+      total: this.dlq.length,
+      byReason,
+      byQueue,
+      byPipeline,
+    };
+  }
+
   // === Observability ===
 
   /** Get the depth (number of tasks) in a queue */

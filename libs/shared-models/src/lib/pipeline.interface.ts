@@ -615,3 +615,137 @@ export const ROUTING_OPERATOR_LABELS: Record<RoutingOperator, string> = {
   exists: 'Has a value',
   not_exists: 'Is empty',
 };
+
+// =============================================================================
+// PHASE 3 — METRICS, VALIDATION & VERSIONING
+// =============================================================================
+
+/**
+ * Real-time metrics for a single pipeline
+ */
+export interface PipelineMetrics {
+  /** Pipeline identifier */
+  pipelineId: string;
+
+  /** Pipeline display name */
+  pipelineName: string;
+
+  /** Current pipeline status */
+  status: 'active' | 'inactive' | 'error';
+
+  /** Total tasks ingested (all time for this session) */
+  tasksIngested: number;
+
+  /** Total tasks completed */
+  tasksCompleted: number;
+
+  /** Tasks currently waiting in all queues */
+  tasksInQueue: number;
+
+  /** Tasks that failed (moved to DLQ) */
+  tasksFailed: number;
+
+  /** SLA compliance percentage (0-100) */
+  slaCompliancePercent: number;
+
+  /** Average handle time in milliseconds */
+  avgHandleTimeMs: number;
+
+  /** Error rate percentage (tasksFailed / tasksIngested * 100) */
+  errorRatePercent: number;
+
+  /** When these metrics were last computed */
+  lastUpdated: string;
+}
+
+/**
+ * Aggregate metrics summary across all pipelines
+ */
+export interface PipelineMetricsSummary {
+  /** Per-pipeline metrics */
+  pipelines: PipelineMetrics[];
+
+  /** Total tasks ingested across all pipelines */
+  totalIngested: number;
+
+  /** Total tasks completed across all pipelines */
+  totalCompleted: number;
+
+  /** Total tasks currently in queue across all pipelines */
+  totalInQueue: number;
+
+  /** Total tasks failed across all pipelines */
+  totalFailed: number;
+
+  /** When this summary was computed */
+  lastUpdated: string;
+}
+
+/**
+ * Request to validate a pipeline configuration against sample task data (dry-run)
+ */
+export interface PipelineValidationRequest {
+  /** Sample task data to run through the pipeline logic */
+  sampleTask: Record<string, unknown>;
+
+  /** Whether to include detailed rule evaluation trace in the response */
+  includeRuleTrace?: boolean;
+}
+
+/**
+ * Result of a pipeline validation dry-run
+ */
+export interface PipelineValidationResult {
+  /** Whether the pipeline configuration is valid for this sample task */
+  valid: boolean;
+
+  /** Target queue the task would be routed to */
+  targetQueue?: { id: string; name: string };
+
+  /** The routing rule that matched (if any) */
+  routingRuleMatched?: { id: string; name: string };
+
+  /** Detailed rule engine trace (only present when includeRuleTrace=true) */
+  ruleTrace?: Array<{
+    ruleSetId: string;
+    ruleSetName: string;
+    rulesEvaluated: Array<{
+      ruleId: string;
+      ruleName: string;
+      matched: boolean;
+      actionsApplied: string[];
+    }>;
+  }>;
+
+  /** Actions applied to the task by rule sets */
+  appliedRuleActions?: string[];
+
+  /** Validation errors (pipeline misconfiguration, unroutable task, etc.) */
+  errors: string[];
+
+  /** Non-fatal warnings */
+  warnings: string[];
+}
+
+/**
+ * A point-in-time snapshot of a pipeline configuration
+ */
+export interface PipelineVersion {
+  /** Unique version identifier */
+  versionId: string;
+
+  /** Pipeline this version belongs to */
+  pipelineId: string;
+
+  /** Full pipeline configuration snapshot at this point in time */
+  snapshot: Pipeline;
+
+  /** When this version was created */
+  createdAt: string;
+
+  /** User who triggered the change (persona/user ID) */
+  changedBy: string;
+
+  /** Human-readable note describing what changed */
+  changeNote: string;
+}

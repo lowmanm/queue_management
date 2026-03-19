@@ -17,6 +17,7 @@ import { QueueManagerService, QueuedTask } from '../services/queue-manager.servi
 import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
 import { TaskStoreService } from '../services/task-store.service';
 import { SLAMonitorService, SLABreachEvent } from '../services/sla-monitor.service';
+import { PipelineMetricsService } from '../services/pipeline-metrics.service';
 
 interface AgentConnectPayload {
   agentId: string;
@@ -62,7 +63,10 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     private readonly taskStore?: TaskStoreService,
     @Optional()
     @Inject(forwardRef(() => SLAMonitorService))
-    private readonly slaMonitor?: SLAMonitorService
+    private readonly slaMonitor?: SLAMonitorService,
+    @Optional()
+    @Inject(forwardRef(() => PipelineMetricsService))
+    private readonly pipelineMetrics?: PipelineMetricsService
   ) {}
 
   /**
@@ -85,6 +89,26 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       });
       this.slaMonitor.start();
       this.logger.log('SLA Monitor started via gateway init');
+    }
+
+    // Broadcast pipeline metrics every 10 seconds for real-time dashboard updates
+    if (this.pipelineMetrics) {
+      setInterval(() => this.broadcastPipelineMetrics(), 10_000);
+      this.logger.log('Pipeline metrics broadcast scheduled (10s interval)');
+    }
+  }
+
+  /**
+   * Broadcast aggregate pipeline metrics to all connected clients.
+   * Emits `pipeline:metrics` event with a PipelineMetricsSummary payload.
+   */
+  private broadcastPipelineMetrics(): void {
+    if (!this.pipelineMetrics || !this.server) return;
+    try {
+      const summary = this.pipelineMetrics.getAllPipelineMetrics();
+      this.server.emit('pipeline:metrics', summary);
+    } catch (err) {
+      this.logger.warn(`Failed to broadcast pipeline metrics: ${err}`);
     }
   }
 
