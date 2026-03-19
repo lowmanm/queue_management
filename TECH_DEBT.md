@@ -67,22 +67,11 @@
 
 ---
 
-### `api-server` — 10 errors
+### `api-server` — 0 errors ✅
 
-**Target phase for full clearance:** Phase 4
+**Cleared:** Phase 4 Wave 1 (2026-03-19)
 
-| Rule | Count | Fix Strategy |
-|---|---|---|
-| `no-case-declarations` | 9 | Wrap `case` block bodies in `{}` braces to create block scope |
-| `prefer-const` | 1 | Change `let eligible` to `const eligible` |
-
-**Affected files:**
-
-| File | Errors | Lines | Phase Introduced |
-|---|---|---|---|
-| `apps/api-server/src/app/routing/routing.service.ts` | 3 | 392 (`prefer-const`), 471–472 (`no-case-declarations`) | Phase 2.5b |
-| `apps/api-server/src/app/tasks/tasks.service.ts` | 1 | 124 (`no-case-declarations`) | Phase 2.5b |
-| `apps/api-server/src/app/volume-loader/volume-loader.service.ts` | 6 | 1292, 1295, 1302, 1308, 1309, 1315 (`no-case-declarations`) | Phase 2.5b |
+All pre-existing errors resolved. No affected files remaining.
 
 ---
 
@@ -91,7 +80,7 @@
 | Phase | Date | agent-workspace errors | api-server errors | Action |
 |---|---|---|---|---|
 | Phase 3 (baseline set) | 2026-03-19 | 167 | 10 | Established register; 26 Phase 3 errors fixed before ship |
-| Phase 4 | TBD | — | — | Target: full clearance of both |
+| Phase 4 Wave 1 (Task 2) | 2026-03-19 | 167 | 0 | Cleared `no-case-declarations` (9) + `prefer-const` (1) in api-server |
 
 ---
 

@@ -389,7 +389,7 @@ export class RoutingService {
         : 50;
 
     // Determine eligibility
-    let eligible = meetsRequirements && agent.state === 'IDLE';
+    const eligible = meetsRequirements && agent.state === 'IDLE';
     let ineligibilityReason: string | undefined;
 
     if (!eligible) {
@@ -466,12 +466,13 @@ export class RoutingService {
         break;
 
       case 'best-match':
-      default:
+      default: {
         meetsRequirements = matchedSkills.length > 0 || !config.requireAllSkills;
         const matchRatio = matchedSkills.length / requiredSkills.length;
         const proficiencyRatio = totalProficiency / (matchedSkills.length * 5 || 1);
         skillScore = (matchRatio * 0.6 + proficiencyRatio * 0.4) * 100;
         break;
+      }
     }
 
     return { skillScore: Math.round(skillScore), matchedSkills, missingSkills, meetsRequirements };

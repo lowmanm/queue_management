@@ -119,7 +119,7 @@ export class TasksService {
         // Remove from active tasks
         this.activeTasks.delete(taskId);
         break;
-      case 'TRANSFERRED':
+      case 'TRANSFERRED': {
         // Task goes back to pending queue for reassignment
         const task = this.activeTasks.get(taskId);
         if (task) {
@@ -129,6 +129,7 @@ export class TasksService {
           this.activeTasks.delete(taskId);
         }
         break;
+      }
     }
 
     return updates;
