@@ -12,6 +12,7 @@ import { TaskStoreService } from './task-store.service';
 import { QueueManagerService } from './queue-manager.service';
 import { PipelineOrchestratorService } from './pipeline-orchestrator.service';
 import { SLAMonitorService } from './sla-monitor.service';
+import { PipelineMetricsService } from './pipeline-metrics.service';
 import { PipelineModule } from '../pipelines/pipeline.module';
 
 @Module({
@@ -31,6 +32,8 @@ import { PipelineModule } from '../pipelines/pipeline.module';
     QueueManagerService,
     PipelineOrchestratorService,
     SLAMonitorService,
+    // Phase 3 services
+    PipelineMetricsService,
   ],
   exports: [
     AgentManagerService,
@@ -47,6 +50,8 @@ import { PipelineModule } from '../pipelines/pipeline.module';
     QueueManagerService,
     PipelineOrchestratorService,
     SLAMonitorService,
+    // Phase 3 services
+    PipelineMetricsService,
   ],
 })
 export class ServicesModule {}

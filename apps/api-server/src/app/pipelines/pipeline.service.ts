@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { PipelineVersionService } from './pipeline-version.service';
 import {
   Pipeline,
   PipelineQueue,
@@ -31,7 +32,9 @@ export class PipelineService {
   private queues = new Map<string, PipelineQueue>();
   private agentAccess = new Map<string, AgentPipelineAccess[]>(); // pipelineId -> access[]
 
-  constructor() {
+  constructor(
+    @Optional() private readonly versionService?: PipelineVersionService,
+  ) {
     this.initializeDefaultData();
   }
 
@@ -151,6 +154,9 @@ export class PipelineService {
       }
     }
 
+    // Snapshot the current state before applying changes
+    this.versionService?.snapshotPipeline(pipeline, 'system', 'Pipeline configuration updated');
+
     const updated: Pipeline = {
       ...pipeline,
       ...(request.name !== undefined && { name: request.name }),
@@ -169,6 +175,33 @@ export class PipelineService {
     this.logger.log(`Updated pipeline: ${updated.name} (${id})`);
 
     return { success: true, pipeline: updated };
+  }
+
+  /**
+   * Restore a pipeline to a previous version snapshot.
+   */
+  rollbackPipeline(pipelineId: string, versionId: string): { success: boolean; pipeline?: Pipeline; error?: string } {
+    if (!this.versionService) {
+      return { success: false, error: 'Versioning service not available' };
+    }
+
+    const snapshot = this.versionService.rollback(pipelineId, versionId);
+    if (!snapshot) {
+      return { success: false, error: `Version ${versionId} not found for pipeline ${pipelineId}` };
+    }
+
+    // Snapshot current state before rollback
+    const current = this.pipelines.get(pipelineId);
+    if (current) {
+      this.versionService.snapshotPipeline(current, 'system', `Rolled back to version ${versionId}`);
+    }
+
+    // Restore the snapshot
+    const restored: Pipeline = { ...snapshot, updatedAt: new Date().toISOString() };
+    this.pipelines.set(pipelineId, restored);
+
+    this.logger.log(`Pipeline ${pipelineId} rolled back to version ${versionId}`);
+    return { success: true, pipeline: restored };
   }
 
   deletePipeline(id: string, cascade = false): { success: boolean; error?: string } {

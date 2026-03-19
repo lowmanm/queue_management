@@ -14,6 +14,8 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PipelineService } from './pipeline.service';
+import { PipelineVersionService } from './pipeline-version.service';
+import { PipelineMetricsService } from '../services/pipeline-metrics.service';
 import { QueueManagerService } from '../services/queue-manager.service';
 import {
   CreatePipelineRequest,
@@ -27,11 +29,30 @@ import {
 
 @Controller('pipelines')
 export class PipelineController {
-  constructor(private readonly pipelineService: PipelineService) {}
+  constructor(
+    private readonly pipelineService: PipelineService,
+    @Optional() private readonly versionService?: PipelineVersionService,
+    @Optional()
+    @Inject(forwardRef(() => PipelineMetricsService))
+    private readonly metricsService?: PipelineMetricsService,
+  ) {}
 
   // ===========================================================================
   // PIPELINE ENDPOINTS
   // ===========================================================================
+
+  /**
+   * GET /api/pipelines/metrics
+   * Aggregate metrics summary for all pipelines.
+   * NOTE: must be declared before GET /:id to avoid "metrics" being interpreted as an ID.
+   */
+  @Get('metrics')
+  getAllPipelineMetrics() {
+    if (!this.metricsService) {
+      return { pipelines: [], totalIngested: 0, totalCompleted: 0, totalInQueue: 0, totalFailed: 0, lastUpdated: new Date().toISOString() };
+    }
+    return this.metricsService.getAllPipelineMetrics();
+  }
 
   @Get()
   getAllPipelines(@Query('summary') summary?: string) {
@@ -118,6 +139,50 @@ export class PipelineController {
       throw new HttpException('sampleTask is required', HttpStatus.BAD_REQUEST);
     }
     return this.pipelineService.validatePipelineConfig(id, request);
+  }
+
+  /**
+   * GET /api/pipelines/:id/metrics
+   * Real-time metrics for a single pipeline.
+   */
+  @Get(':id/metrics')
+  getPipelineMetrics(@Param('id') id: string) {
+    if (!this.metricsService) {
+      throw new HttpException('Metrics service not available', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    const metrics = this.metricsService.getPipelineMetrics(id);
+    if (!metrics) {
+      throw new HttpException('Pipeline not found', HttpStatus.NOT_FOUND);
+    }
+    return metrics;
+  }
+
+  /**
+   * GET /api/pipelines/:id/versions
+   * Version history for a pipeline (newest first, max 20 entries).
+   */
+  @Get(':id/versions')
+  getPipelineVersions(@Param('id') id: string) {
+    if (!this.versionService) {
+      return [];
+    }
+    return this.versionService.getVersions(id);
+  }
+
+  /**
+   * POST /api/pipelines/:id/versions/:versionId/rollback
+   * Restore a pipeline to a previous configuration snapshot.
+   */
+  @Post(':id/versions/:versionId/rollback')
+  rollbackPipelineVersion(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    const result = this.pipelineService.rollbackPipeline(id, versionId);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Rollback failed', HttpStatus.BAD_REQUEST);
+    }
+    return result.pipeline;
   }
 
   // ===========================================================================
