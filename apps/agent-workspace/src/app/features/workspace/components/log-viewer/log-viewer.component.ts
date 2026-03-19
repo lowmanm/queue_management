@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { LoggerService, LogEntry, LogLevel } from '../../../../core/services';
@@ -7,12 +6,12 @@ import { LoggerService, LogEntry, LogLevel } from '../../../../core/services';
 @Component({
   selector: 'app-log-viewer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './log-viewer.component.html',
   styleUrl: './log-viewer.component.scss',
 })
 export class LogViewerComponent implements OnInit, OnDestroy {
-  @Output() close = new EventEmitter<void>();
+  @Output() panelClose = new EventEmitter<void>();
 
   private logger = inject(LoggerService);
   private destroy$ = new Subject<void>();
@@ -109,6 +108,6 @@ export class LogViewerComponent implements OnInit, OnDestroy {
   }
 
   onClose(): void {
-    this.close.emit();
+    this.panelClose.emit();
   }
 }

@@ -21,16 +21,18 @@ import { Subject, filter, takeUntil } from 'rxjs';
           </button>
 
           <!-- Breadcrumbs -->
-          <nav class="breadcrumbs" *ngIf="breadcrumbs.length > 0">
-            @for (crumb of breadcrumbs; track crumb.path; let isLast = $last) {
-              @if (!isLast) {
-                <a class="breadcrumb-link" [routerLink]="crumb.path">{{ crumb.label }}</a>
-                <span class="breadcrumb-separator">/</span>
-              } @else {
-                <span class="breadcrumb-current">{{ crumb.label }}</span>
+          @if (breadcrumbs.length > 0) {
+            <nav class="breadcrumbs">
+              @for (crumb of breadcrumbs; track crumb.path; let isLast = $last) {
+                @if (!isLast) {
+                  <a class="breadcrumb-link" [routerLink]="crumb.path">{{ crumb.label }}</a>
+                  <span class="breadcrumb-separator">/</span>
+                } @else {
+                  <span class="breadcrumb-current">{{ crumb.label }}</span>
+                }
               }
-            }
-          </nav>
+            </nav>
+          }
         </div>
 
         <div class="header-right">

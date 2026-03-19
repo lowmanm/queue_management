@@ -345,7 +345,6 @@ export class VolumeLoaderComponent implements OnInit {
       fieldMappings: loader.fieldMappings.map((m) => ({ ...m })),
       defaults: loader.defaults ? { ...loader.defaults } : undefined,
       processingOptions: { ...loader.processingOptions },
-      // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
       pipelineId: loader.pipelineId,
     });
 
@@ -1895,7 +1894,6 @@ export class VolumeLoaderComponent implements OnInit {
     const current = this.formData();
     this.formData.set({
       ...current,
-      // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
       pipelineId: pipelineId || undefined,
     });
   }
@@ -1904,8 +1902,7 @@ export class VolumeLoaderComponent implements OnInit {
    * Get current pipelineId from form data
    */
   getFormPipelineId(): string {
-    // @ts-ignore - pipelineId will be added to CreateVolumeLoaderRequest
-    return (this.formData() as any).pipelineId || '';
+    return this.formData().pipelineId || '';
   }
 
   // ============ Inline Pipeline Creation ============

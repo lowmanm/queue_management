@@ -1096,29 +1096,39 @@
                     <div class="form-group">
                       <label>Required Skills</label>
                       <!-- Skill chips for selected skills -->
-                      <div class="skill-chips" *ngIf="selectedQueueSkills().length > 0">
-                        <span class="skill-chip" *ngFor="let skillId of selectedQueueSkills()">
-                          {{ getSkillNameById(skillId) }}
-                          <button class="chip-remove" (click)="toggleQueueSkill(skillId)">&times;</button>
-                        </span>
-                      </div>
-                      <!-- Skill picker from configured skills -->
-                      <div class="skill-picker" *ngIf="availableSkills().length > 0">
-                        <div class="skill-option" *ngFor="let skill of availableSkills()">
-                          <label class="skill-checkbox">
-                            <input
-                              type="checkbox"
-                              [checked]="selectedQueueSkills().includes(skill.id)"
-                              (change)="toggleQueueSkill(skill.id)"
-                            />
-                            <span>{{ skill.name }}</span>
-                            <small class="skill-category-hint">({{ skill.category }})</small>
-                          </label>
+                      @if (selectedQueueSkills().length > 0) {
+                        <div class="skill-chips">
+                          @for (skillId of selectedQueueSkills(); track skillId) {
+                            <span class="skill-chip">
+                              {{ getSkillNameById(skillId) }}
+                              <button class="chip-remove" (click)="toggleQueueSkill(skillId)">&times;</button>
+                            </span>
+                          }
                         </div>
-                      </div>
-                      <p class="form-hint" *ngIf="availableSkills().length === 0">
-                        No skills configured yet.
-                      </p>
+                      }
+                      <!-- Skill picker from configured skills -->
+                      @if (availableSkills().length > 0) {
+                        <div class="skill-picker">
+                          @for (skill of availableSkills(); track skill.id) {
+                            <div class="skill-option">
+                              <label class="skill-checkbox">
+                                <input
+                                  type="checkbox"
+                                  [checked]="selectedQueueSkills().includes(skill.id)"
+                                  (change)="toggleQueueSkill(skill.id)"
+                                />
+                                <span>{{ skill.name }}</span>
+                                <small class="skill-category-hint">({{ skill.category }})</small>
+                              </label>
+                            </div>
+                          }
+                        </div>
+                      }
+                      @if (availableSkills().length === 0) {
+                        <p class="form-hint">
+                          No skills configured yet.
+                        </p>
+                      }
                       <!-- Inline skill creation -->
                       @if (showInlineSkillCreator()) {
                         <div class="inline-skill-creator">

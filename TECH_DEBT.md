@@ -17,19 +17,19 @@
 
 ## Baseline — Established Phase 3 (2026-03-19)
 
-### `agent-workspace` — 167 errors
+### `agent-workspace` — 119 errors (Wave 1 baseline)
 
-**Target phase for full clearance:** Phase 4
+**Target phase for full clearance:** Phase 4 Wave 3
 
 | Rule | Count | Fix Strategy |
 |---|---|---|
 | `@angular-eslint/template/label-has-associated-control` | 44 | Add `for`/`id` wiring to all unassociated form labels |
 | `@angular-eslint/template/interactive-supports-focus` | 36 | Add `tabindex="0"` + `role` to interactive non-button elements |
 | `@angular-eslint/template/click-events-have-key-events` | 36 | Add `keydown.enter`/`keydown.space` handlers alongside `click` |
-| `@angular-eslint/template/prefer-control-flow` | 29 | Migrate `*ngIf`/`*ngFor` directives to `@if`/`@for` blocks |
-| `@angular-eslint/prefer-inject` | 15 | Migrate constructor injection to `inject()` function |
-| `@typescript-eslint/ban-ts-comment` | 3 | Remove `@ts-ignore` — fix underlying type errors instead |
-| `@angular-eslint/no-output-native` | 1 | Rename output property to avoid native DOM event name collision |
+| ~~`@angular-eslint/template/prefer-control-flow`~~ | ~~29~~ **0** | ✅ Cleared Phase 4 Wave 1 |
+| ~~`@angular-eslint/prefer-inject`~~ | ~~15~~ **0** | ✅ Cleared Phase 4 Wave 1 |
+| ~~`@typescript-eslint/ban-ts-comment`~~ | ~~3~~ **0** | ✅ Cleared Phase 4 Wave 1 |
+| ~~`@angular-eslint/no-output-native`~~ | ~~1~~ **0** | ✅ Cleared Phase 4 Wave 1 |
 
 **Affected files (29):**
 
@@ -81,6 +81,7 @@ All pre-existing errors resolved. No affected files remaining.
 |---|---|---|---|---|
 | Phase 3 (baseline set) | 2026-03-19 | 167 | 10 | Established register; 26 Phase 3 errors fixed before ship |
 | Phase 4 Wave 1 (Task 2) | 2026-03-19 | 167 | 0 | Cleared `no-case-declarations` (9) + `prefer-const` (1) in api-server |
+| Phase 4 Wave 1 (Tasks 3–4) | 2026-03-19 | 119 | 0 | Cleared `prefer-inject` (15) + `prefer-control-flow` (29) + `ban-ts-comment` (3) + `no-output-native` (1) in agent-workspace |
 
 ---
 
