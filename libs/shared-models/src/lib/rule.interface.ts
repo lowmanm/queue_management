@@ -291,3 +291,44 @@ export interface RuleActionConfig {
   /** Whether this action requires a field name */
   requiresField?: boolean;
 }
+
+// =============================================================================
+// PHASE 3 — RULE SET TESTING
+// =============================================================================
+
+/**
+ * Request to test a rule set against sample task data
+ */
+export interface RuleSetTestRequest {
+  /** Sample task data to evaluate the rule set against */
+  sampleTask: Record<string, unknown>;
+}
+
+/**
+ * Result of testing a rule set against sample task data
+ */
+export interface RuleSetTestResponse {
+  /** The task data before rule evaluation */
+  taskBefore: Record<string, unknown>;
+
+  /** The task data after all matching rule actions were applied */
+  taskAfter: Record<string, unknown>;
+
+  /** Evaluation details per rule in the set */
+  rulesEvaluated: Array<{
+    /** Rule identifier */
+    ruleId: string;
+
+    /** Rule display name */
+    ruleName: string;
+
+    /** Whether this rule's conditions matched the sample task */
+    matched: boolean;
+
+    /** Actions that were applied (only populated when matched=true) */
+    actionsApplied: string[];
+  }>;
+
+  /** Rule name that caused processing to stop early (stop_processing action) */
+  stoppedAt?: string;
+}
