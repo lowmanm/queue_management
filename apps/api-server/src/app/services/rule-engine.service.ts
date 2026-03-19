@@ -473,7 +473,7 @@ export class RuleEngineService {
    * Apply actions to modify a task
    */
   applyActions(task: Task, actions: RuleAction[]): Task {
-    let modified = { ...task };
+    const modified = { ...task };
 
     for (const action of actions) {
       switch (action.type) {

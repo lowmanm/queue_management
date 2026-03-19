@@ -843,17 +843,19 @@ export class PipelineService {
           return false;
         }
 
-      case 'in':
+      case 'in': {
         const inList = Array.isArray(compareValue)
           ? compareValue.map((v) => String(v).toLowerCase())
           : String(compareValue).split(',').map((v) => v.trim().toLowerCase());
         return inList.includes(fieldStr);
+      }
 
-      case 'not_in':
+      case 'not_in': {
         const notInList = Array.isArray(compareValue)
           ? compareValue.map((v) => String(v).toLowerCase())
           : String(compareValue).split(',').map((v) => v.trim().toLowerCase());
         return !notInList.includes(fieldStr);
+      }
 
       case 'greater_than':
         return Number(fieldValue) > Number(compareValue);
