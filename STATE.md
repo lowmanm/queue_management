@@ -10,9 +10,9 @@
 | Field | Value |
 |---|---|
 | **Active Phase** | Phase 3 — Logic Builder |
-| **Phase Status** | In Progress — Wave 1 (backend) complete, Wave 2 (frontend) next |
+| **Phase Status** | In Progress — Wave 2 Plan 1 complete, Wave 2 Plans 2-3 next |
 | **Last Session** | 2026-03-19 |
-| **Next Action** | `/execute-task .planning/phases/3/2-1-pipeline-wizard-queue-config-PLAN.md` |
+| **Next Action** | `/execute-task .planning/phases/3/2-2-rule-builder-ui-PLAN.md` |
 
 ---
 
@@ -75,7 +75,7 @@ All backend services and APIs required for Phase 3 are implemented and merged to
 | Wave | Plan | Status |
 |---|---|---|
 | Wave 1 | `1-1-backend-extensions-PLAN.md` | ✅ Complete (merged to develop) |
-| Wave 2 | `2-1-pipeline-wizard-queue-config-PLAN.md` | ⬜ Not started |
+| Wave 2 | `2-1-pipeline-wizard-queue-config-PLAN.md` | ✅ Complete |
 | Wave 2 | `2-2-rule-builder-ui-PLAN.md` | ⬜ Not started |
 | Wave 2 | `2-3-dlq-monitor-pipeline-status-PLAN.md` | ⬜ Not started |
 
