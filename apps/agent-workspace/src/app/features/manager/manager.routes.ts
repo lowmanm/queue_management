@@ -34,4 +34,22 @@ export const MANAGER_ROUTES: Routes = [
     canActivate: [managerGuard],
     data: { permissions: ['skills:assign'] },
   },
+  {
+    path: 'dlq',
+    loadComponent: () =>
+      import('./components/dlq-monitor/dlq-monitor.component').then(
+        (m) => m.DlqMonitorComponent
+      ),
+    canActivate: [managerGuard],
+    data: { breadcrumb: 'DLQ Monitor', title: 'Dead Letter Queue' },
+  },
+  {
+    path: 'pipeline-status',
+    loadComponent: () =>
+      import('./components/pipeline-status/pipeline-status.component').then(
+        (m) => m.PipelineStatusDashboardComponent
+      ),
+    canActivate: [managerGuard],
+    data: { breadcrumb: 'Pipeline Status', title: 'Pipeline Status Dashboard' },
+  },
 ];

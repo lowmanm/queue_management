@@ -1,0 +1,233 @@
+<div class="dlq-monitor">
+  <!-- Header -->
+  <div class="dlq-header">
+    <h1 class="dlq-title">DLQ Monitor</h1>
+    <button class="btn btn-secondary" (click)="refresh()">Refresh</button>
+  </div>
+
+  <!-- Stats Bar -->
+  @if (dlqStats$ | async; as stats) {
+    <div class="stats-bar">
+      <span class="stat-item">
+        <span class="stat-label">Total</span>
+        <span class="stat-value">{{ stats.total }}</span>
+      </span>
+      @for (entry of stats.byReason | keyvalue; track entry.key) {
+        <span class="stat-item">
+          <span class="stat-label" [class]="getReasonClass(entry.key)">{{ getReasonLabel(entry.key) }}</span>
+          <span class="stat-value">{{ entry.value }}</span>
+        </span>
+      }
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="filters-row">
+    <select
+      class="filter-select"
+      [ngModel]="(filters$ | async)?.pipelineId ?? ''"
+      (ngModelChange)="onFilterChange({ pipelineId: $event || undefined })"
+      aria-label="Filter by pipeline"
+    >
+      <option value="">All Pipelines</option>
+      @for (pipeline of pipelines$ | async; track pipeline.id) {
+        <option [value]="pipeline.id">{{ pipeline.name }}</option>
+      }
+    </select>
+
+    <select
+      class="filter-select"
+      [ngModel]="(filters$ | async)?.queueId ?? ''"
+      (ngModelChange)="onFilterChange({ queueId: $event || undefined })"
+      aria-label="Filter by queue"
+    >
+      <option value="">All Queues</option>
+      @for (queue of getFilteredQueues((filters$ | async)?.pipelineId); track queue.id) {
+        <option [value]="queue.id">{{ queue.name }}</option>
+      }
+    </select>
+
+    <select
+      class="filter-select"
+      [ngModel]="(filters$ | async)?.reason ?? ''"
+      (ngModelChange)="onFilterChange({ reason: $event || undefined })"
+      aria-label="Filter by reason"
+    >
+      @for (option of reasonOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+
+    <label class="filter-label" for="fromDate">From</label>
+    <input
+      id="fromDate"
+      type="date"
+      class="filter-input"
+      [ngModel]="(filters$ | async)?.fromDate ?? ''"
+      (ngModelChange)="onFilterChange({ fromDate: $event || undefined })"
+    />
+
+    <label class="filter-label" for="toDate">To</label>
+    <input
+      id="toDate"
+      type="date"
+      class="filter-input"
+      [ngModel]="(filters$ | async)?.toDate ?? ''"
+      (ngModelChange)="onFilterChange({ toDate: $event || undefined })"
+    />
+  </div>
+
+  <!-- Loading indicator -->
+  @if (isLoading) {
+    <div class="loading-row">Loading...</div>
+  }
+
+  <!-- Bulk Actions -->
+  @if (selectedTaskIds.size > 0) {
+    <div class="bulk-actions">
+      <span class="bulk-count">{{ selectedTaskIds.size }} selected</span>
+      <button
+        class="btn btn-primary"
+        [disabled]="bulkActionInProgress"
+        (click)="retryAllSelected()"
+      >
+        {{ bulkActionInProgress ? 'Processing...' : 'Retry All Selected' }}
+      </button>
+      <button
+        class="btn btn-danger"
+        [disabled]="bulkActionInProgress"
+        (click)="discardAllSelected()"
+      >
+        Discard All Selected
+      </button>
+    </div>
+  }
+
+  <!-- Task Table -->
+  <div class="table-wrapper">
+    <table class="dlq-table">
+      <thead>
+        <tr>
+          <th class="col-check">
+            <input
+              type="checkbox"
+              [checked]="allSelected"
+              (change)="toggleSelectAll()"
+              aria-label="Select all tasks"
+            />
+          </th>
+          <th>Task ID</th>
+          <th>Pipeline</th>
+          <th>Queue</th>
+          <th>Reason</th>
+          <th>Moved At</th>
+          <th>Retries</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of dlqEntries$ | async; track entry.taskId) {
+          <tr [class.row-selected]="isSelected(entry.taskId)">
+            <td class="col-check">
+              <input
+                type="checkbox"
+                [checked]="isSelected(entry.taskId)"
+                (change)="toggleSelect(entry.taskId)"
+                [attr.aria-label]="'Select task ' + entry.taskId"
+              />
+            </td>
+            <td class="col-task-id" [title]="entry.taskId">
+              {{ truncate(entry.taskId) }}
+            </td>
+            <td>{{ getPipelineName(entry.pipelineId) }}</td>
+            <td>{{ getQueueName(entry.queueId) }}</td>
+            <td>
+              <span class="badge" [class]="getReasonClass(entry.reason)">
+                {{ getReasonLabel(entry.reason) }}
+              </span>
+            </td>
+            <td>{{ formatRelativeTime(entry.movedAt) }}</td>
+            <td class="col-retries">{{ entry.retryCount }}</td>
+            <td class="col-actions">
+              <button class="btn btn-xs btn-secondary" (click)="toggleExpand(entry.taskId)">
+                {{ isExpanded(entry.taskId) ? 'Hide' : 'Details' }}
+              </button>
+              <button class="btn btn-xs btn-primary" (click)="retryTask(entry.taskId)">
+                Retry
+              </button>
+              <button class="btn btn-xs btn-secondary" (click)="openReroute(entry.taskId)">
+                Reroute
+              </button>
+              <button class="btn btn-xs btn-danger" (click)="discardTask(entry.taskId)">
+                Discard
+              </button>
+            </td>
+          </tr>
+
+          <!-- Reroute inline selector -->
+          @if (rerouteTaskId === entry.taskId) {
+            <tr class="reroute-row">
+              <td colspan="8">
+                <div class="reroute-panel">
+                  <label for="rerouteQueue-{{ entry.taskId }}">Route to queue:</label>
+                  <select
+                    id="rerouteQueue-{{ entry.taskId }}"
+                    class="filter-select"
+                    [(ngModel)]="rerouteTargetQueueId"
+                  >
+                    <option value="">Select queue…</option>
+                    @for (queue of queues$ | async; track queue.id) {
+                      <option [value]="queue.id">{{ queue.name }}</option>
+                    }
+                  </select>
+                  <button
+                    class="btn btn-primary btn-xs"
+                    [disabled]="!rerouteTargetQueueId"
+                    (click)="confirmReroute(entry.taskId)"
+                  >
+                    Confirm
+                  </button>
+                  <button class="btn btn-secondary btn-xs" (click)="cancelReroute()">Cancel</button>
+                </div>
+              </td>
+            </tr>
+          }
+
+          <!-- Expandable details row -->
+          @if (isExpanded(entry.taskId)) {
+            <tr class="details-row">
+              <td colspan="8">
+                <pre class="task-json">{{ taskPayloadJson(entry) }}</pre>
+              </td>
+            </tr>
+          }
+        } @empty {
+          <tr>
+            <td colspan="8" class="empty-row">
+              @if (isLoading) {
+                Loading…
+              } @else {
+                No tasks in the dead-letter queue.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    <button class="btn btn-secondary btn-xs" [disabled]="currentPage === 0" (click)="prevPage()">
+      &lt; Prev
+    </button>
+    <span class="page-indicator">Page {{ currentPage + 1 }}</span>
+    <button
+      class="btn btn-secondary btn-xs"
+      [disabled]="(dlqEntries$ | async)?.length === 0"
+      (click)="nextPage()"
+    >
+      Next &gt;
+    </button>
+  </div>
+</div>

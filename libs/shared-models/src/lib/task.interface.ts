@@ -179,3 +179,38 @@ export type TaskActionType = 'COMPLETE' | 'TRANSFER' | 'LINK' | 'CUSTOM';
 
 /** Reasons a task assignment may be released */
 export type TaskReleaseReason = 'COMPLETED' | 'TRANSFERRED' | 'TIMEOUT' | 'MANUAL';
+
+// =============================================================================
+// DEAD LETTER QUEUE
+// =============================================================================
+
+/**
+ * Reason a task was moved to the dead-letter queue
+ */
+export type DLQReason = 'routing_failed' | 'sla_expired' | 'max_retries_exceeded';
+
+/**
+ * A task entry in the dead-letter queue
+ */
+export interface DLQEntry {
+  /** The task's unique identifier */
+  taskId: string;
+
+  /** Full task payload */
+  task: Task;
+
+  /** Queue the task was last assigned to */
+  queueId: string;
+
+  /** Pipeline the task belongs to, if known */
+  pipelineId?: string;
+
+  /** Why the task was moved to the DLQ */
+  reason: DLQReason;
+
+  /** When the task was moved to the DLQ */
+  movedAt: string;
+
+  /** How many retry attempts have been made */
+  retryCount: number;
+}

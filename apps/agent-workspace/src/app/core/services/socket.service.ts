@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy, inject } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { Task, AgentState } from '@nexus-queue/shared-models';
+import { Task, AgentState, PipelineMetricsSummary } from '@nexus-queue/shared-models';
 import { environment } from '../../../environments/environment';
 import { LoggerService } from './logger.service';
 
@@ -61,6 +61,11 @@ export class SocketService implements OnDestroy {
   public taskTimeout$: Observable<{ taskId: string }> =
     this.taskTimeoutSubject.asObservable();
 
+  // Pipeline metrics events (server broadcasts every 10 seconds)
+  private pipelineMetricsSubject = new BehaviorSubject<PipelineMetricsSummary | null>(null);
+  public pipelineMetrics$: Observable<PipelineMetricsSummary | null> =
+    this.pipelineMetricsSubject.asObservable();
+
   // Reconnection events
   private reconnectingSubject = new Subject<{ attempt: number; maxAttempts: number }>();
   public reconnecting$: Observable<{ attempt: number; maxAttempts: number }> =
@@ -75,6 +80,10 @@ export class SocketService implements OnDestroy {
 
   get isReconnecting(): boolean {
     return this.connectionStatusSubject.value.reconnecting;
+  }
+
+  get latestPipelineMetrics(): PipelineMetricsSummary | null {
+    return this.pipelineMetricsSubject.value;
   }
 
   /**
@@ -330,6 +339,12 @@ export class SocketService implements OnDestroy {
     this.socket.on('task:timeout', (data: { taskId: string }) => {
       this.logger.warn(LOG_CONTEXT, 'Task timeout', data);
       this.taskTimeoutSubject.next(data);
+    });
+
+    // Pipeline metrics broadcast (server emits every 10 seconds)
+    this.socket.on('pipeline:metrics', (data: PipelineMetricsSummary) => {
+      this.logger.debug(LOG_CONTEXT, 'Pipeline metrics received', { pipelineCount: data.pipelines?.length });
+      this.pipelineMetricsSubject.next(data);
     });
 
     // Disconnection
