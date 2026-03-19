@@ -8,6 +8,16 @@ export const ADMIN_ROUTES: Routes = [
     pathMatch: 'full',
   },
   {
+    // Must be declared before 'pipelines' to prevent 'new' being matched as a pipeline ID
+    path: 'pipelines/new',
+    loadComponent: () =>
+      import('./components/pipeline-wizard/pipeline-wizard.component').then(
+        (m) => m.PipelineWizardComponent
+      ),
+    canActivate: [designerGuard],
+    data: { breadcrumb: 'New Pipeline', title: 'Create Pipeline', permissions: ['design:pipelines'] },
+  },
+  {
     path: 'volume-loaders',
     loadComponent: () =>
       import('./components/volume-loader/volume-loader.component').then(

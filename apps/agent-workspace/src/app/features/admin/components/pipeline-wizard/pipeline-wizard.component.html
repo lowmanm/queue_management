@@ -1,0 +1,469 @@
+<div class="wizard-container">
+  <!-- Progress Indicator -->
+  <div class="wizard-progress">
+    @for (label of stepLabels; track $index) {
+      <div class="step-indicator" [class.active]="currentStep() === $index + 1" [class.completed]="currentStep() > $index + 1">
+        <div class="step-number">{{ $index + 1 }}</div>
+        <div class="step-label">{{ label }}</div>
+      </div>
+      @if ($index < stepLabels.length - 1) {
+        <div class="step-connector" [class.completed]="currentStep() > $index + 1"></div>
+      }
+    }
+  </div>
+
+  <!-- Messages -->
+  @if (errorMessage()) {
+    <div class="message error">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="message success">{{ successMessage() }}</div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 1: Basic Info -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 1) {
+    <div class="wizard-step">
+      <h2 class="step-title">Step 1 — Basic Info</h2>
+      <p class="step-description">Name and describe this pipeline.</p>
+
+      <form [formGroup]="step1Form" class="step-form">
+        <div class="form-group">
+          <label for="pipeline-name" class="form-label">Pipeline Name <span class="required">*</span></label>
+          <input
+            id="pipeline-name"
+            type="text"
+            class="form-input"
+            formControlName="name"
+            placeholder="e.g. Business A Processing"
+          />
+          @if (step1Form.get('name')?.invalid && step1Form.get('name')?.touched) {
+            <span class="field-error">Name is required (min. 2 characters)</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="pipeline-description" class="form-label">Description</label>
+          <textarea
+            id="pipeline-description"
+            class="form-input"
+            formControlName="description"
+            rows="3"
+            placeholder="Describe this pipeline's purpose"
+          ></textarea>
+        </div>
+
+        <div class="form-group toggle-group">
+          <span class="form-label">Start as Active</span>
+          <label class="toggle-switch" aria-label="Start as Active">
+            <input type="checkbox" formControlName="active" />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-hint">If off, pipeline will be created as a draft and won't process tasks until activated.</span>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 2: Data Schema -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 2) {
+    <div class="wizard-step">
+      <h2 class="step-title">Step 2 — Data Schema</h2>
+      <p class="step-description">Define the fields for task data in this pipeline. These fields drive routing conditions.</p>
+
+      <form [formGroup]="step2Form">
+        <div class="fields-list">
+          @for (field of schemaFields.controls; track $index) {
+            <div class="field-row" [formGroup]="getSchemaFieldGroup($index)">
+              <input
+                type="text"
+                class="form-input field-name"
+                formControlName="name"
+                placeholder="Field name"
+              />
+              <select class="form-input field-type" formControlName="type">
+                @for (type of fieldTypes; track type) {
+                  <option [value]="type">{{ type }}</option>
+                }
+              </select>
+              <label class="required-toggle">
+                <input type="checkbox" formControlName="required" />
+                Required
+              </label>
+              <button type="button" class="btn-icon btn-danger" (click)="removeSchemaField($index)" title="Remove field">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          }
+        </div>
+
+        <button type="button" class="btn-secondary" (click)="addSchemaField()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Field
+        </button>
+      </form>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 3: Routing Rules -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 3) {
+    <div class="wizard-step">
+      <h2 class="step-title">Step 3 — Routing Rules</h2>
+      <p class="step-description">Define rules to route tasks to queues. Rules are evaluated top-to-bottom — first match wins.</p>
+
+      <form [formGroup]="step3Form">
+        <div class="rules-list">
+          @for (rule of routingRules.controls; track $index) {
+            <div class="rule-card" [formGroup]="getRuleForm($index)">
+              <div class="rule-header">
+                <span class="rule-number">Rule {{ $index + 1 }}</span>
+                <div class="rule-actions">
+                  <button type="button" class="btn-icon" (click)="moveRuleUp($index)" [disabled]="$index === 0" title="Move up">▲</button>
+                  <button type="button" class="btn-icon" (click)="moveRuleDown($index)" [disabled]="$index === routingRules.length - 1" title="Move down">▼</button>
+                  <button type="button" class="btn-icon btn-danger" (click)="removeRoutingRule($index)" title="Remove">✕</button>
+                </div>
+              </div>
+              <div class="rule-fields">
+                <div class="form-group">
+                  <label class="form-label" [attr.for]="'rule-name-' + $index">Rule Name <span class="required">*</span></label>
+                  <input [id]="'rule-name-' + $index" type="text" class="form-input" formControlName="name" placeholder="e.g. High Priority" />
+                </div>
+                <div class="condition-row">
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-field-' + $index">Field</label>
+                    <select [id]="'rule-field-' + $index" class="form-input" formControlName="conditionField">
+                      <option value="">— any —</option>
+                      @for (field of schemaFieldNames(); track field) {
+                        <option [value]="field">{{ field }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-op-' + $index">Operator</label>
+                    <select [id]="'rule-op-' + $index" class="form-input" formControlName="conditionOperator">
+                      <option value="equals">Equals</option>
+                      <option value="not_equals">Not equals</option>
+                      <option value="contains">Contains</option>
+                      <option value="greater_than">Greater than</option>
+                      <option value="less_than">Less than</option>
+                      <option value="exists">Exists</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-val-' + $index">Value</label>
+                    <input [id]="'rule-val-' + $index" type="text" class="form-input" formControlName="conditionValue" placeholder="Value" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Route to Queue</label>
+                  <select class="form-input" formControlName="targetQueueLabel">
+                    <option value="">— select queue (set in step 4) —</option>
+                    @for (label of queueLabels(); track label) {
+                      <option [value]="label">{{ label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <button type="button" class="btn-secondary" (click)="addRoutingRule()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Rule
+        </button>
+
+        <div class="form-group default-route">
+          <label class="form-label">Default / Fallback Route</label>
+          <select class="form-input" formControlName="defaultRoute">
+            <option value="Reject (drop task)">Reject (drop task)</option>
+            <option value="Hold (keep in DLQ)">Hold (keep in DLQ)</option>
+            @for (label of queueLabels(); track label) {
+              <option [value]="label">{{ label }}</option>
+            }
+          </select>
+          <p class="field-hint">Used when no routing rule matches.</p>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 4: Queue Assignment -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 4) {
+    <div class="wizard-step">
+      <h2 class="step-title">Step 4 — Queue Assignment</h2>
+      <p class="step-description">Define the queues for this pipeline. Queue labels are used to reference them in routing rules.</p>
+
+      <form [formGroup]="step4Form">
+        <div class="queues-list">
+          @for (queue of wizardQueues.controls; track $index) {
+            <div class="queue-card" [formGroup]="getQueueForm($index)">
+              <div class="queue-header">
+                <span class="queue-number">Queue {{ $index + 1 }}</span>
+                <button type="button" class="btn-icon btn-danger" (click)="removeQueue($index)" title="Remove">✕</button>
+              </div>
+              <div class="queue-fields">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Label (used in routing rules) <span class="required">*</span></label>
+                    <input type="text" class="form-input" formControlName="label" placeholder="e.g. High Priority" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Queue Name <span class="required">*</span></label>
+                    <input type="text" class="form-input" formControlName="name" placeholder="e.g. High Priority Queue" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Description</label>
+                  <input type="text" class="form-input" formControlName="description" placeholder="Optional description" />
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Priority (1-10)</label>
+                    <input type="number" class="form-input" formControlName="priority" min="1" max="10" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Max Capacity (0 = unlimited)</label>
+                    <input type="number" class="form-input" formControlName="maxCapacity" min="0" />
+                  </div>
+                </div>
+                @if (availableSkills().length > 0) {
+                  <div class="form-group">
+                    <label class="form-label">Required Skills</label>
+                    <div class="skills-grid">
+                      @for (skill of availableSkills(); track skill.id) {
+                        <label class="skill-chip" [class.selected]="isSkillSelectedOnQueue(getQueueForm($index), skill.id)">
+                          <input
+                            type="checkbox"
+                            [checked]="isSkillSelectedOnQueue(getQueueForm($index), skill.id)"
+                            (change)="toggleSkillOnQueue(getQueueForm($index), skill.id)"
+                          />
+                          {{ skill.name }}
+                        </label>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <button type="button" class="btn-secondary" (click)="addQueue()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add Queue
+        </button>
+      </form>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 5: SLA Config -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 5) {
+    <div class="wizard-step">
+      <h2 class="step-title">Step 5 — SLA Configuration</h2>
+      <p class="step-description">Set service level agreements and escalation rules.</p>
+
+      <form [formGroup]="step5Form" class="step-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Warning Threshold (%)</label>
+            <input type="number" class="form-input" formControlName="warningThresholdPercent" min="0" max="100" />
+            <p class="field-hint">SLA warning when this % of tasks are at-risk</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Breach Threshold (%)</label>
+            <input type="number" class="form-input" formControlName="breachThresholdPercent" min="0" max="100" />
+            <p class="field-hint">SLA breach when this % of tasks exceed target</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Escalation Action</label>
+          <select class="form-input" formControlName="escalationAction">
+            <option value="escalate_priority">Escalate Priority</option>
+            <option value="move_to_dlq">Move to DLQ</option>
+            <option value="notify">Notify</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Default Handle Time (ms)</label>
+            <input type="number" class="form-input" formControlName="defaultHandleTimeMs" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Queue Wait (ms)</label>
+            <input type="number" class="form-input" formControlName="maxQueueWaitMs" min="0" />
+          </div>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 6: Review -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 6) {
+    <div class="wizard-step">
+      <h2 class="step-title">Step 6 — Review &amp; Submit</h2>
+      <p class="step-description">Review your pipeline configuration before saving.</p>
+
+      <div class="review-sections">
+        <div class="review-section">
+          <h3>Basic Info</h3>
+          <dl>
+            <dt>Name</dt><dd>{{ step1Form.get('name')?.value }}</dd>
+            @if (step1Form.get('description')?.value) {
+              <dt>Description</dt><dd>{{ step1Form.get('description')?.value }}</dd>
+            }
+            <dt>Initial State</dt><dd>{{ step1Form.get('active')?.value ? 'Active' : 'Draft (inactive)' }}</dd>
+          </dl>
+        </div>
+
+        <div class="review-section">
+          <h3>Data Schema</h3>
+          @if (schemaFields.length === 0) {
+            <p class="empty-note">No schema fields defined</p>
+          } @else {
+            <ul>
+              @for (field of schemaFields.controls; track $index) {
+                <li>{{ getSchemaFieldGroup($index).get('name')?.value }}
+                  ({{ getSchemaFieldGroup($index).get('type')?.value }})
+                  @if (getSchemaFieldGroup($index).get('required')?.value) {
+                    <span class="badge">required</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="review-section">
+          <h3>Routing Rules ({{ routingRules.length }})</h3>
+          @if (routingRules.length === 0) {
+            <p class="empty-note">No routing rules — all tasks use fallback route</p>
+          } @else {
+            <ul>
+              @for (rule of routingRules.controls; track $index) {
+                <li>{{ getRuleForm($index).get('name')?.value }} → {{ getRuleForm($index).get('targetQueueLabel')?.value || '(no target)' }}</li>
+              }
+            </ul>
+          }
+          <p><strong>Fallback:</strong> {{ step3Form.get('defaultRoute')?.value }}</p>
+        </div>
+
+        <div class="review-section">
+          <h3>Queues ({{ wizardQueues.length }})</h3>
+          @if (wizardQueues.length === 0) {
+            <p class="empty-note">No queues defined</p>
+          } @else {
+            <ul>
+              @for (queue of wizardQueues.controls; track $index) {
+                <li>{{ getQueueForm($index).get('name')?.value }} (Priority: {{ getQueueForm($index).get('priority')?.value }})</li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="review-section">
+          <h3>SLA</h3>
+          <dl>
+            <dt>Warning at</dt><dd>{{ step5Form.get('warningThresholdPercent')?.value }}%</dd>
+            <dt>Breach at</dt><dd>{{ step5Form.get('breachThresholdPercent')?.value }}%</dd>
+            <dt>Escalation</dt><dd>{{ step5Form.get('escalationAction')?.value }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Validate Config -->
+      <div class="validation-panel">
+        <button type="button" class="btn-secondary" (click)="validateConfig()" [disabled]="isValidating()">
+          @if (isValidating()) {
+            Validating...
+          } @else {
+            Validate Config
+          }
+        </button>
+
+        @if (validationResult()) {
+          <div class="validation-result" [class.valid]="validationResult()!.valid" [class.invalid]="!validationResult()!.valid">
+            @if (validationResult()!.valid) {
+              <strong>✓ Valid</strong>
+              @if (validationResult()!.targetQueue) {
+                — would route to: <em>{{ validationResult()!.targetQueue!.name }}</em>
+              }
+            } @else {
+              <strong>✗ Issues found:</strong>
+              <ul>
+                @for (err of validationResult()!.errors; track err) {
+                  <li>{{ err }}</li>
+                }
+              </ul>
+            }
+            @for (warn of validationResult()!.warnings; track warn) {
+              <div class="warning">⚠ {{ warn }}</div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- NAVIGATION FOOTER
+  <!-- ============================================================ -->
+  <div class="wizard-footer">
+    <div class="footer-left">
+      @if (currentStep() > 1) {
+        <button type="button" class="btn-secondary" (click)="back()">← Back</button>
+      }
+    </div>
+    <div class="footer-right">
+      @if (currentStep() < totalSteps) {
+        <button type="button" class="btn-primary" (click)="next()">Next →</button>
+      } @else {
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="submit(false)"
+          [disabled]="isSubmitting()"
+        >
+          Save as Draft
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="submit(true)"
+          [disabled]="isSubmitting()"
+        >
+          @if (isSubmitting()) {
+            Creating...
+          } @else {
+            Activate Pipeline
+          }
+        </button>
+      }
+    </div>
+  </div>
+</div>

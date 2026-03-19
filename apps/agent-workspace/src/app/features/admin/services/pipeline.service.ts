@@ -14,6 +14,12 @@ import {
   UpdateQueueRequest,
   CreateRoutingRuleRequest,
   UpdateRoutingRuleRequest,
+  PipelineValidationRequest,
+  PipelineValidationResult,
+  PipelineMetrics,
+  PipelineMetricsSummary,
+  PipelineVersion,
+  PipelineQueueRuntimeStats,
 } from '@nexus-queue/shared-models';
 import { environment } from '../../../../environments/environment';
 
@@ -214,6 +220,67 @@ export class PipelineApiService {
    */
   deleteRoutingRule(pipelineId: string, ruleId: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`${API_BASE}/${pipelineId}/routing-rules/${ruleId}`);
+  }
+
+  // ===========================================================================
+  // PIPELINE METRICS, VALIDATION & VERSIONING
+  // ===========================================================================
+
+  /**
+   * Validate a pipeline configuration against a sample task (dry-run)
+   */
+  validatePipeline(pipelineId: string, request: PipelineValidationRequest): Observable<PipelineValidationResult> {
+    return this.http.post<PipelineValidationResult>(`${API_BASE}/${pipelineId}/validate`, request);
+  }
+
+  /**
+   * Get real-time metrics for a single pipeline
+   */
+  getPipelineMetrics(pipelineId: string): Observable<PipelineMetrics> {
+    return this.http.get<PipelineMetrics>(`${API_BASE}/${pipelineId}/metrics`);
+  }
+
+  /**
+   * Get aggregate metrics for all pipelines
+   */
+  getAllPipelineMetrics(): Observable<PipelineMetricsSummary> {
+    return this.http.get<PipelineMetricsSummary>(`${API_BASE}/metrics`);
+  }
+
+  /**
+   * Get version history for a pipeline (newest first, max 20)
+   */
+  getPipelineVersions(pipelineId: string): Observable<PipelineVersion[]> {
+    return this.http.get<PipelineVersion[]>(`${API_BASE}/${pipelineId}/versions`).pipe(
+      catchError(() => of([]))
+    );
+  }
+
+  /**
+   * Rollback a pipeline to a prior version snapshot
+   */
+  rollbackPipelineVersion(pipelineId: string, versionId: string): Observable<Pipeline> {
+    return this.http.post<Pipeline>(`${API_BASE}/${pipelineId}/versions/${versionId}/rollback`, {});
+  }
+
+  // ===========================================================================
+  // QUEUE STATS
+  // ===========================================================================
+
+  /**
+   * Get real-time stats for a specific queue
+   */
+  getQueueStats(queueId: string): Observable<PipelineQueueRuntimeStats> {
+    return this.http.get<PipelineQueueRuntimeStats>(`${QUEUES_API}/${queueId}/stats`);
+  }
+
+  /**
+   * Get real-time stats for all queues
+   */
+  getAllQueueStats(): Observable<PipelineQueueRuntimeStats[]> {
+    return this.http.get<PipelineQueueRuntimeStats[]>(`${QUEUES_API}/stats`).pipe(
+      catchError(() => of([]))
+    );
   }
 
   // ===========================================================================

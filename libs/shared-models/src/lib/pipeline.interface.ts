@@ -617,6 +617,51 @@ export const ROUTING_OPERATOR_LABELS: Record<RoutingOperator, string> = {
 };
 
 // =============================================================================
+// QUEUE RUNTIME STATS (returned by /api/queues/:id/stats)
+// =============================================================================
+
+/**
+ * Real-time runtime statistics for a queue (returned by the stats API)
+ */
+export interface PipelineQueueRuntimeStats {
+  /** Queue identifier */
+  id: string;
+
+  /** Queue display name */
+  name: string;
+
+  /** Tasks currently waiting in queue */
+  tasksWaiting: number;
+
+  /** Tasks currently being worked */
+  tasksInProgress: number;
+
+  /** Age of oldest task in seconds */
+  oldestTaskAge: number;
+
+  /** Average wait time in seconds */
+  avgWaitTime: number;
+
+  /** Tasks completed today */
+  completedToday: number;
+
+  /** Service level percentage (0-100) */
+  serviceLevelPercent: number;
+
+  /** SLA target in seconds */
+  slaTarget: number;
+
+  /** Total agents assigned to queue */
+  agentsAssigned: number;
+
+  /** Agents currently available */
+  agentsAvailable: number;
+
+  /** Queue health status */
+  status: 'healthy' | 'warning' | 'critical';
+}
+
+// =============================================================================
 // PHASE 3 — METRICS, VALIDATION & VERSIONING
 // =============================================================================
 
