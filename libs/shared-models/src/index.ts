@@ -9,3 +9,5 @@ export * from './lib/routing.interface';
 export * from './lib/work-state.interface';
 export * from './lib/volume-loader.interface';
 export * from './lib/pipeline.interface';
+export * from './lib/audit-event.interface';
+export * from './lib/auth.interface';
