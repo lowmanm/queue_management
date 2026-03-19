@@ -9,10 +9,10 @@
 
 | Field | Value |
 |---|---|
-| **Active Phase** | Phase 4 — Persistence + Production (next) |
-| **Phase Status** | Not yet started — run `/plan-phase 4` to begin |
+| **Active Phase** | Phase 4 — Persistence + Production |
+| **Phase Status** | In Progress — Wave 1 complete, Wave 2 next |
 | **Last Session** | 2026-03-19 |
-| **Next Action** | `/plan-phase 4` |
+| **Next Action** | `/execute-task .planning/phases/4/2-1-postgresql-persistence-PLAN.md` |
 
 ---
 
@@ -68,9 +68,16 @@ All 22 v1 requirements implemented, verified, and PR opened.
 
 ---
 
-## Phase 4 — Planned
+## Phase 4 — In Progress
 
 **Goal:** Replace in-memory stores with durable persistence, add horizontal scaling, prepare for production.
+
+| Wave | Plan | Status |
+|---|---|---|
+| Wave 1 | `1-1-debt-clearance-PLAN.md` | ✅ Complete |
+| Wave 2a | `2-1-postgresql-persistence-PLAN.md` | ⏳ Next |
+| Wave 2b | `2-2-redis-event-sourcing-PLAN.md` | ⏳ Pending |
+| Wave 3 | `3-1-auth-monitoring-deploy-PLAN.md` | ⏳ Pending |
 
 | Deliverable | Description |
 |---|---|
@@ -104,9 +111,9 @@ None currently.
 | Metric | Status |
 |---|---|
 | Build | ✅ Passing |
-| Lint | ⚠️ 167 pre-existing errors in agent-workspace; 10 in api-server — none in Phase 3 files |
+| Lint | ⚠️ 119 pre-existing accessibility errors in agent-workspace (Wave 3); api-server 0 ✅ |
 | Tests | ✅ 51 tests passing |
-| Tech Debt | Low — Phase 4 will address in-memory stores and lint debt |
+| Tech Debt | agent-workspace 167→119 (−29%); api-server 0 ✅ |
 
 ---
 
