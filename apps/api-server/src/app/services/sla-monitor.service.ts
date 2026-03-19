@@ -63,7 +63,9 @@ export class SLAMonitorService implements OnModuleDestroy {
     }
 
     this.monitorInterval = setInterval(() => {
-      this.checkSLACompliance();
+      this.checkSLACompliance().catch((err) => {
+        this.logger.error(`SLA compliance check failed: ${err}`);
+      });
     }, this.checkIntervalMs);
 
     this.logger.log(
@@ -94,13 +96,13 @@ export class SLAMonitorService implements OnModuleDestroy {
    * Run a single SLA compliance check across all queues.
    * Called by the interval and can also be invoked manually.
    */
-  checkSLACompliance(): SLABreachEvent[] {
+  async checkSLACompliance(): Promise<SLABreachEvent[]> {
     const events: SLABreachEvent[] = [];
     const now = Date.now();
 
     // Check tasks approaching SLA (80% threshold for warning)
     const warningTasks =
-      this.queueManager.getTasksApproachingSLA(80);
+      await this.queueManager.getTasksApproachingSLA(80);
 
     for (const task of warningTasks) {
       if (!task.slaDeadline) continue;
@@ -112,18 +114,15 @@ export class SLAMonitorService implements OnModuleDestroy {
       const percentUsed = (elapsed / totalWindow) * 100;
 
       let severity: SLABreachEvent['severity'];
-      let action: string;
 
       if (percentUsed >= 150) {
         // CRITICAL: Move to DLQ
         severity = 'critical';
-        action = 'moved_to_dlq';
-        this.queueManager.moveToDLQ(task, 'sla_expired');
+        await this.queueManager.moveToDLQ(task, 'sla_expired');
       } else if (percentUsed >= 100) {
         // BREACH: Boost to max priority
         severity = 'breach';
-        action = 'boosted_to_p1';
-        this.queueManager.reprioritize(
+        await this.queueManager.reprioritize(
           task.queueId,
           task.id,
           1,
@@ -132,10 +131,9 @@ export class SLAMonitorService implements OnModuleDestroy {
       } else {
         // WARNING: Boost priority by 2 levels
         severity = 'warning';
-        action = 'priority_boosted';
         const newPriority = Math.max(1, task.priority - 2);
         if (newPriority < task.priority) {
-          this.queueManager.reprioritize(
+          await this.queueManager.reprioritize(
             task.queueId,
             task.id,
             newPriority,

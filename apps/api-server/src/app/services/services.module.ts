@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentManagerService } from './agent-manager.service';
 import { TaskDistributorService } from './task-distributor.service';
 import { RuleEngineService } from './rule-engine.service';
@@ -14,9 +15,31 @@ import { PipelineOrchestratorService } from './pipeline-orchestrator.service';
 import { SLAMonitorService } from './sla-monitor.service';
 import { PipelineMetricsService } from './pipeline-metrics.service';
 import { PipelineModule } from '../pipelines/pipeline.module';
+import {
+  TaskEntity,
+  QueuedTaskEntity,
+  DLQEntryEntity,
+  DispositionEntity,
+  TaskCompletionEntity,
+  RuleSetEntity,
+  UserEntity,
+  TeamEntity,
+} from '../entities';
 
 @Module({
-  imports: [forwardRef(() => PipelineModule)],
+  imports: [
+    forwardRef(() => PipelineModule),
+    TypeOrmModule.forFeature([
+      TaskEntity,
+      QueuedTaskEntity,
+      DLQEntryEntity,
+      DispositionEntity,
+      TaskCompletionEntity,
+      RuleSetEntity,
+      UserEntity,
+      TeamEntity,
+    ]),
+  ],
   providers: [
     AgentManagerService,
     TaskDistributorService,

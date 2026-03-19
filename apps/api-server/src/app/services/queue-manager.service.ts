@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Not, IsNull, Repository } from 'typeorm';
 import { Task } from '@nexus-queue/shared-models';
+import { QueuedTaskEntity } from '../entities/queued-task.entity';
+import { DLQEntryEntity } from '../entities/dlq-entry.entity';
 
 /**
  * Entry in the priority queue. Wraps a Task with queue metadata.
@@ -46,147 +50,167 @@ export interface DLQEntry {
  *
  * Each named queue maintains tasks sorted by (priority ASC, enqueuedAt ASC).
  * Dequeue always returns the highest-urgency (lowest priority number), oldest task.
+ * Backed by TypeORM repositories for persistence.
  */
 @Injectable()
 export class QueueManagerService {
   private readonly logger = new Logger(QueueManagerService.name);
 
-  /** Named queues: queueId → sorted array of QueuedTasks */
-  private queues = new Map<string, QueuedTask[]>();
-
-  /** Dead Letter Queue: all failed tasks */
-  private dlq: DLQEntry[] = [];
-
-  /** Completed/dequeued task history for wait-time metrics */
+  /** Completed/dequeued task history for wait-time metrics (in-memory) */
   private completedWaitTimes = new Map<string, number[]>();
 
+  constructor(
+    @InjectRepository(QueuedTaskEntity)
+    private readonly queuedTaskRepo: Repository<QueuedTaskEntity>,
+    @InjectRepository(DLQEntryEntity)
+    private readonly dlqRepo: Repository<DLQEntryEntity>
+  ) {}
+
   /**
-   * Ensure a queue exists (creates if needed).
+   * Ensure a queue exists (no-op: DB tables handle implicit queue creation).
    */
-  ensureQueue(queueId: string): void {
-    if (!this.queues.has(queueId)) {
-      this.queues.set(queueId, []);
-      this.completedWaitTimes.set(queueId, []);
-      this.logger.log(`Queue created: ${queueId}`);
-    }
+  ensureQueue(_queueId: string): void {
+    // No-op for DB-backed implementation
   }
 
   /**
-   * Add a task to a named queue, maintaining priority sort order.
+   * Add a task to a named queue.
    * Returns the queued task entry.
    */
-  enqueue(queueId: string, queuedTask: QueuedTask): QueuedTask {
-    this.ensureQueue(queueId);
-    const queue = this.queues.get(queueId)!;
+  async enqueue(queueId: string, queuedTask: QueuedTask): Promise<QueuedTask> {
+    const entity = new QueuedTaskEntity();
+    entity.taskId = queuedTask.id;
+    entity.pipelineId = queuedTask.pipelineId;
+    entity.queueId = queueId;
+    entity.taskPayload = queuedTask.task as unknown as Record<string, unknown>;
+    entity.priority = queuedTask.priority;
+    entity.retryCount = queuedTask.retryCount;
+    entity.maxRetries = queuedTask.maxRetries;
+    entity.lastFailureReason = queuedTask.lastFailureReason;
+    entity.slaDeadline = queuedTask.slaDeadline
+      ? new Date(queuedTask.slaDeadline)
+      : undefined;
 
-    // Insert in sorted position: priority ASC, enqueuedAt ASC
-    const insertIdx = this.findInsertIndex(queue, queuedTask);
-    queue.splice(insertIdx, 0, queuedTask);
+    const saved = await this.queuedTaskRepo.save(entity);
 
     this.logger.debug(
-      `Enqueued task ${queuedTask.id} in queue ${queueId} ` +
-        `(priority: ${queuedTask.priority}, depth: ${queue.length})`
+      `Enqueued task ${queuedTask.id} in queue ${queueId} (priority: ${queuedTask.priority})`
     );
 
-    return queuedTask;
+    return this.toModel(saved);
   }
 
   /**
    * Remove and return the highest-priority task from a queue.
    * Returns null if queue is empty.
    */
-  dequeue(queueId: string): QueuedTask | null {
-    const queue = this.queues.get(queueId);
-    if (!queue || queue.length === 0) return null;
+  async dequeue(queueId: string): Promise<QueuedTask | null> {
+    const entity = await this.queuedTaskRepo.findOne({
+      where: { queueId },
+      order: { priority: 'ASC', enqueuedAt: 'ASC' },
+    });
 
-    const task = queue.shift()!;
+    if (!entity) return null;
 
-    // Record wait time for metrics
-    const waitMs =
-      Date.now() - new Date(task.enqueuedAt).getTime();
+    await this.queuedTaskRepo.delete(entity.id);
+
+    const waitMs = Date.now() - entity.enqueuedAt.getTime();
     this.recordWaitTime(queueId, waitMs);
 
     this.logger.debug(
-      `Dequeued task ${task.id} from queue ${queueId} ` +
-        `(waited ${Math.round(waitMs / 1000)}s, remaining: ${queue.length})`
+      `Dequeued task ${entity.taskId} from queue ${queueId} ` +
+        `(waited ${Math.round(waitMs / 1000)}s)`
     );
 
-    return task;
+    return this.toModel(entity);
   }
 
   /**
    * Peek at the next task without removing it.
    */
-  peek(queueId: string): QueuedTask | null {
-    const queue = this.queues.get(queueId);
-    return queue && queue.length > 0 ? queue[0] : null;
+  async peek(queueId: string): Promise<QueuedTask | null> {
+    const entity = await this.queuedTaskRepo.findOne({
+      where: { queueId },
+      order: { priority: 'ASC', enqueuedAt: 'ASC' },
+    });
+    return entity ? this.toModel(entity) : null;
   }
 
   /**
    * Return a task to the queue after agent failure/timeout.
    * Increments retryCount. Moves to DLQ if maxRetries exceeded.
    */
-  requeue(queuedTask: QueuedTask, reason: string): void {
-    queuedTask.retryCount++;
-    queuedTask.lastFailureReason = reason;
+  async requeue(queuedTask: QueuedTask, reason: string): Promise<void> {
+    const newRetryCount = queuedTask.retryCount + 1;
 
-    if (queuedTask.retryCount >= queuedTask.maxRetries) {
-      this.moveToDLQ(queuedTask, `max_retries_exceeded: ${reason}`);
+    if (newRetryCount >= queuedTask.maxRetries) {
+      await this.moveToDLQ(
+        { ...queuedTask, retryCount: newRetryCount, lastFailureReason: reason },
+        `max_retries_exceeded: ${reason}`
+      );
       return;
     }
 
-    // Re-enqueue (keeps same priority and original enqueuedAt for fairness)
-    this.enqueue(queuedTask.queueId, queuedTask);
+    const existing = await this.queuedTaskRepo.findOneBy({
+      taskId: queuedTask.id,
+    });
+
+    if (existing) {
+      existing.retryCount = newRetryCount;
+      existing.lastFailureReason = reason;
+      await this.queuedTaskRepo.save(existing);
+    } else {
+      await this.enqueue(queuedTask.queueId, {
+        ...queuedTask,
+        retryCount: newRetryCount,
+        lastFailureReason: reason,
+      });
+    }
 
     this.logger.log(
-      `Requeued task ${queuedTask.id} (retry ${queuedTask.retryCount}/${queuedTask.maxRetries}, reason: ${reason})`
+      `Requeued task ${queuedTask.id} (retry ${newRetryCount}/${queuedTask.maxRetries}, reason: ${reason})`
     );
   }
 
   /**
    * Move a task to the Dead Letter Queue.
    */
-  moveToDLQ(queuedTask: QueuedTask, reason: string): void {
-    // Remove from active queue if still there
-    this.removeFromQueue(queuedTask.queueId, queuedTask.id);
+  async moveToDLQ(queuedTask: QueuedTask, reason: string): Promise<void> {
+    await this.removeFromQueue(queuedTask.queueId, queuedTask.id);
 
-    this.dlq.push({
-      queuedTask,
-      reason,
-      movedAt: new Date().toISOString(),
-    });
+    const entry = new DLQEntryEntity();
+    entry.taskId = queuedTask.id;
+    entry.queueId = queuedTask.queueId;
+    entry.pipelineId = queuedTask.pipelineId;
+    entry.failureReason = reason.substring(0, 100);
+    entry.taskPayload = queuedTask.task as unknown as Record<string, unknown>;
+    entry.queuedTaskPayload =
+      queuedTask as unknown as Record<string, unknown>;
+    entry.retryCount = queuedTask.retryCount;
 
-    this.logger.warn(
-      `Task ${queuedTask.id} moved to DLQ: ${reason}`
-    );
+    await this.dlqRepo.save(entry);
+
+    this.logger.warn(`Task ${queuedTask.id} moved to DLQ: ${reason}`);
   }
 
   /**
    * Boost a task's priority (lower number = higher urgency).
-   * Removes and re-inserts to maintain sort order.
    */
-  reprioritize(
+  async reprioritize(
     queueId: string,
     taskId: string,
     newPriority: number,
     reason: string
-  ): boolean {
-    const queue = this.queues.get(queueId);
-    if (!queue) return false;
+  ): Promise<boolean> {
+    const entity = await this.queuedTaskRepo.findOneBy({ queueId, taskId });
+    if (!entity) return false;
 
-    const idx = queue.findIndex((t) => t.id === taskId);
-    if (idx === -1) return false;
-
-    const [task] = queue.splice(idx, 1);
-    const oldPriority = task.priority;
-    task.priority = Math.max(1, Math.min(10, newPriority));
-
-    // Re-insert at correct sorted position
-    const insertIdx = this.findInsertIndex(queue, task);
-    queue.splice(insertIdx, 0, task);
+    const oldPriority = entity.priority;
+    entity.priority = Math.max(1, Math.min(10, newPriority));
+    await this.queuedTaskRepo.save(entity);
 
     this.logger.log(
-      `Reprioritized task ${taskId}: ${oldPriority} → ${task.priority} (${reason})`
+      `Reprioritized task ${taskId}: ${oldPriority} → ${entity.priority} (${reason})`
     );
     return true;
   }
@@ -194,98 +218,106 @@ export class QueueManagerService {
   /**
    * Remove a specific task from a queue (e.g., when assigned to agent).
    */
-  removeFromQueue(queueId: string, taskId: string): QueuedTask | null {
-    const queue = this.queues.get(queueId);
-    if (!queue) return null;
+  async removeFromQueue(
+    queueId: string,
+    taskId: string
+  ): Promise<QueuedTask | null> {
+    const entity = await this.queuedTaskRepo.findOneBy({ queueId, taskId });
+    if (!entity) return null;
 
-    const idx = queue.findIndex((t) => t.id === taskId);
-    if (idx === -1) return null;
-
-    const [removed] = queue.splice(idx, 1);
-    return removed;
+    await this.queuedTaskRepo.delete(entity.id);
+    return this.toModel(entity);
   }
 
   // === DLQ Operations ===
 
   /** Get all DLQ entries, optionally filtered by queue */
-  getDLQTasks(queueId?: string): DLQEntry[] {
-    if (queueId) {
-      return this.dlq.filter((e) => e.queuedTask.queueId === queueId);
-    }
-    return [...this.dlq];
+  async getDLQTasks(queueId?: string): Promise<DLQEntry[]> {
+    const entities = queueId
+      ? await this.dlqRepo.findBy({ queueId })
+      : await this.dlqRepo.find();
+    return entities.map((e) => this.toDLQModel(e));
   }
 
   /** Remove a task from DLQ (for retry or discard) */
-  removeFromDLQ(taskId: string): DLQEntry | null {
-    const idx = this.dlq.findIndex(
-      (e) => e.queuedTask.id === taskId
-    );
-    if (idx === -1) return null;
+  async removeFromDLQ(taskId: string): Promise<DLQEntry | null> {
+    const entity = await this.dlqRepo.findOneBy({ taskId });
+    if (!entity) return null;
 
-    const [removed] = this.dlq.splice(idx, 1);
-    return removed;
+    await this.dlqRepo.delete(entity.id);
+    return this.toDLQModel(entity);
   }
 
   /**
    * Get aggregate DLQ statistics broken down by reason, queue, and pipeline.
    */
-  getDlqStats(): {
+  async getDlqStats(): Promise<{
     total: number;
     byReason: Record<string, number>;
     byQueue: Record<string, number>;
     byPipeline: Record<string, number>;
-  } {
+  }> {
+    const entries = await this.dlqRepo.find();
+
     const byReason: Record<string, number> = {};
     const byQueue: Record<string, number> = {};
     const byPipeline: Record<string, number> = {};
 
-    for (const entry of this.dlq) {
-      // Normalize reason to the first colon-separated segment
-      const reasonKey = entry.reason.split(':')[0].trim();
+    for (const entry of entries) {
+      const reasonKey = entry.failureReason.split(':')[0].trim();
       byReason[reasonKey] = (byReason[reasonKey] ?? 0) + 1;
-
-      const queueId = entry.queuedTask.queueId;
-      byQueue[queueId] = (byQueue[queueId] ?? 0) + 1;
-
-      const pipelineId = entry.queuedTask.pipelineId;
-      byPipeline[pipelineId] = (byPipeline[pipelineId] ?? 0) + 1;
+      byQueue[entry.queueId] = (byQueue[entry.queueId] ?? 0) + 1;
+      if (entry.pipelineId) {
+        byPipeline[entry.pipelineId] =
+          (byPipeline[entry.pipelineId] ?? 0) + 1;
+      }
     }
 
-    return {
-      total: this.dlq.length,
-      byReason,
-      byQueue,
-      byPipeline,
-    };
+    return { total: entries.length, byReason, byQueue, byPipeline };
   }
 
   // === Observability ===
 
   /** Get the depth (number of tasks) in a queue */
-  getQueueDepth(queueId: string): number {
-    return this.queues.get(queueId)?.length ?? 0;
+  async getQueueDepth(queueId: string): Promise<number> {
+    return this.queuedTaskRepo.count({ where: { queueId } });
   }
 
   /** Get all tasks in a queue (read-only snapshot) */
-  getQueueTasks(queueId: string): QueuedTask[] {
-    return [...(this.queues.get(queueId) ?? [])];
+  async getQueueTasks(queueId: string): Promise<QueuedTask[]> {
+    const entities = await this.queuedTaskRepo.find({
+      where: { queueId },
+      order: { priority: 'ASC', enqueuedAt: 'ASC' },
+    });
+    return entities.map((e) => this.toModel(e));
   }
 
   /** Get all known queue IDs */
-  getQueueIds(): string[] {
-    return Array.from(this.queues.keys());
+  async getQueueIds(): Promise<string[]> {
+    const rows = await this.queuedTaskRepo
+      .createQueryBuilder('qt')
+      .select('qt.queueId', 'queueId')
+      .distinct(true)
+      .getRawMany<{ queueId: string }>();
+    return rows.map((r) => r['queueId']);
   }
 
   /** Get health stats for a queue */
-  getQueueStats(queueId: string): QueueHealthStats {
-    const queue = this.queues.get(queueId) ?? [];
-    const now = Date.now();
+  async getQueueStats(queueId: string): Promise<QueueHealthStats> {
+    const depth = await this.queuedTaskRepo.count({ where: { queueId } });
+    const dlqCount = await this.dlqRepo.count({ where: { queueId } });
 
     let oldestAge = 0;
-    if (queue.length > 0) {
-      oldestAge = Math.round(
-        (now - new Date(queue[0].enqueuedAt).getTime()) / 1000
-      );
+    if (depth > 0) {
+      const oldest = await this.queuedTaskRepo.findOne({
+        where: { queueId },
+        order: { enqueuedAt: 'ASC' },
+      });
+      if (oldest) {
+        oldestAge = Math.round(
+          (Date.now() - oldest.enqueuedAt.getTime()) / 1000
+        );
+      }
     }
 
     const waitTimes = this.completedWaitTimes.get(queueId) ?? [];
@@ -300,71 +332,55 @@ export class QueueManagerService {
 
     return {
       queueId,
-      depth: queue.length,
+      depth,
       oldestTaskAge: oldestAge,
       avgWaitTime: avgWait,
-      dlqCount: this.dlq.filter(
-        (e) => e.queuedTask.queueId === queueId
-      ).length,
+      dlqCount,
     };
   }
 
   /** Get all queued tasks across all queues that are approaching SLA */
-  getTasksApproachingSLA(thresholdPercent: number): QueuedTask[] {
+  async getTasksApproachingSLA(thresholdPercent: number): Promise<QueuedTask[]> {
+    const entities = await this.queuedTaskRepo.find({
+      where: { slaDeadline: Not(IsNull()) },
+    });
+
     const now = Date.now();
-    const results: QueuedTask[] = [];
-
-    for (const queue of this.queues.values()) {
-      for (const task of queue) {
-        if (!task.slaDeadline) continue;
-
+    return entities
+      .map((e) => this.toModel(e))
+      .filter((task) => {
+        if (!task.slaDeadline) return false;
         const deadline = new Date(task.slaDeadline).getTime();
         const enqueued = new Date(task.enqueuedAt).getTime();
         const totalWindow = deadline - enqueued;
         const elapsed = now - enqueued;
-
-        if (totalWindow > 0 && elapsed / totalWindow >= thresholdPercent / 100) {
-          results.push(task);
-        }
-      }
-    }
-
-    return results;
+        return totalWindow > 0 && elapsed / totalWindow >= thresholdPercent / 100;
+      });
   }
 
   // === Private Helpers ===
 
-  /** Binary search for sorted insertion index */
-  private findInsertIndex(
-    queue: QueuedTask[],
-    task: QueuedTask
-  ): number {
-    let low = 0;
-    let high = queue.length;
-
-    while (low < high) {
-      const mid = (low + high) >>> 1;
-      const cmp = this.compareTasks(queue[mid], task);
-      if (cmp <= 0) {
-        low = mid + 1;
-      } else {
-        high = mid;
-      }
-    }
-
-    return low;
+  private toModel(entity: QueuedTaskEntity): QueuedTask {
+    return {
+      id: entity.taskId,
+      pipelineId: entity.pipelineId,
+      queueId: entity.queueId,
+      task: entity.taskPayload as unknown as Task,
+      priority: entity.priority,
+      enqueuedAt: entity.enqueuedAt.toISOString(),
+      slaDeadline: entity.slaDeadline?.toISOString(),
+      retryCount: entity.retryCount,
+      maxRetries: entity.maxRetries,
+      lastFailureReason: entity.lastFailureReason,
+    };
   }
 
-  /** Compare two tasks for priority ordering */
-  private compareTasks(a: QueuedTask, b: QueuedTask): number {
-    if (a.priority !== b.priority) {
-      return a.priority - b.priority; // Lower number = higher priority
-    }
-    // Same priority: older task first (FIFO)
-    return (
-      new Date(a.enqueuedAt).getTime() -
-      new Date(b.enqueuedAt).getTime()
-    );
+  private toDLQModel(entity: DLQEntryEntity): DLQEntry {
+    return {
+      queuedTask: entity.queuedTaskPayload as unknown as QueuedTask,
+      reason: entity.failureReason,
+      movedAt: entity.failedAt.toISOString(),
+    };
   }
 
   /** Record wait time for avg calculation (keep last 100 per queue) */

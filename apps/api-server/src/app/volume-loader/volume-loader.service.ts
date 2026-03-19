@@ -469,7 +469,7 @@ export class VolumeLoaderService {
         this.logger.log(
           `Found ${staged.records.length} staged records for loader "${loader.name}"`
         );
-        this.processStagedRecords(loader, run, staged.records, isDryRun);
+        await this.processStagedRecords(loader, run, staged.records, isDryRun);
         // Clear staging table after processing
         if (!isDryRun) {
           this.stagedRecords.delete(loader.id);
@@ -609,7 +609,7 @@ export class VolumeLoaderService {
 
           if (!isDryRun) {
             // Create task in the task pipeline
-            this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+            await this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
 
             // Track processed ID
             if (record.mappedData.externalId) {
@@ -652,11 +652,11 @@ export class VolumeLoaderService {
    * Generates mock records from the loader's field mappings and routes them
    * through the pipeline so tasks actually reach queues.
    */
-  private processSimulated(
+  private async processSimulated(
     loader: VolumeLoader,
     run: VolumeLoaderRun,
     isDryRun: boolean
-  ): void {
+  ): Promise<void> {
     const recordCount = Math.floor(Math.random() * 20) + 10;
     run.recordsFound = recordCount;
     run.filesProcessed = ['simulated_data.csv'];
@@ -687,7 +687,7 @@ export class VolumeLoaderService {
         const mappedData = this.applyFieldMappings(rawData, loader);
 
         if (!isDryRun) {
-          this.createTaskFromRecord(loader, mappedData, i + 1);
+          await this.createTaskFromRecord(loader, mappedData, i + 1);
           if (mappedData.externalId) {
             this.processedExternalIds.add(mappedData.externalId);
           }
@@ -759,12 +759,12 @@ export class VolumeLoaderService {
    * Process previously staged records through the pipeline.
    * This is the core path: CSV Upload stages → Run Now routes → tasks reach queues → agents.
    */
-  private processStagedRecords(
+  private async processStagedRecords(
     loader: VolumeLoader,
     run: VolumeLoaderRun,
     records: TaskFromSource[],
     isDryRun: boolean
-  ): void {
+  ): Promise<void> {
     run.recordsFound = records.length;
     run.filesProcessed = ['staged_upload'];
 
@@ -865,7 +865,7 @@ export class VolumeLoaderService {
         }
 
         // Route through pipeline orchestrator
-        const taskResult = this.createTaskFromRecord(loader, taskData, i + 1);
+        const taskResult = await this.createTaskFromRecord(loader, taskData, i + 1);
 
         if (taskResult?.routed) {
           recordsRouted++;
@@ -1379,11 +1379,11 @@ export class VolumeLoaderService {
    *
    * If V2 is not available, logs a clear error so we know what's missing.
    */
-  private createTaskFromRecord(
+  private async createTaskFromRecord(
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
-  ): { routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: any; error?: string; status?: string } | null {
+  ): Promise<{ routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: unknown; error?: string; status?: string } | null> {
     // Guard: pipeline must be configured
     if (!loader.pipelineId) {
       return { routed: false, error: 'No pipeline assigned', status: 'NO_PIPELINE' };
@@ -1395,7 +1395,7 @@ export class VolumeLoaderService {
     }
 
     // V2 path: use PipelineOrchestrator (validate → transform → route → enqueue → notify)
-    const result = this.orchestrator.ingestTask({
+    const result = await this.orchestrator.ingestTask({
       pipelineId: loader.pipelineId,
       taskData,
       source: 'volume_loader',

@@ -47,7 +47,7 @@ export class PipelineController {
    * NOTE: must be declared before GET /:id to avoid "metrics" being interpreted as an ID.
    */
   @Get('metrics')
-  getAllPipelineMetrics() {
+  async getAllPipelineMetrics() {
     if (!this.metricsService) {
       return { pipelines: [], totalIngested: 0, totalCompleted: 0, totalInQueue: 0, totalFailed: 0, lastUpdated: new Date().toISOString() };
     }
@@ -146,11 +146,11 @@ export class PipelineController {
    * Real-time metrics for a single pipeline.
    */
   @Get(':id/metrics')
-  getPipelineMetrics(@Param('id') id: string) {
+  async getPipelineMetrics(@Param('id') id: string) {
     if (!this.metricsService) {
       throw new HttpException('Metrics service not available', HttpStatus.SERVICE_UNAVAILABLE);
     }
-    const metrics = this.metricsService.getPipelineMetrics(id);
+    const metrics = await this.metricsService.getPipelineMetrics(id);
     if (!metrics) {
       throw new HttpException('Pipeline not found', HttpStatus.NOT_FOUND);
     }
@@ -377,10 +377,12 @@ export class QueueController {
    * Merges pipeline queue config with live QueueManagerService metrics.
    */
   @Get('stats')
-  getAllQueueStats() {
+  async getAllQueueStats() {
     const allQueues = this.pipelineService.getAllQueues();
-    return allQueues.map((q: { id: string; name: string; pipelineId: string; enabled: boolean; priority: number }) =>
-      this.buildQueueStats(q)
+    return Promise.all(
+      allQueues.map((q: { id: string; name: string; pipelineId: string; enabled: boolean; priority: number }) =>
+        this.buildQueueStats(q)
+      )
     );
   }
 
@@ -388,8 +390,8 @@ export class QueueController {
    * Get aggregate summary across all queues.
    */
   @Get('summary')
-  getQueuesSummary() {
-    const stats = this.getAllQueueStats();
+  async getQueuesSummary() {
+    const stats = await this.getAllQueueStats();
     const totalWaiting = stats.reduce((sum: number, s: { tasksWaiting: number }) => sum + s.tasksWaiting, 0);
     const totalInProgress = stats.reduce((sum: number, s: { tasksInProgress: number }) => sum + s.tasksInProgress, 0);
     const avgSL = stats.length > 0
@@ -422,7 +424,7 @@ export class QueueController {
    * Get real-time stats for a single queue.
    */
   @Get(':id/stats')
-  getQueueStats(@Param('id') id: string) {
+  async getQueueStats(@Param('id') id: string) {
     const queue = this.pipelineService.getQueueById(id) as
       | { id: string; name: string; pipelineId: string; enabled: boolean; priority: number }
       | undefined;
@@ -437,11 +439,11 @@ export class QueueController {
    * Returns task summaries so admins can see what's in the queue.
    */
   @Get(':id/tasks')
-  getQueueTasks(@Param('id') id: string) {
+  async getQueueTasks(@Param('id') id: string) {
     if (!this.queueManager) {
       return { depth: 0, tasks: [] };
     }
-    const tasks = this.queueManager.getQueueTasks(id);
+    const tasks = await this.queueManager.getQueueTasks(id);
     return {
       depth: tasks.length,
       tasks: tasks.map((t) => ({
@@ -458,8 +460,10 @@ export class QueueController {
 
   // --- Helpers ---
 
-  private buildQueueStats(queue: { id: string; name: string; pipelineId: string; enabled: boolean; priority: number }) {
-    const live = this.queueManager?.getQueueStats(queue.id);
+  private async buildQueueStats(queue: { id: string; name: string; pipelineId: string; enabled: boolean; priority: number }) {
+    const live = this.queueManager
+      ? await this.queueManager.getQueueStats(queue.id)
+      : undefined;
     const tasksWaiting = live?.depth ?? 0;
     const oldestTaskAge = live?.oldestTaskAge ?? 0;
     const avgWaitTime = live?.avgWaitTime ?? 0;
