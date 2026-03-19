@@ -22,6 +22,7 @@ import {
   UpdateQueueRequest,
   CreateRoutingRuleRequest,
   UpdateRoutingRuleRequest,
+  PipelineValidationRequest,
 } from '@nexus-queue/shared-models';
 
 @Controller('pipelines')
@@ -101,6 +102,22 @@ export class PipelineController {
   @Put(':id/disable')
   disablePipeline(@Param('id') id: string) {
     return this.pipelineService.updatePipeline(id, { enabled: false });
+  }
+
+  /**
+   * POST /api/pipelines/:id/validate
+   * Dry-run validation — evaluate sample task data against the pipeline configuration
+   * without mutating any pipeline state (routing rule match counts are not updated).
+   */
+  @Post(':id/validate')
+  validatePipeline(
+    @Param('id') id: string,
+    @Body() request: PipelineValidationRequest,
+  ) {
+    if (!request?.sampleTask) {
+      throw new HttpException('sampleTask is required', HttpStatus.BAD_REQUEST);
+    }
+    return this.pipelineService.validatePipelineConfig(id, request);
   }
 
   // ===========================================================================

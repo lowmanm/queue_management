@@ -8,6 +8,8 @@ import {
   RuleAction,
   RuleEvaluationResult,
   RuleSetEvaluationResult,
+  RuleSetTestRequest,
+  RuleSetTestResponse,
   ConditionOperator,
 } from '@nexus-queue/shared-models';
 
@@ -109,6 +111,94 @@ export class RuleEngineService {
     }
 
     return { task: modifiedTask, results };
+  }
+
+  /**
+   * Test a rule set against sample task data without persisting anything.
+   * Returns before/after task state plus per-rule evaluation details.
+   */
+  testRuleSet(ruleSetId: string, sampleTask: Record<string, unknown>): RuleSetTestResponse {
+    const ruleSet = this.ruleSets.get(ruleSetId);
+
+    // Build a minimal Task object from the sample data
+    const taskBefore: Task = {
+      id: 'test-task',
+      externalId: (sampleTask['externalId'] as string) || 'test-external-id',
+      workType: (sampleTask['workType'] as string) || 'TEST',
+      title: (sampleTask['title'] as string) || 'Test Task',
+      description: sampleTask['description'] as string | undefined,
+      payloadUrl: (sampleTask['payloadUrl'] as string) || '',
+      metadata: (sampleTask['metadata'] as Record<string, string>) || {},
+      priority: (sampleTask['priority'] as number) ?? 5,
+      skills: (sampleTask['skills'] as string[]) || [],
+      queueId: sampleTask['queueId'] as string | undefined,
+      queue: sampleTask['queue'] as string | undefined,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      availableAt: new Date().toISOString(),
+      reservationTimeout: 60,
+      actions: [],
+    };
+
+    // Merge any extra sample fields into metadata for field resolution
+    for (const [key, value] of Object.entries(sampleTask)) {
+      if (!['id', 'workType', 'title', 'description', 'payloadUrl', 'priority', 'skills', 'queue', 'queueId', 'status', 'createdAt', 'availableAt', 'reservationTimeout', 'actions', 'externalId', 'metadata'].includes(key)) {
+        taskBefore.metadata = { ...taskBefore.metadata, [key]: String(value) };
+      }
+    }
+
+    if (!ruleSet) {
+      return {
+        taskBefore: sampleTask,
+        taskAfter: sampleTask,
+        rulesEvaluated: [],
+      };
+    }
+
+    const rulesEvaluated: RuleSetTestResponse['rulesEvaluated'] = [];
+    let currentTask = { ...taskBefore };
+    let stoppedAt: string | undefined;
+
+    const sortedRules = [...ruleSet.rules].sort((a, b) => a.order - b.order);
+
+    for (const rule of sortedRules) {
+      if (!rule.enabled) continue;
+
+      const result = this.evaluateRule(rule, currentTask);
+      const actionsApplied: string[] = [];
+
+      if (result.matched && result.appliedActions) {
+        for (const action of result.appliedActions) {
+          actionsApplied.push(`${action.type}${action.value !== undefined ? ': ' + String(action.value) : ''}`);
+        }
+        currentTask = this.applyActions(currentTask, result.appliedActions);
+
+        if (result.appliedActions.some((a) => a.type === 'stop_processing')) {
+          stoppedAt = rule.name;
+          rulesEvaluated.push({ ruleId: rule.id, ruleName: rule.name, matched: true, actionsApplied });
+          break;
+        }
+      }
+
+      rulesEvaluated.push({
+        ruleId: rule.id,
+        ruleName: rule.name,
+        matched: result.matched,
+        actionsApplied,
+      });
+    }
+
+    // Build taskAfter as a plain Record
+    const taskAfter: Record<string, unknown> = {
+      ...sampleTask,
+      priority: currentTask.priority,
+      skills: currentTask.skills,
+      queue: currentTask.queue,
+      reservationTimeout: currentTask.reservationTimeout,
+      metadata: currentTask.metadata,
+    };
+
+    return { taskBefore: sampleTask, taskAfter, rulesEvaluated, stoppedAt };
   }
 
   /**

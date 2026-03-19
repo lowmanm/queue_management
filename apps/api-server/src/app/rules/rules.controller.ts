@@ -16,6 +16,8 @@ import {
   Rule,
   RuleFieldConfig,
   RuleActionConfig,
+  RuleSetTestRequest,
+  RuleSetTestResponse,
   ConditionOperator,
 } from '@nexus-queue/shared-models';
 
@@ -83,6 +85,21 @@ export class RulesController {
   deleteRuleSet(@Param('id') id: string): void {
     this.logger.log(`Deleting rule set: ${id}`);
     this.ruleEngine.deleteRuleSet(id);
+  }
+
+  /**
+   * POST /rules/sets/:id/test
+   * Test a rule set against sample task data.
+   * Returns before/after task state and per-rule evaluation details.
+   * This is a pure dry-run — no rule set state is mutated.
+   */
+  @Post('sets/:id/test')
+  testRuleSet(
+    @Param('id') id: string,
+    @Body() request: RuleSetTestRequest,
+  ): RuleSetTestResponse {
+    this.logger.log(`Testing rule set: ${id}`);
+    return this.ruleEngine.testRuleSet(id, request.sampleTask);
   }
 
   // ==========================================================================
