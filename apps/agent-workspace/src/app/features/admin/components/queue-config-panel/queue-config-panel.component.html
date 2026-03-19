@@ -27,8 +27,9 @@
       <h4>New Queue</h4>
 
       <div class="form-group">
-        <label class="form-label">Name <span class="required">*</span></label>
+        <label class="form-label" for="create-queue-name">Name <span class="required">*</span></label>
         <input
+          id="create-queue-name"
           type="text"
           class="form-input"
           [value]="form().name"
@@ -38,8 +39,9 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Description</label>
+        <label class="form-label" for="create-queue-desc">Description</label>
         <input
+          id="create-queue-desc"
           type="text"
           class="form-input"
           [value]="form().description"
@@ -50,8 +52,9 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Priority (1–10)</label>
+          <label class="form-label" for="create-queue-priority">Priority (1–10)</label>
           <input
+            id="create-queue-priority"
             type="number"
             class="form-input"
             [value]="form().priority"
@@ -61,8 +64,9 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">Max Capacity (0 = unlimited)</label>
+          <label class="form-label" for="create-queue-capacity">Max Capacity (0 = unlimited)</label>
           <input
+            id="create-queue-capacity"
             type="number"
             class="form-input"
             [value]="form().maxCapacity"
@@ -74,8 +78,9 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">SLA Warning (%)</label>
+          <label class="form-label" for="create-queue-sla-warn">SLA Warning (%)</label>
           <input
+            id="create-queue-sla-warn"
             type="number"
             class="form-input"
             [value]="form().slaWarningPercent"
