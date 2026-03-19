@@ -90,8 +90,9 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">SLA Breach (%)</label>
+          <label class="form-label" for="create-queue-sla-breach">SLA Breach (%)</label>
           <input
+            id="create-queue-sla-breach"
             type="number"
             class="form-input"
             [value]="form().slaBreachPercent"
@@ -104,7 +105,7 @@
 
       @if (availableSkills().length > 0) {
         <div class="form-group">
-          <label class="form-label">Required Skills</label>
+          <span class="form-label">Required Skills</span>
           <div class="skills-grid">
             @for (skill of availableSkills(); track skill.id) {
               <label class="skill-chip" [class.selected]="isSkillSelected(skill.id)">
@@ -153,8 +154,9 @@
           <h4>Edit: {{ queue.name }}</h4>
 
           <div class="form-group">
-            <label class="form-label">Name <span class="required">*</span></label>
+            <label class="form-label" [attr.for]="'edit-name-' + queue.id">Name <span class="required">*</span></label>
             <input
+              [id]="'edit-name-' + queue.id"
               type="text"
               class="form-input"
               [value]="form().name"
@@ -163,8 +165,9 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Description</label>
+            <label class="form-label" [attr.for]="'edit-desc-' + queue.id">Description</label>
             <input
+              [id]="'edit-desc-' + queue.id"
               type="text"
               class="form-input"
               [value]="form().description"
@@ -174,8 +177,9 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Priority (1–10)</label>
+              <label class="form-label" [attr.for]="'edit-priority-' + queue.id">Priority (1–10)</label>
               <input
+                [id]="'edit-priority-' + queue.id"
                 type="number"
                 class="form-input"
                 [value]="form().priority"
@@ -185,8 +189,9 @@
               />
             </div>
             <div class="form-group">
-              <label class="form-label">Max Capacity</label>
+              <label class="form-label" [attr.for]="'edit-capacity-' + queue.id">Max Capacity</label>
               <input
+                [id]="'edit-capacity-' + queue.id"
                 type="number"
                 class="form-input"
                 [value]="form().maxCapacity"
@@ -198,8 +203,9 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">SLA Warning (%)</label>
+              <label class="form-label" [attr.for]="'edit-sla-warn-' + queue.id">SLA Warning (%)</label>
               <input
+                [id]="'edit-sla-warn-' + queue.id"
                 type="number"
                 class="form-input"
                 [value]="form().slaWarningPercent"
@@ -209,8 +215,9 @@
               />
             </div>
             <div class="form-group">
-              <label class="form-label">SLA Breach (%)</label>
+              <label class="form-label" [attr.for]="'edit-sla-breach-' + queue.id">SLA Breach (%)</label>
               <input
+                [id]="'edit-sla-breach-' + queue.id"
                 type="number"
                 class="form-input"
                 [value]="form().slaBreachPercent"
@@ -223,7 +230,7 @@
 
           @if (availableSkills().length > 0) {
             <div class="form-group">
-              <label class="form-label">Required Skills</label>
+              <span class="form-label">Required Skills</span>
               <div class="skills-grid">
                 @for (skill of availableSkills(); track skill.id) {
                   <label class="skill-chip" [class.selected]="isSkillSelected(skill.id)">
@@ -245,7 +252,7 @@
 
       <!-- QUEUE ROW (default view) -->
       } @else {
-        <div class="queue-row" (click)="openEdit(queue)">
+        <div class="queue-row" role="button" tabindex="0" (click)="openEdit(queue)" (keydown.enter)="openEdit(queue)" (keydown.space)="openEdit(queue)">
           <div class="queue-info">
             <div class="queue-name">
               {{ queue.name }}
@@ -275,14 +282,14 @@
             </div>
           }
 
-          <div class="row-actions" (click)="$event.stopPropagation()">
-            <button class="btn-icon" (click)="openEdit(queue)" title="Edit">
+          <div class="row-actions">
+            <button class="btn-icon" (click)="openEdit(queue); $event.stopPropagation()" title="Edit">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
             </button>
-            <button class="btn-icon btn-danger" (click)="confirmDelete(queue)" title="Delete">
+            <button class="btn-icon btn-danger" (click)="confirmDelete(queue); $event.stopPropagation()" title="Delete">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>

@@ -166,8 +166,8 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Route to Queue</label>
-                  <select class="form-input" formControlName="targetQueueLabel">
+                  <label class="form-label" [attr.for]="'rule-target-' + $index">Route to Queue</label>
+                  <select [id]="'rule-target-' + $index" class="form-input" formControlName="targetQueueLabel">
                     <option value="">— select queue (set in step 4) —</option>
                     @for (label of queueLabels(); track label) {
                       <option [value]="label">{{ label }}</option>
@@ -188,8 +188,8 @@
         </button>
 
         <div class="form-group default-route">
-          <label class="form-label">Default / Fallback Route</label>
-          <select class="form-input" formControlName="defaultRoute">
+          <label class="form-label" for="step3-default-route">Default / Fallback Route</label>
+          <select id="step3-default-route" class="form-input" formControlName="defaultRoute">
             <option value="Reject (drop task)">Reject (drop task)</option>
             <option value="Hold (keep in DLQ)">Hold (keep in DLQ)</option>
             @for (label of queueLabels(); track label) {
@@ -221,31 +221,31 @@
               <div class="queue-fields">
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Label (used in routing rules) <span class="required">*</span></label>
-                    <input type="text" class="form-input" formControlName="label" placeholder="e.g. High Priority" />
+                    <label class="form-label" [attr.for]="'queue-label-' + $index">Label (used in routing rules) <span class="required">*</span></label>
+                    <input [id]="'queue-label-' + $index" type="text" class="form-input" formControlName="label" placeholder="e.g. High Priority" />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Queue Name <span class="required">*</span></label>
-                    <input type="text" class="form-input" formControlName="name" placeholder="e.g. High Priority Queue" />
+                    <label class="form-label" [attr.for]="'queue-name-' + $index">Queue Name <span class="required">*</span></label>
+                    <input [id]="'queue-name-' + $index" type="text" class="form-input" formControlName="name" placeholder="e.g. High Priority Queue" />
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Description</label>
-                  <input type="text" class="form-input" formControlName="description" placeholder="Optional description" />
+                  <label class="form-label" [attr.for]="'queue-desc-' + $index">Description</label>
+                  <input [id]="'queue-desc-' + $index" type="text" class="form-input" formControlName="description" placeholder="Optional description" />
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Priority (1-10)</label>
-                    <input type="number" class="form-input" formControlName="priority" min="1" max="10" />
+                    <label class="form-label" [attr.for]="'queue-priority-' + $index">Priority (1-10)</label>
+                    <input [id]="'queue-priority-' + $index" type="number" class="form-input" formControlName="priority" min="1" max="10" />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Max Capacity (0 = unlimited)</label>
-                    <input type="number" class="form-input" formControlName="maxCapacity" min="0" />
+                    <label class="form-label" [attr.for]="'queue-capacity-' + $index">Max Capacity (0 = unlimited)</label>
+                    <input [id]="'queue-capacity-' + $index" type="number" class="form-input" formControlName="maxCapacity" min="0" />
                   </div>
                 </div>
                 @if (availableSkills().length > 0) {
                   <div class="form-group">
-                    <label class="form-label">Required Skills</label>
+                    <span class="form-label">Required Skills</span>
                     <div class="skills-grid">
                       @for (skill of availableSkills(); track skill.id) {
                         <label class="skill-chip" [class.selected]="isSkillSelectedOnQueue(getQueueForm($index), skill.id)">
@@ -287,20 +287,20 @@
       <form [formGroup]="step5Form" class="step-form">
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Warning Threshold (%)</label>
-            <input type="number" class="form-input" formControlName="warningThresholdPercent" min="0" max="100" />
+            <label class="form-label" for="sla-warn-pct">Warning Threshold (%)</label>
+            <input id="sla-warn-pct" type="number" class="form-input" formControlName="warningThresholdPercent" min="0" max="100" />
             <p class="field-hint">SLA warning when this % of tasks are at-risk</p>
           </div>
           <div class="form-group">
-            <label class="form-label">Breach Threshold (%)</label>
-            <input type="number" class="form-input" formControlName="breachThresholdPercent" min="0" max="100" />
+            <label class="form-label" for="sla-breach-pct">Breach Threshold (%)</label>
+            <input id="sla-breach-pct" type="number" class="form-input" formControlName="breachThresholdPercent" min="0" max="100" />
             <p class="field-hint">SLA breach when this % of tasks exceed target</p>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Escalation Action</label>
-          <select class="form-input" formControlName="escalationAction">
+          <label class="form-label" for="sla-escalation-action">Escalation Action</label>
+          <select id="sla-escalation-action" class="form-input" formControlName="escalationAction">
             <option value="escalate_priority">Escalate Priority</option>
             <option value="move_to_dlq">Move to DLQ</option>
             <option value="notify">Notify</option>
@@ -309,12 +309,12 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Default Handle Time (ms)</label>
-            <input type="number" class="form-input" formControlName="defaultHandleTimeMs" min="0" />
+            <label class="form-label" for="sla-handle-time">Default Handle Time (ms)</label>
+            <input id="sla-handle-time" type="number" class="form-input" formControlName="defaultHandleTimeMs" min="0" />
           </div>
           <div class="form-group">
-            <label class="form-label">Max Queue Wait (ms)</label>
-            <input type="number" class="form-input" formControlName="maxQueueWaitMs" min="0" />
+            <label class="form-label" for="sla-max-wait">Max Queue Wait (ms)</label>
+            <input id="sla-max-wait" type="number" class="form-input" formControlName="maxQueueWaitMs" min="0" />
           </div>
         </div>
       </form>
