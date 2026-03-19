@@ -26,7 +26,10 @@ nexus-queue/
 │   ├── agent-workspace/          # Angular frontend (port 4200)
 │   │   └── src/
 │   │       ├── app/
-│   │       │   ├── core/         # Guards (auth, permission) & Services
+│   │       │   ├── core/
+│   │       │   │   ├── guards/       # auth, permission (+ agent, manager, designer, admin)
+│   │       │   │   └── services/     # auth, queue, socket, logger, agent-stats,
+│   │       │   │                     # disposition, manager-api, session-api
 │   │       │   ├── shared/
 │   │       │   │   └── components/
 │   │       │   │       └── layout/   # AppShellComponent (SPA shell), PageLayoutComponent
@@ -37,11 +40,11 @@ nexus-queue/
 │   │       │       │   └── components/  # header, sidebar, main-stage, action-bar,
 │   │       │       │                    # agent-controls, agent-stats, log-viewer
 │   │       │       ├── admin/        # Designer + Admin routes (lazy)
-│   │       │       │   ├── components/  # volume-loader, pipelines, dispositions,
+│   │       │       │   ├── components/  # volume-loader, pipelines, skills, dispositions,
 │   │       │       │   │                # work-states, users
-│   │       │       │   └── services/    # disposition, pipeline, rules, volume-loader
+│   │       │       │   └── services/    # disposition, pipeline, rules, skill, volume-loader
 │   │       │       └── manager/      # Manager routes (lazy)
-│   │       │           └── components/  # team-dashboard, queue-monitor
+│   │       │           └── components/  # team-dashboard, queue-monitor, skill-assignments
 │   │       ├── environments/     # environment.ts, environment.prod.ts
 │   │       └── styles/           # Global SCSS
 │   └── api-server/               # NestJS backend (port 3000, prefix /api)
@@ -59,10 +62,12 @@ nexus-queue/
 │           ├── sessions/         # SessionsController
 │           ├── task-sources/     # TaskSourcesController
 │           ├── tasks/            # TasksController, TasksService
-│           └── volume-loader/    # VolumeLoaderController, VolumeLoaderService
+│           ├── volume-loader/    # VolumeLoaderController, VolumeLoaderService
+│           └── proxy/            # ProxyController (URL embeddability checks for iframes)
 ├── libs/
 │   └── shared-models/            # @nexus-queue/shared-models library
 │       └── src/lib/              # 11 interface files (see Shared Models below)
+│           └── index.ts          # Barrel export
 ├── ARCHITECTURE.md               # System design, orchestration, state machine, roadmap
 ├── BRANCH_STRATEGY.md            # Git workflow (Git Flow)
 ├── CLAUDE.md                     # This file
@@ -137,6 +142,13 @@ OFFLINE → IDLE → RESERVED → ACTIVE → WRAP_UP → IDLE
 - `ManagerApiService` — Manager dashboard API calls (team status, queue stats)
 - `SessionApiService` — Agent session lifecycle API calls
 
+**Admin feature services (features/admin/services/):**
+- `SkillApiService` — Skill CRUD and agent-skill assignment management
+- `DispositionService` — Admin disposition management
+- `PipelineService` — Pipeline configuration
+- `RulesService` — Rule management
+- `VolumeLoaderService` — Volume loader configuration
+
 **Backend (services/):**
 - `PipelineOrchestratorService` — Central ingestion: validate → transform → route → enqueue
 - `QueueManagerService` — Priority queue with DLQ and backpressure
@@ -144,12 +156,19 @@ OFFLINE → IDLE → RESERVED → ACTIVE → WRAP_UP → IDLE
 - `TaskDistributorService` — Agent-task matching via scoring
 - `SLAMonitorService` — Periodic SLA compliance checking and escalation
 - `RuleEngineService` — Task transformation via configurable rule sets
-- `RoutingService` — Agent scoring (skill match, workload, idle time)
 - `AgentManagerService` — Agent connection and state tracking
 - `AgentSessionService` — Agent session lifecycle management
 - `DispositionService` — Disposition management and validation
 - `TaskSourceService` — CSV parsing and data source adapters
 - `RBACService` — Role-based access control
+
+**Backend (feature modules with own services):**
+- `RoutingService` (`routing/`) — Agent scoring (skill match, workload, idle time)
+- `PipelineService` (`pipelines/`) — Pipeline lifecycle management
+- `QueuesService` (`queues/`) — Queue CRUD operations
+- `TasksService` (`tasks/`) — Task lifecycle operations
+- `VolumeLoaderService` (`volume-loader/`) — Volume loader management
+- `ProxyController` (`proxy/`) — URL embeddability checks for iframe rendering
 
 ### Shared Models
 
@@ -163,7 +182,7 @@ Import path: `@nexus-queue/shared-models`
 | `disposition.interface.ts` | `Disposition`, `DispositionCategory` |
 | `pipeline.interface.ts` | `Pipeline`, `PipelineConfig`, `RoutingRule` |
 | `rbac.interface.ts` | `UserRole`, `Permission`, `UserProfile` |
-| `routing.interface.ts` | `RoutingStrategy`, `AgentScore` |
+| `routing.interface.ts` | `Skill`, `SkillCategory`, `AgentSkill`, `SkillProficiency`, `RoutingStrategy`, `RoutingAlgorithm`, `AgentRoutingScore`, `RoutingDecision`, `AgentCapacity` |
 | `rule.interface.ts` | `Rule`, `RuleSet`, `RuleCondition`, `RuleAction` |
 | `task-source.interface.ts` | `TaskSource`, `TaskSourceConfig` |
 | `volume-loader.interface.ts` | `VolumeLoader`, `VolumeLoaderConfig` |
@@ -272,13 +291,33 @@ The frontend uses a **persistent layout shell** pattern for true SPA behaviour.
 ### Route Structure
 
 ```
-/login          → LoginComponent (outside shell, no auth required)
-/               → AppShellComponent (persistent shell with router-outlet)
-  ├── /         → DashboardComponent (default landing page)
-  ├── /workspace → WorkspaceComponent (fullscreen mode, no sidebar/topbar)
-  ├── /admin/*  → Admin/Designer routes (lazy-loaded)
-  └── /manager/* → Manager routes (lazy-loaded)
+/login              → LoginComponent (outside shell, no auth required)
+/                   → AppShellComponent (persistent shell with router-outlet)
+  ├── /             → DashboardComponent (default landing page)
+  ├── /workspace    → WorkspaceComponent (fullscreen, agentGuard)
+  ├── /admin/*      → Admin/Designer routes (lazy-loaded)
+  │   ├── /admin/volume-loaders  → VolumeLoaderComponent (designerGuard)
+  │   ├── /admin/pipelines       → PipelinesComponent (designerGuard)
+  │   ├── /admin/skills          → SkillsComponent (designerGuard)
+  │   ├── /admin/dispositions    → DispositionsComponent (designerGuard)
+  │   ├── /admin/work-states     → WorkStatesComponent (designerGuard)
+  │   └── /admin/users           → UsersComponent (adminGuard)
+  └── /manager/*    → Manager routes (lazy-loaded)
+      ├── /manager/team          → TeamDashboardComponent (managerGuard)
+      ├── /manager/queues        → QueueMonitorComponent (managerGuard)
+      └── /manager/skills        → SkillAssignmentsComponent (managerGuard)
 ```
+
+### Route Guards
+
+| Guard | File | Purpose |
+|-------|------|---------|
+| `authGuard` | `auth.guard.ts` | Requires authenticated user |
+| `permissionGuard` | `permission.guard.ts` | Checks route `data.permissions` / `data.roles` |
+| `agentGuard` | `permission.guard.ts` | Requires `tasks:work` permission |
+| `designerGuard` | `permission.guard.ts` | Requires DESIGNER or ADMIN role |
+| `managerGuard` | `permission.guard.ts` | Requires MANAGER or ADMIN role |
+| `adminGuard` | `permission.guard.ts` | Requires ADMIN role |
 
 ### AppShellComponent
 
