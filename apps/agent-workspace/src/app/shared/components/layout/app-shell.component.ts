@@ -76,7 +76,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Operations — Team Dashboard, Queue Monitor, Skill Assignments
+    // Operations — Team Dashboard, Queue Monitor, Skill Assignments, DLQ Monitor, Pipeline Status
     if (this.canAccessManager()) {
       sections.push({
         title: 'Operations',
@@ -84,6 +84,8 @@ export class AppShellComponent implements OnInit, OnDestroy {
           { label: 'Team Dashboard', path: '/manager/team', icon: 'team' },
           { label: 'Queue Monitor', path: '/manager/queues', icon: 'queue' },
           { label: 'Skill Assignments', path: '/manager/skills', icon: 'skills' },
+          { label: 'DLQ Monitor', path: '/manager/dlq', icon: 'alert' },
+          { label: 'Pipeline Status', path: '/manager/pipeline-status', icon: 'activity' },
         ],
       });
     }
@@ -175,6 +177,8 @@ export class AppShellComponent implements OnInit, OnDestroy {
         'volume-loaders': 'Data Sources',
         'rule-sets': 'Rule Sets',
         users: 'User Management',
+        dlq: 'DLQ Monitor',
+        'pipeline-status': 'Pipeline Status',
       };
 
       let currentPath = '';

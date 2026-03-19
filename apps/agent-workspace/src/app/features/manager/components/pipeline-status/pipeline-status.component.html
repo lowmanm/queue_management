@@ -1,0 +1,102 @@
+<div class="pipeline-status">
+  <!-- Header -->
+  <div class="ps-header">
+    <h1 class="ps-title">Pipeline Status Dashboard</h1>
+    <div class="live-indicator">
+      @if (lastUpdated$ | async; as updated) {
+        <span class="live-dot">●</span>
+        <span class="live-label">Live · updated {{ formatLastUpdated(updated) }}</span>
+      } @else {
+        <span class="live-label">Loading…</span>
+      }
+    </div>
+  </div>
+
+  <!-- Summary Bar -->
+  <div class="summary-bar">
+    <div class="summary-item summary-active">
+      <span class="summary-count">{{ activeCount }}</span>
+      <span class="summary-label">Active</span>
+    </div>
+    <div class="summary-item summary-inactive">
+      <span class="summary-count">{{ inactiveCount }}</span>
+      <span class="summary-label">Inactive</span>
+    </div>
+    <div class="summary-item summary-error">
+      <span class="summary-count">{{ errorCount }}</span>
+      <span class="summary-label">Error</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-count" [class]="getSlaClass(overallSlaCompliance)">
+        {{ overallSlaCompliance }}%
+      </span>
+      <span class="summary-label">SLA Compliance</span>
+    </div>
+  </div>
+
+  <!-- Pipeline Cards -->
+  @if (metrics$ | async; as summary) {
+    @if (summary.pipelines.length === 0) {
+      <div class="empty-state">No pipeline data available.</div>
+    }
+    @for (pipeline of summary.pipelines; track pipeline.pipelineId) {
+      <div class="pipeline-card" [class]="'card-' + pipeline.status">
+        <!-- Card Header -->
+        <div class="card-header">
+          <h2 class="pipeline-name">{{ pipeline.pipelineName }}</h2>
+          <span class="status-badge" [class]="getStatusClass(pipeline.status)">
+            {{ getStatusLabel(pipeline.status) }}
+          </span>
+        </div>
+
+        <!-- Metrics Row -->
+        <div class="metrics-row">
+          <div class="metric-item">
+            <span class="metric-value">{{ pipeline.tasksIngested | number }}</span>
+            <span class="metric-label">Ingested</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">{{ pipeline.tasksCompleted | number }}</span>
+            <span class="metric-label">Completed</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">{{ pipeline.tasksInQueue | number }}</span>
+            <span class="metric-label">In Queue</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value">{{ pipeline.tasksFailed | number }}</span>
+            <span class="metric-label">Failed</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value" [class]="getSlaClass(pipeline.slaCompliancePercent)">
+              {{ pipeline.slaCompliancePercent | number:'1.1-1' }}%
+            </span>
+            <span class="metric-label">SLA Compliance</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-value" [class]="getErrorRateClass(pipeline.errorRatePercent)">
+              {{ pipeline.errorRatePercent | number:'1.1-1' }}%
+            </span>
+            <span class="metric-label">Error Rate</span>
+          </div>
+        </div>
+
+        <!-- Card Actions -->
+        <div class="card-actions">
+          <button class="btn btn-secondary btn-sm" (click)="viewQueues(pipeline)">
+            View Queues
+          </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            [class.btn-alert]="pipeline.tasksFailed > 0"
+            (click)="viewDlq(pipeline)"
+          >
+            View DLQ ({{ pipeline.tasksFailed }})
+          </button>
+        </div>
+      </div>
+    }
+  } @else {
+    <div class="loading-state">Loading pipeline metrics…</div>
+  }
+</div>
