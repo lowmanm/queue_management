@@ -1,0 +1,292 @@
+<div class="queue-config-panel">
+  <!-- Messages -->
+  @if (errorMessage()) {
+    <div class="message error">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="message success">{{ successMessage() }}</div>
+  }
+
+  <!-- Panel Header -->
+  <div class="panel-header">
+    <h3 class="panel-title">Queues</h3>
+    @if (!isCreating()) {
+      <button class="btn-primary btn-sm" (click)="openCreate()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Add Queue
+      </button>
+    }
+  </div>
+
+  <!-- CREATE FORM -->
+  @if (isCreating()) {
+    <div class="queue-form-card">
+      <h4>New Queue</h4>
+
+      <div class="form-group">
+        <label class="form-label">Name <span class="required">*</span></label>
+        <input
+          type="text"
+          class="form-input"
+          [value]="form().name"
+          (input)="updateField('name', $any($event.target).value)"
+          placeholder="Queue name"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input
+          type="text"
+          class="form-input"
+          [value]="form().description"
+          (input)="updateField('description', $any($event.target).value)"
+          placeholder="Optional description"
+        />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Priority (1–10)</label>
+          <input
+            type="number"
+            class="form-input"
+            [value]="form().priority"
+            (input)="updateField('priority', +$any($event.target).value)"
+            min="1"
+            max="10"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Capacity (0 = unlimited)</label>
+          <input
+            type="number"
+            class="form-input"
+            [value]="form().maxCapacity"
+            (input)="updateField('maxCapacity', +$any($event.target).value)"
+            min="0"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">SLA Warning (%)</label>
+          <input
+            type="number"
+            class="form-input"
+            [value]="form().slaWarningPercent"
+            (input)="updateField('slaWarningPercent', +$any($event.target).value)"
+            min="0"
+            max="100"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">SLA Breach (%)</label>
+          <input
+            type="number"
+            class="form-input"
+            [value]="form().slaBreachPercent"
+            (input)="updateField('slaBreachPercent', +$any($event.target).value)"
+            min="0"
+            max="100"
+          />
+        </div>
+      </div>
+
+      @if (availableSkills().length > 0) {
+        <div class="form-group">
+          <label class="form-label">Required Skills</label>
+          <div class="skills-grid">
+            @for (skill of availableSkills(); track skill.id) {
+              <label class="skill-chip" [class.selected]="isSkillSelected(skill.id)">
+                <input type="checkbox" [checked]="isSkillSelected(skill.id)" (change)="toggleSkill(skill.id)" />
+                {{ skill.name }}
+              </label>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="form-actions">
+        <button class="btn-secondary btn-sm" (click)="cancelCreate()">Cancel</button>
+        <button class="btn-primary btn-sm" (click)="saveCreate()" [disabled]="isLoading()">
+          {{ isLoading() ? 'Saving...' : 'Create Queue' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- QUEUE LIST -->
+  @if ((queues$ | async)?.length === 0 && !isCreating()) {
+    <div class="empty-state">
+      <p>No queues configured for this pipeline.</p>
+      <button class="btn-secondary btn-sm" (click)="openCreate()">Add First Queue</button>
+    </div>
+  }
+
+  <div class="queues-list">
+    @for (queue of (queues$ | async) ?? []; track queue.id) {
+      <!-- DELETE CONFIRMATION -->
+      @if (deletingQueueId() === queue.id) {
+        <div class="queue-row confirm-delete">
+          <span>Delete "{{ queue.name }}"? This cannot be undone.</span>
+          <div class="row-actions">
+            <button class="btn-secondary btn-sm" (click)="cancelDelete()">Cancel</button>
+            <button class="btn-danger btn-sm" (click)="executeDelete(queue)" [disabled]="isLoading()">
+              {{ isLoading() ? 'Deleting...' : 'Confirm Delete' }}
+            </button>
+          </div>
+        </div>
+
+      <!-- EDIT FORM -->
+      } @else if (editingQueueId() === queue.id) {
+        <div class="queue-form-card">
+          <h4>Edit: {{ queue.name }}</h4>
+
+          <div class="form-group">
+            <label class="form-label">Name <span class="required">*</span></label>
+            <input
+              type="text"
+              class="form-input"
+              [value]="form().name"
+              (input)="updateField('name', $any($event.target).value)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <input
+              type="text"
+              class="form-input"
+              [value]="form().description"
+              (input)="updateField('description', $any($event.target).value)"
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Priority (1–10)</label>
+              <input
+                type="number"
+                class="form-input"
+                [value]="form().priority"
+                (input)="updateField('priority', +$any($event.target).value)"
+                min="1"
+                max="10"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Capacity</label>
+              <input
+                type="number"
+                class="form-input"
+                [value]="form().maxCapacity"
+                (input)="updateField('maxCapacity', +$any($event.target).value)"
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">SLA Warning (%)</label>
+              <input
+                type="number"
+                class="form-input"
+                [value]="form().slaWarningPercent"
+                (input)="updateField('slaWarningPercent', +$any($event.target).value)"
+                min="0"
+                max="100"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SLA Breach (%)</label>
+              <input
+                type="number"
+                class="form-input"
+                [value]="form().slaBreachPercent"
+                (input)="updateField('slaBreachPercent', +$any($event.target).value)"
+                min="0"
+                max="100"
+              />
+            </div>
+          </div>
+
+          @if (availableSkills().length > 0) {
+            <div class="form-group">
+              <label class="form-label">Required Skills</label>
+              <div class="skills-grid">
+                @for (skill of availableSkills(); track skill.id) {
+                  <label class="skill-chip" [class.selected]="isSkillSelected(skill.id)">
+                    <input type="checkbox" [checked]="isSkillSelected(skill.id)" (change)="toggleSkill(skill.id)" />
+                    {{ skill.name }}
+                  </label>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="form-actions">
+            <button class="btn-secondary btn-sm" (click)="cancelEdit()">Cancel</button>
+            <button class="btn-primary btn-sm" (click)="saveEdit()" [disabled]="isLoading()">
+              {{ isLoading() ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+
+      <!-- QUEUE ROW (default view) -->
+      } @else {
+        <div class="queue-row" (click)="openEdit(queue)">
+          <div class="queue-info">
+            <div class="queue-name">
+              {{ queue.name }}
+              <span class="health-badge" [class]="'health-' + healthStatus(queue.id)">
+                {{ healthStatus(queue.id) }}
+              </span>
+            </div>
+            @if (queue.description) {
+              <div class="queue-desc">{{ queue.description }}</div>
+            }
+            <div class="queue-meta">
+              Priority: {{ queue.priority }}
+              @if (queue.maxCapacity) {
+                · Max: {{ queue.maxCapacity }}
+              }
+              @if (queue.requiredSkills?.length) {
+                · Skills: {{ queue.requiredSkills!.join(', ') }}
+              }
+            </div>
+          </div>
+
+          <!-- Live stats badges -->
+          @if (getStats(queue.id); as stats) {
+            <div class="queue-stats">
+              <span class="stat-badge depth">{{ stats.tasksWaiting }} waiting</span>
+              <span class="stat-badge agents">{{ stats.agentsAvailable }}/{{ stats.agentsAssigned }} agents</span>
+            </div>
+          }
+
+          <div class="row-actions" (click)="$event.stopPropagation()">
+            <button class="btn-icon" (click)="openEdit(queue)" title="Edit">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button class="btn-icon btn-danger" (click)="confirmDelete(queue)" title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6M14 11v6"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>
