@@ -365,9 +365,24 @@ nexus-queue/
 │           ├── task-source.interface.ts
 │           ├── volume-loader.interface.ts
 │           └── work-state.interface.ts
+├── .planning/                        # Phase plans, research, and execution summaries
+│   ├── phases/                       # Per-phase plan files (PLAN.md, SUMMARY.md, VERIFICATION.md)
+│   ├── research/                     # Technical investigation outputs
+│   └── quick/                        # Ad-hoc quick task tracking
+├── .claude/
+│   └── commands/                     # Custom Claude Code slash commands
+│       ├── status.md                 # /status — project position overview
+│       ├── plan-phase.md             # /plan-phase — decompose phase into plans
+│       ├── execute-task.md           # /execute-task — execute a plan file
+│       ├── verify-phase.md           # /verify-phase — full phase verification
+│       ├── ship.md                   # /ship — create PR, update tracking
+│       └── update-state.md           # /update-state — save session context
 ├── ARCHITECTURE.md                   # This document
 ├── BRANCH_STRATEGY.md                # Git workflow (Git Flow)
 ├── CLAUDE.md                         # AI agent context & development conventions
+├── ROADMAP.md                        # Phase/milestone tracker (canonical status)
+├── REQUIREMENTS.md                   # Phase-scoped requirements with traceability
+├── STATE.md                          # Session memory — read first when returning
 └── README.md                         # Getting started guide
 ```
 
@@ -389,7 +404,7 @@ nexus-queue/
 | **1** | Foundation | Complete | Mock auth, agent state machine, basic task distribution |
 | **2** | Real-time Push | Complete | WebSocket gateway, Force Mode, task actions |
 | **2.5a** | SPA Architecture | Complete | Persistent layout shell, dashboard, fullscreen workspace, RBAC navigation |
-| **2.5b** | Orchestration Core | In Progress | Pipeline Orchestrator, Queue Manager, SLA Monitor, Distribution Engine |
+| **2.5b** | Orchestration Core | Complete | Pipeline Orchestrator, Queue Manager, SLA Monitor, Distribution Engine |
 | **3** | Logic Builder | Planned | Drag-and-drop queue criteria configuration, pipeline creation wizard, DLQ monitor |
 | **4** | Persistence + Production | Planned | PostgreSQL-backed queues, Redis for real-time ops, event sourcing, horizontal scaling |
 
@@ -424,5 +439,5 @@ CREATE INDEX idx_queue_dequeue
 
 ---
 
-*Last Updated: February 2026*
-*Version: 2.0*
+*Last Updated: March 2026*
+*Version: 2.1*
