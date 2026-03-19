@@ -89,7 +89,86 @@
 
 ## Phase 4 — Persistence + Production
 
-> Requirements not yet scoped. Will be defined after Phase 3 verification.
+> Scoped 2026-03-19. Goal: Replace in-memory stores with durable persistence, add horizontal scaling, and prepare for production deployment.
+
+### v1 Requirements (Must Have)
+
+#### PostgreSQL Persistence
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P4-001 | Install TypeORM + pg driver; DatabaseModule provides a TypeORM `DataSource` configured from `DATABASE_URL` env var | PostgreSQL queue backing |
+| P4-002 | TypeORM entities created for all core domain objects: Task, QueuedTask, DLQEntry, Pipeline, PipelineQueue, RuleSet, Rule, Disposition, Skill, AgentSkill, TaskSource, VolumeLoader, VolumeLoaderRun, User, Team, WorkStateConfig | PostgreSQL queue backing |
+| P4-003 | TypeORM migration files generated from entities; `npm run db:migrate` applies all migrations | PostgreSQL queue backing |
+| P4-004 | `QueueManagerService` migrated to TypeORM repository (PostgreSQL-backed `queue_tasks` table with `idx_queue_dequeue` index) | PostgreSQL queue backing |
+| P4-005 | `TaskStoreService` migrated to TypeORM repository (PostgreSQL-backed `tasks` table) | PostgreSQL queue backing |
+| P4-006 | `PipelineService`, `RuleEngineService`, `RoutingService`, `DispositionService`, `TaskSourceService`, `VolumeLoaderService`, `RBACService` migrated to TypeORM repositories | PostgreSQL queue backing |
+| P4-007 | Database seed script populates default dispositions, work state configs, skills, roles, and test users on first run | PostgreSQL queue backing |
+
+#### Redis Real-time Layer
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P4-010 | Install ioredis; `RedisModule` provides a singleton `ioredis` client configured from `REDIS_URL` env var | Redis real-time layer |
+| P4-011 | `AgentManagerService` uses Redis HASH for connected agent state (key: `agent:{agentId}`, TTL: 60s refreshed on heartbeat) | Redis real-time layer |
+| P4-012 | `AgentSessionService` uses Redis HASH for active sessions (key: `session:{agentId}`, TTL: 8h); session history persisted to PostgreSQL | Redis real-time layer |
+| P4-013 | Redis pub/sub channel `task:distribute` used by `TaskDistributorService` for multi-instance task fan-out | Redis real-time layer |
+
+#### Event Sourcing
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P4-020 | `EventStoreService` appends domain events to `task_events` table (append-only, never updated) | Event sourcing |
+| P4-021 | Domain events emitted for: `task.ingested`, `task.queued`, `task.assigned`, `task.accepted`, `task.rejected`, `task.completed`, `task.dlq`, `task.retried`, `agent.state_changed`, `sla.warning`, `sla.breach` | Event sourcing |
+| P4-022 | `GET /api/audit-log` endpoint returns paginated events filterable by `aggregateType`, `aggregateId`, `eventType`, `startDate`, `endDate` | Event sourcing |
+| P4-023 | Frontend `AuditLogComponent` at `/admin/audit-log` renders event timeline with filters; protected by `adminGuard` | Event sourcing |
+
+#### Real Authentication
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P4-030 | `AuthModule` provides `POST /api/auth/login` (username + password → `{ accessToken, refreshToken, user }`) using `bcrypt` password comparison and `@nestjs/jwt` token signing | Real authentication |
+| P4-031 | `POST /api/auth/refresh` accepts a refresh token and returns a new access token (15-minute access TTL, 7-day refresh TTL) | Real authentication |
+| P4-032 | `JwtAuthGuard` applied globally; all existing API routes protected; `POST /api/auth/login` and `GET /api/health` are public | Real authentication |
+| P4-033 | Frontend `AuthService` replaces mock persona switching with real `POST /api/auth/login` call; JWT stored in `localStorage`; auto-refreshes before expiry | Real authentication |
+| P4-034 | Seeded test users exist for each persona (agent1/agent1pass, manager1/manager1pass, designer1/designer1pass, admin1/admin1pass) so all existing demos work without code changes | Real authentication |
+
+#### Monitoring & Health
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P4-040 | `prom-client` integration: `GET /api/metrics` returns Prometheus text format (public endpoint for scraping) | Monitoring & alerting |
+| P4-041 | Custom metrics exposed: `nexus_queue_depth` (gauge, per queue), `nexus_tasks_total` (counter, labeled by status), `nexus_agents_active` (gauge, by state), `nexus_sla_breaches_total` (counter), `nexus_dlq_depth` (gauge) | Monitoring & alerting |
+| P4-042 | `@nestjs/terminus` health endpoint: `GET /api/health` checks PostgreSQL connection, Redis connection, and application status; returns 200 OK or 503 | Monitoring & alerting |
+
+#### Production Deployment
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P4-050 | `docker-compose.yml` at repo root defines services: `api` (NestJS), `web` (Angular/nginx), `postgres` (postgres:16-alpine), `redis` (redis:7-alpine) | Horizontal scaling |
+| P4-051 | `apps/api-server/Dockerfile` builds a production NestJS image (multi-stage: build → runtime) | Horizontal scaling |
+| P4-052 | `apps/agent-workspace/Dockerfile` builds a production Angular image (multi-stage: build → nginx serving) | Horizontal scaling |
+| P4-053 | `README.md` updated with Docker quickstart: `docker-compose up` starts full stack | Horizontal scaling |
+
+### v2 Requirements (Nice to Have)
+
+| ID | Requirement | Notes |
+|---|---|---|
+| P4-100 | Read replica support in TypeORM config | Requires infrastructure; deferred |
+| P4-101 | Redis Cluster configuration | Single-node sufficient for initial production |
+| P4-102 | Grafana dashboard JSON (committed to repo) | Nice observability upgrade |
+| P4-103 | PagerDuty integration for SLA breach alerts | Requires PagerDuty account |
+| P4-104 | Event sourcing replay — rebuild service state from event log | Advanced; sufficient to capture events first |
+
+### Out of Scope for Phase 4
+
+| Item | Reason | Target |
+|---|---|---|
+| Visual flow builder | Phase 3 form-based UI is sufficient | Phase 5+ |
+| Cross-pipeline task routing | Deferred from Phase 3 | Phase 5 |
+| Multi-tenancy | Single organization deployment | Out of scope |
+| Source system integrations (CRM, ACD) | Nexus doesn't own work records | Phase 5 |
+| OAuth2/OIDC external provider | Internal JWT auth sufficient for v1 | Phase 5 |
 
 ---
 
