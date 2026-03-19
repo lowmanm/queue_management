@@ -19,7 +19,7 @@ Run full project verification:
 npx nx build agent-workspace
 npx nx build api-server
 npx nx lint agent-workspace
-npx nx lint api-server
+npx nx run api-server:eslint:lint
 npx nx test agent-workspace
 npx nx test api-server
 ```
@@ -65,7 +65,7 @@ Create `.planning/phases/$ARGUMENTS/VERIFICATION.md`:
 | agent-workspace build | ✅/❌ |
 | api-server build | ✅/❌ |
 | agent-workspace lint | ✅/❌ |
-| api-server lint | ✅/❌ |
+| api-server lint (`eslint:lint`) | ✅/❌ |
 | agent-workspace tests | ✅/❌ |
 | api-server tests | ✅/❌ |
 
