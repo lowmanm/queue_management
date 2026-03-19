@@ -112,12 +112,33 @@ export class RuleEngineService {
   }
 
   /**
+   * Get all rule sets applicable to a specific pipeline.
+   * Returns rule sets that either have no pipeline scope (global) or
+   * explicitly include the given pipelineId in their appliesTo.pipelineIds.
+   */
+  getRuleSetsForPipeline(pipelineId: string): RuleSet[] {
+    return Array.from(this.ruleSets.values()).filter((ruleSet) => {
+      if (!ruleSet.enabled) return false;
+      const ids = ruleSet.appliesTo?.pipelineIds;
+      return !ids || ids.length === 0 || ids.includes(pipelineId);
+    });
+  }
+
+  /**
    * Check if a rule set applies to a task
    */
   private ruleSetApplies(ruleSet: RuleSet, task: Task): boolean {
     if (!ruleSet.appliesTo) return true;
 
-    const { workTypes, queues } = ruleSet.appliesTo;
+    const { pipelineIds, workTypes, queues } = ruleSet.appliesTo;
+
+    // Filter by pipeline (from task metadata)
+    if (pipelineIds?.length) {
+      const taskPipelineId = task.metadata?.['_pipelineId'] as string | undefined;
+      if (taskPipelineId && !pipelineIds.includes(taskPipelineId)) {
+        return false;
+      }
+    }
 
     if (workTypes?.length && !workTypes.includes(task.workType)) {
       return false;
@@ -361,7 +382,7 @@ export class RuleEngineService {
   /**
    * Apply actions to modify a task
    */
-  private applyActions(task: Task, actions: RuleAction[]): Task {
+  applyActions(task: Task, actions: RuleAction[]): Task {
     let modified = { ...task };
 
     for (const action of actions) {

@@ -181,8 +181,10 @@ export interface RuleSet {
   /** The rules in this set, evaluated in order */
   rules: Rule[];
 
-  /** Which queues/work types this rule set applies to (empty = all) */
+  /** Which pipelines/queues/work types this rule set applies to (empty = all) */
   appliesTo?: {
+    /** Pipeline IDs this rule set applies to (empty = all pipelines) */
+    pipelineIds?: string[];
     workTypes?: string[];
     queues?: string[];
   };
