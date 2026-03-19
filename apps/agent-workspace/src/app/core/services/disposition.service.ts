@@ -20,14 +20,13 @@ const LOG_CONTEXT = 'DispositionService';
 })
 export class DispositionService {
   private logger = inject(LoggerService);
+  private http = inject(HttpClient);
 
   private dispositionsSubject = new BehaviorSubject<Disposition[]>([]);
   public dispositions$ = this.dispositionsSubject.asObservable();
 
   private loadingSubject = new BehaviorSubject<boolean>(false);
   public loading$ = this.loadingSubject.asObservable();
-
-  constructor(private http: HttpClient) {}
 
   /**
    * Get all available dispositions

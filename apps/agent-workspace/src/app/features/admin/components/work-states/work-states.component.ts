@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionApiService } from '../../../../core/services/session-api.service';
 import {
@@ -12,7 +11,7 @@ import {
 @Component({
   selector: 'app-work-states',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './work-states.component.html',
   styleUrls: ['./work-states.component.scss'],
 })

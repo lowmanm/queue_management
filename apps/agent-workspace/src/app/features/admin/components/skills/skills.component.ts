@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SkillApiService } from '../../services/skill.service';
 import {
@@ -11,7 +10,7 @@ import {
 @Component({
   selector: 'app-skills',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './skills.component.html',
   styleUrls: ['./skills.component.scss'],
 })

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable } from 'rxjs';
 import { Task } from '@nexus-queue/shared-models';
@@ -15,7 +15,7 @@ import { AgentStatsComponent } from '../agent-stats/agent-stats.component';
 export class SidebarComponent implements OnInit {
   currentTask$!: Observable<Task | null>;
 
-  constructor(private queueService: QueueService) {}
+  private queueService = inject(QueueService);
 
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;

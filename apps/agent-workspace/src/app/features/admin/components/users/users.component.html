@@ -246,29 +246,39 @@
         <div class="form-group">
           <label>Skills</label>
           <!-- Selected skills chips -->
-          <div class="skill-chips" *ngIf="(formData.skills || []).length > 0">
-            <span class="skill-chip" *ngFor="let skillId of formData.skills">
-              {{ getSkillName(skillId) }}
-              <button type="button" class="chip-remove" (click)="toggleFormSkill(skillId)">&times;</button>
-            </span>
-          </div>
-          <!-- Skill picker from configured skills -->
-          <div class="skill-picker" *ngIf="availableSkills.length > 0">
-            <div class="skill-option" *ngFor="let skill of availableSkills">
-              <label class="skill-checkbox">
-                <input
-                  type="checkbox"
-                  [checked]="(formData.skills || []).includes(skill.id)"
-                  (change)="toggleFormSkill(skill.id)"
-                />
-                <span>{{ skill.name }}</span>
-                <small class="skill-category-hint">({{ skill.category }})</small>
-              </label>
+          @if ((formData.skills || []).length > 0) {
+            <div class="skill-chips">
+              @for (skillId of formData.skills; track skillId) {
+                <span class="skill-chip">
+                  {{ getSkillName(skillId) }}
+                  <button type="button" class="chip-remove" (click)="toggleFormSkill(skillId)">&times;</button>
+                </span>
+              }
             </div>
-          </div>
-          <p class="form-hint-text" *ngIf="availableSkills.length === 0">
-            No skills configured. Go to Configuration &gt; Skills to create skills.
-          </p>
+          }
+          <!-- Skill picker from configured skills -->
+          @if (availableSkills.length > 0) {
+            <div class="skill-picker">
+              @for (skill of availableSkills; track skill.id) {
+                <div class="skill-option">
+                  <label class="skill-checkbox">
+                    <input
+                      type="checkbox"
+                      [checked]="(formData.skills || []).includes(skill.id)"
+                      (change)="toggleFormSkill(skill.id)"
+                    />
+                    <span>{{ skill.name }}</span>
+                    <small class="skill-category-hint">({{ skill.category }})</small>
+                  </label>
+                </div>
+              }
+            </div>
+          }
+          @if (availableSkills.length === 0) {
+            <p class="form-hint-text">
+              No skills configured. Go to Configuration &gt; Skills to create skills.
+            </p>
+          }
           <span class="form-hint">Skills determine which tasks are routed to this agent</span>
         </div>
 

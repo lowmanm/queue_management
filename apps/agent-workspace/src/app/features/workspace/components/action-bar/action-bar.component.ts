@@ -64,10 +64,8 @@ export class ActionBarComponent implements OnInit, OnDestroy {
   private sessionApi = inject(SessionApiService);
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private queueService: QueueService,
-    private dispositionService: DispositionService
-  ) {}
+  private queueService = inject(QueueService);
+  private dispositionService = inject(DispositionService);
 
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;

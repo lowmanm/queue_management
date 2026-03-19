@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DispositionApiService } from '../../services/disposition.service';
 import {
@@ -16,7 +15,7 @@ import {
 @Component({
   selector: 'app-dispositions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './dispositions.component.html',
   styleUrls: ['./dispositions.component.scss'],
 })

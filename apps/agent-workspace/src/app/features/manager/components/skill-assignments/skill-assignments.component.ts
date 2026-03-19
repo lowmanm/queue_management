@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, of, catchError } from 'rxjs';
@@ -23,7 +22,7 @@ interface AgentSkillDisplay {
 @Component({
   selector: 'app-skill-assignments',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './skill-assignments.component.html',
   styleUrls: ['./skill-assignments.component.scss'],
 })

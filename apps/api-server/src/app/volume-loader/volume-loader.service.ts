@@ -1287,33 +1287,38 @@ export class VolumeLoaderService {
         return value.trim();
       case 'number':
         return parseFloat(value) || 0;
-      case 'date':
+      case 'date': {
         // Parse and format date
         const date = new Date(value);
         return isNaN(date.getTime()) ? value : date.toISOString();
-      case 'regex_extract':
+      }
+      case 'regex_extract': {
         const pattern = params?.pattern as string;
         if (pattern) {
           const match = value.match(new RegExp(pattern));
           return match ? match[1] || match[0] : value;
         }
         return value;
-      case 'template':
+      }
+      case 'template': {
         const template = params?.template as string;
         if (template) {
           return template.replace(/\{value\}/g, value);
         }
         return value;
-      case 'lookup':
+      }
+      case 'lookup': {
         const lookupTable = params?.lookupTable as Record<string, string>;
         const defaultValue = params?.defaultValue as string;
         if (lookupTable && lookupTable[value]) {
           return lookupTable[value];
         }
         return defaultValue || value;
-      case 'split':
+      }
+      case 'split': {
         const delimiter = (params?.delimiter as string) || ',';
         return value.split(delimiter).map(s => s.trim());
+      }
       default:
         return value;
     }
