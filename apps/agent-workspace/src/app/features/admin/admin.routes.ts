@@ -63,6 +63,15 @@ export const ADMIN_ROUTES: Routes = [
     data: { permissions: ['design:work_states'] },
   },
   {
+    path: 'rule-sets',
+    loadComponent: () =>
+      import('./components/rule-builder/rule-builder.component').then(
+        (m) => m.RuleBuilderComponent
+      ),
+    canActivate: [designerGuard],
+    data: { breadcrumb: 'Rule Sets', title: 'Rule Builder' },
+  },
+  {
     path: 'users',
     loadComponent: () =>
       import('./components/users/users.component').then(

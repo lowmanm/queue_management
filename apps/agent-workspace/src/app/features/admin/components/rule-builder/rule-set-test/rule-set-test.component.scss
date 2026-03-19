@@ -1,0 +1,301 @@
+@use 'styles/variables' as *;
+
+// === Overlay ===
+.test-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: $spacing-4;
+}
+
+.test-dialog {
+  background: $color-white;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-xl;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// === Header ===
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-4 $spacing-6;
+  border-bottom: $border-width-thin solid $border-color;
+  flex-shrink: 0;
+}
+
+.dialog-title {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-900;
+  margin: 0;
+}
+
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  color: $color-gray-400;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-gray-100;
+    color: $color-gray-700;
+  }
+}
+
+// === Body ===
+.dialog-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  overflow-y: auto;
+}
+
+.input-panel {
+  border-right: $border-width-thin solid $border-color;
+}
+
+.results-panel {
+  background: $color-gray-50;
+}
+
+.panel-title {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// === JSON Editor ===
+.json-editor {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: $font-size-xs;
+  color: $color-gray-900;
+  background: $color-gray-50;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+  padding: $spacing-3;
+  resize: vertical;
+  min-height: 200px;
+  line-height: 1.6;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 2px rgba($color-primary, 0.15);
+  }
+}
+
+.parse-error {
+  font-size: $font-size-xs;
+  color: $color-error;
+  background: $color-error-bg;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  border: $border-width-thin solid rgba($color-error, 0.2);
+}
+
+// === Run Button ===
+.run-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-4;
+  background: $color-primary;
+  color: $color-white;
+  border: none;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+// === Result States ===
+.result-empty {
+  font-size: $font-size-sm;
+  color: $color-gray-400;
+  font-style: italic;
+  padding: $spacing-4 0;
+}
+
+.result-error {
+  font-size: $font-size-sm;
+  color: $color-error;
+  background: $color-error-bg;
+  padding: $spacing-3;
+  border-radius: $border-radius-md;
+  border: $border-width-thin solid rgba($color-error, 0.2);
+}
+
+// === Diff Table ===
+.diff-section {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.diff-table-wrapper {
+  overflow: auto;
+  border-radius: $border-radius-md;
+  border: $border-width-thin solid $border-color;
+}
+
+.diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-xs;
+
+  th {
+    background: $color-gray-100;
+    padding: $spacing-2 $spacing-3;
+    text-align: left;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-600;
+    border-bottom: $border-width-thin solid $border-color;
+  }
+
+  td {
+    padding: $spacing-1-5 $spacing-3;
+    border-bottom: $border-width-thin solid $border-color;
+    vertical-align: top;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.changed {
+    background: rgba(#f59e0b, 0.05);
+  }
+}
+
+.diff-key-col { width: 30%; }
+.diff-val-col { width: 35%; }
+
+.diff-key {
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: $color-gray-700;
+  font-weight: $font-weight-medium;
+}
+
+.diff-val {
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: $color-gray-600;
+  word-break: break-all;
+
+  &.highlight {
+    color: #92400e;
+    background: rgba(#fbbf24, 0.15);
+    border-radius: $border-radius-sm;
+    padding: 1px $spacing-1;
+  }
+}
+
+// === Rules Evaluated ===
+.rules-evaluated {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.rules-title {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-700;
+  margin: 0;
+}
+
+.rules-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1-5;
+}
+
+.rule-result {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  font-size: $font-size-sm;
+  padding: $spacing-1-5 $spacing-3;
+  border-radius: $border-radius-md;
+  background: $color-white;
+  border: $border-width-thin solid $border-color;
+}
+
+.rule-name {
+  flex: 1;
+  color: $color-gray-800;
+}
+
+.badge {
+  font-size: $font-size-xs;
+
+  &.matched { }
+  &.no-match { }
+
+  &.stopped {
+    background: rgba(#f59e0b, 0.15);
+    color: #92400e;
+    padding: 1px $spacing-2;
+    border-radius: $border-radius-sm;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.actions-count {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}

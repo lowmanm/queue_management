@@ -1,0 +1,445 @@
+@use 'styles/variables' as *;
+@use 'styles/admin-shared';
+
+.rule-builder-container {
+  padding: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: $spacing-3;
+  align-items: center;
+}
+
+// ==========================================================================
+// TABLE VIEW
+// ==========================================================================
+
+.table-wrapper {
+  overflow-x: auto;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
+}
+
+.rule-sets-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-sm;
+
+  th {
+    padding: $spacing-3 $spacing-4;
+    text-align: left;
+    font-weight: $font-weight-semibold;
+    color: $color-gray-600;
+    background: $color-gray-50;
+    border-bottom: $border-width-thin solid $border-color;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $spacing-3 $spacing-4;
+    border-bottom: $border-width-thin solid $border-color;
+    vertical-align: middle;
+    color: $color-gray-800;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.rule-set-row {
+  cursor: pointer;
+  transition: background $transition-fast;
+
+  &:hover {
+    background: $color-gray-50;
+  }
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+.name-cell { max-width: 240px; }
+
+.rule-set-name {
+  font-weight: $font-weight-medium;
+  color: $color-gray-900;
+}
+
+.rule-set-desc {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scope-cell {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+  max-width: 200px;
+}
+
+.date-cell {
+  white-space: nowrap;
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}
+
+.actions-col { width: 120px; }
+
+.actions-cell {
+  display: flex;
+  gap: $spacing-1;
+  align-items: center;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  background: $color-gray-100;
+  color: $color-gray-500;
+
+  &.enabled {
+    background: rgba(#16a34a, 0.1);
+    color: #16a34a;
+  }
+}
+
+// ==========================================================================
+// EMPTY STATE / LOADING
+// ==========================================================================
+
+.loading {
+  text-align: center;
+  padding: $spacing-12;
+  color: $color-gray-400;
+  font-size: $font-size-sm;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-4;
+  padding: $spacing-16 $spacing-8;
+  text-align: center;
+  color: $color-gray-400;
+
+  svg { color: $color-gray-300; }
+  p { margin: 0; font-size: $font-size-sm; }
+}
+
+// ==========================================================================
+// EDIT LAYOUT
+// ==========================================================================
+
+.edit-layout {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-5;
+}
+
+.card {
+  background: $color-white;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-lg;
+  padding: $spacing-5;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-bottom: $spacing-2;
+}
+
+.card-title {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $color-gray-900;
+  margin: 0;
+}
+
+.rules-count {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  background: $color-gray-100;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-full;
+}
+
+.card-hint {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  margin: 0 0 $spacing-4;
+}
+
+// ==========================================================================
+// METADATA FORM
+// ==========================================================================
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-4;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1-5;
+
+  &--checkbox {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.form-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-gray-600;
+}
+
+.required {
+  color: $color-error;
+}
+
+.form-input {
+  padding: $spacing-2 $spacing-3;
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  color: $color-gray-900;
+  background: $color-white;
+  transition: border-color $transition-fast;
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 2px rgba($color-primary, 0.15);
+  }
+
+  &::placeholder { color: $color-gray-400; }
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  font-size: $font-size-sm;
+  color: $color-gray-700;
+  cursor: pointer;
+}
+
+// ==========================================================================
+// RULES LIST
+// ==========================================================================
+
+.empty-rules {
+  font-size: $font-size-sm;
+  color: $color-gray-400;
+  font-style: italic;
+  padding: $spacing-4 0;
+  text-align: center;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.rule-item {
+  border: $border-width-thin solid $border-color;
+  border-radius: $border-radius-md;
+  overflow: hidden;
+  transition: border-color $transition-fast;
+
+  &.disabled { opacity: 0.6; }
+
+  &.expanded {
+    border-color: $color-primary;
+  }
+}
+
+.rule-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  background: $color-white;
+  flex-wrap: wrap;
+}
+
+.rule-order {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  flex-shrink: 0;
+}
+
+.order-num {
+  font-size: $font-size-xs;
+  color: $color-gray-400;
+  font-weight: $font-weight-semibold;
+  min-width: 16px;
+  text-align: center;
+}
+
+.order-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rule-name-field {
+  flex: 1;
+  min-width: 120px;
+}
+
+.rule-name-input {
+  width: 100%;
+  padding: $spacing-1-5 $spacing-2;
+  border: $border-width-thin solid transparent;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-gray-900;
+  background: transparent;
+  transition: border-color $transition-fast;
+
+  &:hover {
+    border-color: $border-color;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary;
+    background: $color-white;
+  }
+}
+
+.rule-meta {
+  display: flex;
+  gap: $spacing-2;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.meta-badge {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+  background: $color-gray-100;
+  padding: 1px $spacing-2;
+  border-radius: $border-radius-full;
+}
+
+// Toggle switch
+.toggle-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+
+  &:checked + .toggle-track {
+    background: $color-primary;
+  }
+}
+
+.toggle-track {
+  display: block;
+  width: 32px;
+  height: 18px;
+  background: $color-gray-300;
+  border-radius: $border-radius-full;
+  transition: background $transition-fast;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: $color-white;
+    border-radius: 50%;
+    transition: transform $transition-fast;
+    box-shadow: $shadow-xs;
+  }
+}
+
+.toggle-input:checked + .toggle-track::after {
+  transform: translateX(14px);
+}
+
+.rule-actions {
+  display: flex;
+  gap: $spacing-1;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rule-editor-panel {
+  border-top: $border-width-thin solid $border-color;
+  padding: $spacing-5;
+  background: $color-gray-50;
+}
+
+// ==========================================================================
+// ADD RULE BUTTON
+// ==========================================================================
+
+.btn-add-rule {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-4;
+  border: $border-width-thin dashed $border-color;
+  border-radius: $border-radius-md;
+  background: transparent;
+  color: $color-gray-500;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+    background: rgba($color-primary, 0.04);
+  }
+}
+
+// ==========================================================================
+// EDIT FOOTER
+// ==========================================================================
+
+.edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-3;
+  padding: $spacing-4 0;
+  border-top: $border-width-thin solid $border-color;
+}
