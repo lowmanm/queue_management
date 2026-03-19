@@ -38,7 +38,7 @@ After all tasks complete:
    npx nx build agent-workspace
    npx nx build api-server
    npx nx lint agent-workspace
-   npx nx lint api-server
+   npx nx run api-server:eslint:lint
    npx nx test agent-workspace
    npx nx test api-server
    ```
@@ -62,6 +62,12 @@ After all tasks complete:
    ### Issues Encountered
    [any problems and how they were resolved]
    ```
+3. Update `STATE.md` mid-phase progress — do NOT rewrite the whole file, only update these two fields:
+   - **Current Position → Phase Status**: reflect that this plan is done (e.g. "In Progress — Wave 1 complete, Wave 2 next")
+   - **Current Position → Next Action**: set to the next plan to execute, or `/verify-phase N` if all plans are done
+   - If STATE.md has a phase progress table, mark this plan ✅
+
+   This ensures the session can be safely interrupted between waves without losing position.
 
 ## Error Handling
 
