@@ -68,9 +68,18 @@ nexus-queue/
 │   └── shared-models/            # @nexus-queue/shared-models library
 │       └── src/lib/              # 11 interface files (see Shared Models below)
 │           └── index.ts          # Barrel export
-├── ARCHITECTURE.md               # System design, orchestration, state machine, roadmap
+├── .planning/                    # Phase plans, research, execution summaries
+│   ├── phases/                   # Per-phase plan files
+│   ├── research/                 # Technical investigation outputs
+│   └── quick/                    # Ad-hoc quick task tracking
+├── .claude/
+│   └── commands/                 # Custom slash commands (see Agent Workflow below)
+├── ARCHITECTURE.md               # System design, orchestration, state machine
 ├── BRANCH_STRATEGY.md            # Git workflow (Git Flow)
 ├── CLAUDE.md                     # This file
+├── ROADMAP.md                    # Canonical phase/milestone tracker
+├── REQUIREMENTS.md               # Phase-scoped requirements with traceability
+├── STATE.md                      # Session memory — read first when returning
 └── README.md                     # Getting started guide
 ```
 
@@ -335,17 +344,68 @@ The Workspace route uses `data: { fullscreen: true }` to bypass the shell's side
 - **AGENT** → `/workspace` (direct to task queue)
 - **All other roles** → `/` (dashboard with role-appropriate quick-nav cards)
 
+## Agent Workflow
+
+This project uses a GSD-inspired planning methodology with custom Claude Code slash commands for structured development across sessions.
+
+### Key Principle
+
+**STATE.md is the entry point.** When returning to the project after any break, read STATE.md first — it tells you where you are, what was decided, and what to do next.
+
+### Slash Commands
+
+| Command | Purpose |
+|---|---|
+| `/status` | Show current project position, recent activity, next action |
+| `/plan-phase N` | Decompose Phase N into atomic task plans in `.planning/phases/N/` |
+| `/execute-task <plan>` | Execute a single PLAN.md file — implement, verify, commit atomically |
+| `/verify-phase N` | Full phase verification: build, lint, test, requirement coverage, integration |
+| `/ship N` | Create PR, update ROADMAP.md and STATE.md |
+| `/update-state` | Save session decisions and context to STATE.md before ending |
+
+### Development Loop
+
+```
+/status                      → Orient (where am I?)
+/plan-phase N                → Plan (decompose into atomic tasks)
+/execute-task <plan.md>      → Build (implement + verify + commit per task)
+/verify-phase N              → Verify (full phase check)
+/ship N                      → Ship (PR + update tracking)
+/update-state                → Save (capture session context)
+```
+
+### Planning Conventions
+
+- Plans live in `.planning/phases/{N}/{wave}-{seq}-{name}-PLAN.md`
+- Each plan targets ~50% context window usage (2-4 plans per phase)
+- Plans are vertical slices (full feature), not horizontal layers (all models, then all APIs)
+- Tasks within plans get atomic git commits with conventional commit format
+- Wave ordering: independent plans parallelize, dependent plans sequence
+
+### Tracking Documents
+
+| Document | Purpose | When to Read |
+|---|---|---|
+| `STATE.md` | Session memory, current position, decisions, blockers | **Always first** when returning |
+| `ROADMAP.md` | Canonical phase status and deliverables | When planning or checking scope |
+| `REQUIREMENTS.md` | Detailed requirements with unique IDs | When planning or verifying |
+
 ## Related Documentation
 
-- **ARCHITECTURE.md** — Full system design, orchestration flow, state machine, project structure, and roadmap
+- **ARCHITECTURE.md** — Full system design, orchestration flow, state machine, project structure
 - **BRANCH_STRATEGY.md** — Detailed branching workflows, PR templates, merge strategies
+- **ROADMAP.md** — Canonical phase/milestone tracker (authoritative status)
+- **REQUIREMENTS.md** — Phase-scoped requirements with traceability IDs
+- **STATE.md** — Session memory — current position, decisions, blockers
 - **README.md** — Getting started guide
 
 ## Project Status
 
+> **Canonical status lives in `ROADMAP.md`.** This section is a quick reference.
+
 - **Phase 1 (Foundation):** Complete — Mock auth, state machine, basic task distribution
 - **Phase 2 (Real-time Push):** Complete — WebSocket gateway, Force Mode, task actions
-- **Phase 2.5 (SPA Architecture):** Complete — Persistent layout shell, dashboard, fullscreen workspace, architectural navigation
-- **Phase 2.5 (Orchestration Core):** In Progress — Pipeline Orchestrator, Queue Manager, SLA Monitor, Distribution Engine
-- **Phase 3 (Logic Builder):** Planned — Drag-and-drop queue criteria configuration
+- **Phase 2.5a (SPA Architecture):** Complete — Persistent layout shell, dashboard, fullscreen workspace, architectural navigation
+- **Phase 2.5b (Orchestration Core):** Complete — Pipeline Orchestrator, Queue Manager, SLA Monitor, Distribution Engine
+- **Phase 3 (Logic Builder):** Planned (next) — Pipeline wizard, rule builder, DLQ monitor, config UIs
 - **Phase 4 (Persistence + Production):** Planned — PostgreSQL-backed queues, Redis, event sourcing
