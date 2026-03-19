@@ -3,7 +3,7 @@
   [subtitle]="viewMode() === 'list' ? 'Manage workflow pipelines, queues, and routing rules' : 'Configure queues and routing for this pipeline'"
 >
   @if (viewMode() === 'list') {
-    <button slot="actions" class="btn-primary" (click)="openPipelineEditor()">
+    <button slot="actions" class="btn-primary" (click)="navigateToWizard()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="12" y1="5" x2="12" y2="19"></line>
         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -38,7 +38,7 @@
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
           </svg>
           <p>No pipelines configured. Create a pipeline to organize your workflow.</p>
-          <button class="btn-primary" (click)="openPipelineEditor()">Create First Pipeline</button>
+          <button class="btn-primary" (click)="navigateToWizard()">Create First Pipeline</button>
         </div>
       } @else {
         <div class="pipelines-grid">
@@ -126,151 +126,216 @@
     <!-- DETAIL VIEW -->
     @if (viewMode() === 'detail' && selectedPipeline()) {
       <div class="pipeline-detail">
-        <!-- Queues Section -->
-        <section class="detail-section">
-          <div class="section-header">
-            <h2>Queues</h2>
-            <button class="btn-secondary small" (click)="openQueueEditor()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add Queue
-            </button>
-          </div>
 
-          @if (selectedPipelineQueues().length === 0) {
-            <div class="empty-section">
-              <p>No queues configured. Add queues to route work within this pipeline.</p>
+        <!-- Tab Navigation -->
+        <div class="detail-tabs">
+          <button class="tab-btn" [class.active]="activeTab() === 'queues'" (click)="switchTab('queues')">Queues</button>
+          <button class="tab-btn" [class.active]="activeTab() === 'rules'" (click)="switchTab('rules')">Routing Rules</button>
+          <button class="tab-btn" [class.active]="activeTab() === 'versions'" (click)="switchTab('versions')">Version History</button>
+        </div>
+
+        <!-- QUEUES TAB — QueueConfigPanel -->
+        @if (activeTab() === 'queues') {
+          <section class="detail-section">
+            <app-queue-config-panel
+              [pipelineId]="selectedPipeline()!.id"
+              [queues]="selectedPipelineQueues()"
+              (queuesChanged)="onQueuesChanged($event)"
+            ></app-queue-config-panel>
+          </section>
+        }
+
+        <!-- ROUTING RULES TAB -->
+        @if (activeTab() === 'rules') {
+          <section class="detail-section">
+            <div class="section-header">
+              <h2>Routing Rules</h2>
+              <div class="section-actions">
+                <button class="btn-secondary small" (click)="openTestPanel()">Test with Sample Data</button>
+                <button class="btn-secondary small" (click)="openRuleEditor()" [disabled]="selectedPipelineQueues().length === 0">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add Rule
+                </button>
+              </div>
             </div>
-          } @else {
-            <div class="queues-list">
-              @for (queue of selectedPipelineQueues(); track queue.id) {
-                <div class="queue-item" [class.disabled]="!queue.enabled">
-                  <div class="queue-info">
-                    <span class="queue-priority">{{ queue.priority }}</span>
-                    <div class="queue-details">
-                      <h4>{{ queue.name }}</h4>
-                      @if (queue.description) {
-                        <p>{{ queue.description }}</p>
+
+            <p class="section-help">
+              Rules are evaluated in order of priority. The first matching rule determines the target queue.
+            </p>
+
+            @if (selectedPipelineRules().length === 0) {
+              <div class="empty-section">
+                <p>No routing rules configured. All tasks will use default routing.</p>
+              </div>
+            } @else {
+              <div class="rules-list">
+                @for (rule of selectedPipelineRules(); track rule.id) {
+                  <div class="rule-item" [class.disabled]="!rule.enabled">
+                    <div class="rule-priority">{{ rule.priority }}</div>
+                    <div class="rule-info">
+                      <h4>{{ rule.name }}</h4>
+                      @if (rule.description) {
+                        <p>{{ rule.description }}</p>
                       }
-                      @if (queue.requiredSkills?.length) {
-                        <div class="skills-list">
-                          @for (skill of queue.requiredSkills; track skill) {
-                            <span class="skill-tag">{{ skill }}</span>
+                      <div class="rule-conditions">
+                        @for (condition of rule.conditions; track condition.id; let last = $last) {
+                          <span class="condition">{{ formatCondition(condition) }}</span>
+                          @if (!last) {
+                            <span class="condition-logic">{{ rule.conditionLogic }}</span>
                           }
-                        </div>
-                      }
-                    </div>
-                  </div>
-                  <div class="queue-stats">
-                    <span class="stat-inline">
-                      <strong>{{ queue.stats.tasksWaiting }}</strong> waiting
-                    </span>
-                    <span class="stat-inline">
-                      <strong>{{ queue.stats.tasksActive }}</strong> active
-                    </span>
-                  </div>
-                  <div class="queue-actions">
-                    <button class="btn-icon small" (click)="openQueueEditor(queue)" title="Edit">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                    </button>
-                    <button class="btn-icon small danger" (click)="deleteQueue(queue)" title="Delete">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </section>
-
-        <!-- Routing Rules Section -->
-        <section class="detail-section">
-          <div class="section-header">
-            <h2>Routing Rules</h2>
-            <button class="btn-secondary small" (click)="openRuleEditor()" [disabled]="selectedPipelineQueues().length === 0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add Rule
-            </button>
-          </div>
-
-          <p class="section-help">
-            Rules are evaluated in order of priority. The first matching rule determines the target queue.
-          </p>
-
-          @if (selectedPipelineRules().length === 0) {
-            <div class="empty-section">
-              <p>No routing rules configured. All tasks will use default routing.</p>
-            </div>
-          } @else {
-            <div class="rules-list">
-              @for (rule of selectedPipelineRules(); track rule.id) {
-                <div class="rule-item" [class.disabled]="!rule.enabled">
-                  <div class="rule-priority">{{ rule.priority }}</div>
-                  <div class="rule-info">
-                    <h4>{{ rule.name }}</h4>
-                    @if (rule.description) {
-                      <p>{{ rule.description }}</p>
-                    }
-                    <div class="rule-conditions">
-                      @for (condition of rule.conditions; track condition.id; let last = $last) {
-                        <span class="condition">{{ formatCondition(condition) }}</span>
-                        @if (!last) {
-                          <span class="condition-logic">{{ rule.conditionLogic }}</span>
                         }
-                      }
+                      </div>
+                    </div>
+                    <div class="rule-target">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                      <span>{{ getQueueName(rule.targetQueueId) }}</span>
+                    </div>
+                    <div class="rule-stats">
+                      <span class="match-count">{{ rule.matchCount }} matches</span>
+                    </div>
+                    <div class="rule-actions">
+                      <button class="btn-icon small" (click)="openRuleEditor(rule)" title="Edit">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                      </button>
+                      <button class="btn-icon small danger" (click)="deleteRule(rule)" title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                  <div class="rule-target">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                    <span>{{ getQueueName(rule.targetQueueId) }}</span>
-                  </div>
-                  <div class="rule-stats">
-                    <span class="match-count">{{ rule.matchCount }} matches</span>
-                  </div>
-                  <div class="rule-actions">
-                    <button class="btn-icon small" (click)="openRuleEditor(rule)" title="Edit">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                    </button>
-                    <button class="btn-icon small danger" (click)="deleteRule(rule)" title="Delete">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              }
+                }
+              </div>
+            }
+
+            <!-- Default / Fallback Route -->
+            <div class="default-route-section">
+              <h3>Default / Fallback Route</h3>
+              <p class="section-help">Used when no routing rule matches a task.</p>
+              <div class="form-row">
+                <select class="form-input" [ngModel]="defaultRoutingForm().behavior" (ngModelChange)="updateDefaultRoutingBehavior($event)">
+                  <option value="hold">Hold (keep in DLQ)</option>
+                  <option value="reject">Reject (drop task)</option>
+                  <option value="route_to_queue">Route to queue</option>
+                </select>
+                @if (defaultRoutingForm().behavior === 'route_to_queue') {
+                  <select class="form-input" [ngModel]="defaultRoutingForm().defaultQueueId" (ngModelChange)="updateDefaultRoutingQueue($event)">
+                    <option value="">— select queue —</option>
+                    @for (queue of selectedPipelineQueues(); track queue.id) {
+                      <option [value]="queue.id">{{ queue.name }}</option>
+                    }
+                  </select>
+                }
+                <button class="btn-secondary small" (click)="saveDefaultRouting()">Save</button>
+              </div>
             </div>
-          }
-        </section>
+
+            <!-- Test with Sample Data Panel -->
+            @if (showTestPanel()) {
+              <div class="test-panel">
+                <div class="test-panel-header">
+                  <h3>Test with Sample Data</h3>
+                  <button class="btn-icon" (click)="closeTestPanel()">✕</button>
+                </div>
+                <p class="section-help">Enter a JSON task payload to see which routing rule would match.</p>
+                <textarea
+                  class="form-input json-textarea"
+                  [ngModel]="testSampleJson()"
+                  (ngModelChange)="testSampleJson.set($event)"
+                  rows="8"
+                  placeholder="{}"
+                ></textarea>
+                @if (testError()) {
+                  <div class="message error">{{ testError() }}</div>
+                }
+                <button class="btn-primary small" (click)="runRouteTest()" [disabled]="isRunningTest()">
+                  {{ isRunningTest() ? 'Running...' : 'Run Test' }}
+                </button>
+
+                @if (testResult()) {
+                  <div class="test-result" [class.valid]="testResult()!.valid" [class.invalid]="!testResult()!.valid">
+                    @if (testResult()!.valid) {
+                      <strong>✓ Would be routed</strong>
+                      @if (testResult()!.targetQueue) {
+                        → Queue: <em>{{ testResult()!.targetQueue!.name }}</em>
+                      }
+                      @if (testResult()!.routingRuleMatched) {
+                        · Rule: <em>{{ testResult()!.routingRuleMatched!.name }}</em>
+                      }
+                    } @else {
+                      <strong>✗ Routing failed:</strong>
+                      @for (err of testResult()!.errors; track err) {
+                        <div>{{ err }}</div>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        }
+
+        <!-- VERSION HISTORY TAB -->
+        @if (activeTab() === 'versions') {
+          <section class="detail-section">
+            <div class="section-header">
+              <h2>Version History</h2>
+              <button class="btn-secondary small" (click)="loadVersionHistory()" [disabled]="isLoadingVersions()">
+                {{ isLoadingVersions() ? 'Loading...' : 'Refresh' }}
+              </button>
+            </div>
+            <p class="section-help">Each save creates a version snapshot. Roll back to restore a prior configuration.</p>
+
+            @if (isLoadingVersions()) {
+              <div class="loading">Loading versions...</div>
+            } @else if (pipelineVersions().length === 0) {
+              <div class="empty-section">
+                <p>No versions recorded. Versions are created each time you update the pipeline configuration.</p>
+              </div>
+            } @else {
+              <div class="versions-list">
+                @for (version of pipelineVersions(); track version.versionId) {
+                  <div class="version-row">
+                    <div class="version-info">
+                      <div class="version-time">{{ version.createdAt | date:'medium' }}</div>
+                      <div class="version-note">{{ version.changeNote }}</div>
+                      <div class="version-by">by {{ version.changedBy }}</div>
+                    </div>
+                    <button
+                      class="btn-secondary small"
+                      (click)="rollbackToVersion(version)"
+                      [disabled]="rollingBackVersionId() === version.versionId"
+                    >
+                      {{ rollingBackVersionId() === version.versionId ? 'Rolling back...' : 'Rollback' }}
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        }
+
       </div>
     }
   </div>
 </app-page-layout>
 
-<!-- PIPELINE EDITOR MODAL -->
+<!-- PIPELINE EDIT MODAL (edit only — new pipelines use wizard) -->
 @if (editorMode() === 'pipeline') {
   <div class="modal-overlay" (click)="closeEditor()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Pipeline</h2>
+        <h2>Edit Pipeline</h2>
         <button class="btn-icon" (click)="closeEditor()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -330,102 +395,7 @@
       <div class="modal-footer">
         <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
         <button class="btn-primary" (click)="savePipeline()" [disabled]="isLoading()">
-          {{ isEditMode() ? 'Update' : 'Create' }} Pipeline
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- QUEUE EDITOR MODAL -->
-@if (editorMode() === 'queue') {
-  <div class="modal-overlay" (click)="closeEditor()">
-    <div class="modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>{{ isEditMode() ? 'Edit' : 'New' }} Queue</h2>
-        <button class="btn-icon" (click)="closeEditor()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div class="modal-body">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="queueName">Name *</label>
-            <input
-              type="text"
-              id="queueName"
-              [ngModel]="queueForm().name"
-              (ngModelChange)="updateQueueField('name', $event)"
-              placeholder="e.g., Client Support"
-            />
-          </div>
-          <div class="form-group small">
-            <label for="queuePriority">Priority</label>
-            <input
-              type="number"
-              id="queuePriority"
-              [ngModel]="queueForm().priority"
-              (ngModelChange)="updateQueueField('priority', $event)"
-              min="1"
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="queueDescription">Description</label>
-          <textarea
-            id="queueDescription"
-            [ngModel]="queueForm().description"
-            (ngModelChange)="updateQueueField('description', $event)"
-            rows="2"
-            placeholder="Describe this queue..."
-          ></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Required Skills</label>
-          <div class="tag-input">
-            <div class="tags">
-              @for (skill of queueForm().requiredSkills; track skill) {
-                <span class="tag">
-                  {{ skill }}
-                  <button type="button" (click)="removeSkill(skill)">&times;</button>
-                </span>
-              }
-            </div>
-            <div class="input-row">
-              <input
-                type="text"
-                [ngModel]="skillInput()"
-                (ngModelChange)="skillInput.set($event)"
-                (keydown.enter)="addSkill(); $event.preventDefault()"
-                placeholder="Add skill..."
-              />
-              <button type="button" class="btn-secondary small" (click)="addSkill()">Add</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="maxCapacity">Max Capacity (0 = unlimited)</label>
-          <input
-            type="number"
-            id="maxCapacity"
-            [ngModel]="queueForm().maxCapacity"
-            (ngModelChange)="updateQueueField('maxCapacity', $event)"
-            min="0"
-          />
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeEditor()">Cancel</button>
-        <button class="btn-primary" (click)="saveQueue()" [disabled]="isLoading()">
-          {{ isEditMode() ? 'Update' : 'Create' }} Queue
+          Update Pipeline
         </button>
       </div>
     </div>

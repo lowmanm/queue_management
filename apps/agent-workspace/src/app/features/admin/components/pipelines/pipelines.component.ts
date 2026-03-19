@@ -1,7 +1,9 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
+import { QueueConfigPanelComponent } from '../queue-config-panel/queue-config-panel.component';
 import { PipelineApiService } from '../../services/pipeline.service';
 import {
   Pipeline,
@@ -9,27 +11,31 @@ import {
   RoutingRule,
   RoutingCondition,
   PipelineSummary,
+  PipelineVersion,
+  PipelineValidationResult,
   CreatePipelineRequest,
-  CreateQueueRequest,
   CreateRoutingRuleRequest,
   RoutingOperator,
   ROUTING_OPERATOR_LABELS,
   ROUTING_OPERATORS_BY_TYPE,
   PipelineFieldDefinition,
+  DefaultRoutingConfig,
 } from '@nexus-queue/shared-models';
 
 type ViewMode = 'list' | 'detail';
-type EditorMode = 'pipeline' | 'queue' | 'rule' | null;
+type DetailTab = 'queues' | 'rules' | 'versions';
+type EditorMode = 'pipeline' | 'rule' | null;
 
 @Component({
   selector: 'app-pipelines',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageLayoutComponent],
+  imports: [CommonModule, FormsModule, PageLayoutComponent, QueueConfigPanelComponent],
   templateUrl: './pipelines.component.html',
   styleUrls: ['./pipelines.component.scss'],
 })
 export class PipelinesComponent implements OnInit {
   private readonly pipelineApi = inject(PipelineApiService);
+  private readonly router = inject(Router);
 
   // Data
   pipelines = signal<Pipeline[]>([]);
@@ -44,12 +50,15 @@ export class PipelinesComponent implements OnInit {
   errorMessage = signal('');
   successMessage = signal('');
 
+  // Detail Tab
+  activeTab = signal<DetailTab>('queues');
+
   // Editor State
   editorMode = signal<EditorMode>(null);
   isEditMode = signal(false);
-  editingItem = signal<Pipeline | PipelineQueue | RoutingRule | null>(null);
+  editingItem = signal<Pipeline | RoutingRule | null>(null);
 
-  // Pipeline Form
+  // Pipeline Form (edit only — create goes through wizard)
   pipelineForm = signal<Partial<CreatePipelineRequest>>({
     name: '',
     description: '',
@@ -57,15 +66,22 @@ export class PipelinesComponent implements OnInit {
   });
   workTypeInput = signal('');
 
-  // Queue Form
-  queueForm = signal<Partial<CreateQueueRequest>>({
-    name: '',
-    description: '',
-    priority: 1,
-    requiredSkills: [],
-    maxCapacity: 0,
+  // Version History
+  pipelineVersions = signal<PipelineVersion[]>([]);
+  isLoadingVersions = signal(false);
+  rollingBackVersionId = signal<string | null>(null);
+
+  // Routing Test Panel
+  showTestPanel = signal(false);
+  testSampleJson = signal('{}');
+  testResult = signal<PipelineValidationResult | null>(null);
+  isRunningTest = signal(false);
+  testError = signal('');
+
+  // Default Routing
+  defaultRoutingForm = signal<Partial<DefaultRoutingConfig>>({
+    behavior: 'hold',
   });
-  skillInput = signal('');
 
   // Rule Form
   ruleForm = signal<Partial<CreateRoutingRuleRequest>>({
@@ -145,6 +161,7 @@ export class PipelinesComponent implements OnInit {
   loadPipelineDetails(pipeline: Pipeline): void {
     this.selectedPipeline.set(pipeline);
     this.viewMode.set('detail');
+    this.activeTab.set('queues');
 
     // Load schema fields from pipeline's data schema
     if (pipeline.dataSchema?.fields) {
@@ -164,6 +181,118 @@ export class PipelinesComponent implements OnInit {
     this.pipelineApi.getRoutingRules(pipeline.id).subscribe({
       next: (rules) => {
         this.selectedPipelineRules.set(rules);
+        // Init default routing form from pipeline config
+        if (pipeline.defaultRouting) {
+          this.defaultRoutingForm.set({ behavior: pipeline.defaultRouting.behavior });
+        }
+      },
+    });
+  }
+
+  loadVersionHistory(): void {
+    const pipeline = this.selectedPipeline();
+    if (!pipeline) return;
+    this.isLoadingVersions.set(true);
+    this.pipelineApi.getPipelineVersions(pipeline.id).subscribe({
+      next: (versions) => {
+        this.pipelineVersions.set(versions);
+        this.isLoadingVersions.set(false);
+      },
+      error: () => this.isLoadingVersions.set(false),
+    });
+  }
+
+  rollbackToVersion(version: PipelineVersion): void {
+    if (!confirm(`Rollback to version from ${new Date(version.createdAt).toLocaleString()}?`)) return;
+
+    const pipeline = this.selectedPipeline();
+    if (!pipeline) return;
+
+    this.rollingBackVersionId.set(version.versionId);
+    this.pipelineApi.rollbackPipelineVersion(pipeline.id, version.versionId).subscribe({
+      next: (updated) => {
+        this.rollingBackVersionId.set(null);
+        this.successMessage.set('Pipeline rolled back successfully');
+        this.loadPipelineDetails(updated);
+        this.loadVersionHistory();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Rollback failed');
+        this.rollingBackVersionId.set(null);
+      },
+    });
+  }
+
+  switchTab(tab: DetailTab): void {
+    this.activeTab.set(tab);
+    if (tab === 'versions' && this.pipelineVersions().length === 0) {
+      this.loadVersionHistory();
+    }
+  }
+
+  onQueuesChanged(queues: PipelineQueue[]): void {
+    this.selectedPipelineQueues.set(queues);
+  }
+
+  // ============================================================
+  // ROUTING TEST PANEL
+  // ============================================================
+
+  openTestPanel(): void {
+    // Pre-fill with schema field names
+    const fields = this.pipelineSchemaFields();
+    const sample: Record<string, string> = {};
+    fields.forEach((f) => { sample[f.name] = ''; });
+    this.testSampleJson.set(JSON.stringify(sample, null, 2));
+    this.testResult.set(null);
+    this.testError.set('');
+    this.showTestPanel.set(true);
+  }
+
+  closeTestPanel(): void {
+    this.showTestPanel.set(false);
+  }
+
+  runRouteTest(): void {
+    const pipeline = this.selectedPipeline();
+    if (!pipeline) return;
+
+    let sampleTask: Record<string, unknown>;
+    try {
+      sampleTask = JSON.parse(this.testSampleJson()) as Record<string, unknown>;
+    } catch {
+      this.testError.set('Invalid JSON. Please check your sample data.');
+      return;
+    }
+
+    this.isRunningTest.set(true);
+    this.testResult.set(null);
+    this.testError.set('');
+
+    this.pipelineApi.validatePipeline(pipeline.id, { sampleTask, includeRuleTrace: true }).subscribe({
+      next: (result) => {
+        this.testResult.set(result);
+        this.isRunningTest.set(false);
+      },
+      error: () => {
+        this.testError.set('Test failed — could not reach validation endpoint');
+        this.isRunningTest.set(false);
+      },
+    });
+  }
+
+  saveDefaultRouting(): void {
+    const pipeline = this.selectedPipeline();
+    if (!pipeline) return;
+    const defaultRouting = this.defaultRoutingForm() as DefaultRoutingConfig;
+
+    this.pipelineApi.updatePipeline(pipeline.id, { defaultRouting }).subscribe({
+      next: (updated) => {
+        this.selectedPipeline.set(updated);
+        this.successMessage.set('Default routing saved');
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to save default routing');
       },
     });
   }
@@ -173,30 +302,27 @@ export class PipelinesComponent implements OnInit {
     this.selectedPipeline.set(null);
     this.selectedPipelineQueues.set([]);
     this.selectedPipelineRules.set([]);
+    this.pipelineVersions.set([]);
+    this.showTestPanel.set(false);
   }
 
   // ===========================================================================
   // PIPELINE OPERATIONS
   // ===========================================================================
 
-  openPipelineEditor(pipeline?: Pipeline): void {
-    this.editorMode.set('pipeline');
-    this.isEditMode.set(!!pipeline);
-    this.editingItem.set(pipeline || null);
+  navigateToWizard(): void {
+    this.router.navigate(['/admin/pipelines/new']);
+  }
 
-    if (pipeline) {
-      this.pipelineForm.set({
-        name: pipeline.name,
-        description: pipeline.description,
-        allowedWorkTypes: [...(pipeline.allowedWorkTypes || [])],
-      });
-    } else {
-      this.pipelineForm.set({
-        name: '',
-        description: '',
-        allowedWorkTypes: [],
-      });
-    }
+  openPipelineEditor(pipeline: Pipeline): void {
+    this.editorMode.set('pipeline');
+    this.isEditMode.set(true);
+    this.editingItem.set(pipeline);
+    this.pipelineForm.set({
+      name: pipeline.name,
+      description: pipeline.description,
+      allowedWorkTypes: [...(pipeline.allowedWorkTypes || [])],
+    });
     this.workTypeInput.set('');
   }
 
@@ -210,35 +336,23 @@ export class PipelinesComponent implements OnInit {
     this.isLoading.set(true);
     this.clearMessages();
 
-    if (this.isEditMode() && this.editingItem()) {
-      const pipeline = this.editingItem() as Pipeline;
-      this.pipelineApi.updatePipeline(pipeline.id, form).subscribe({
-        next: (updated) => {
-          this.successMessage.set('Pipeline updated successfully');
-          this.closeEditor();
-          this.loadPipelines();
-          if (this.selectedPipeline()?.id === updated.id) {
-            this.selectedPipeline.set(updated);
-          }
-        },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to update pipeline');
-          this.isLoading.set(false);
-        },
-      });
-    } else {
-      this.pipelineApi.createPipeline(form as CreatePipelineRequest).subscribe({
-        next: () => {
-          this.successMessage.set('Pipeline created successfully');
-          this.closeEditor();
-          this.loadPipelines();
-        },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to create pipeline');
-          this.isLoading.set(false);
-        },
-      });
-    }
+    const pipeline = this.editingItem() as Pipeline;
+    if (!pipeline) return;
+
+    this.pipelineApi.updatePipeline(pipeline.id, form).subscribe({
+      next: (updated) => {
+        this.successMessage.set('Pipeline updated successfully');
+        this.closeEditor();
+        this.loadPipelines();
+        if (this.selectedPipeline()?.id === updated.id) {
+          this.selectedPipeline.set(updated);
+        }
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to update pipeline');
+        this.isLoading.set(false);
+      },
+    });
   }
 
   deletePipeline(pipeline: Pipeline): void {
@@ -300,127 +414,13 @@ export class PipelinesComponent implements OnInit {
   }
 
   // ===========================================================================
-  // QUEUE OPERATIONS
-  // ===========================================================================
-
-  openQueueEditor(queue?: PipelineQueue): void {
-    this.editorMode.set('queue');
-    this.isEditMode.set(!!queue);
-    this.editingItem.set(queue || null);
-
-    if (queue) {
-      this.queueForm.set({
-        name: queue.name,
-        description: queue.description,
-        priority: queue.priority,
-        requiredSkills: [...(queue.requiredSkills || [])],
-        maxCapacity: queue.maxCapacity,
-      });
-    } else {
-      this.queueForm.set({
-        name: '',
-        description: '',
-        priority: this.selectedPipelineQueues().length + 1,
-        requiredSkills: [],
-        maxCapacity: 0,
-      });
-    }
-    this.skillInput.set('');
-  }
-
-  saveQueue(): void {
-    const form = this.queueForm();
-    const pipeline = this.selectedPipeline();
-
-    if (!form.name?.trim()) {
-      this.errorMessage.set('Queue name is required');
-      return;
-    }
-
-    if (!pipeline) {
-      this.errorMessage.set('No pipeline selected');
-      return;
-    }
-
-    this.isLoading.set(true);
-    this.clearMessages();
-
-    if (this.isEditMode() && this.editingItem()) {
-      const queue = this.editingItem() as PipelineQueue;
-      this.pipelineApi.updateQueue(pipeline.id, queue.id, form).subscribe({
-        next: () => {
-          this.successMessage.set('Queue updated successfully');
-          this.closeEditor();
-          this.loadPipelineDetails(pipeline);
-        },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to update queue');
-          this.isLoading.set(false);
-        },
-      });
-    } else {
-      this.pipelineApi.createQueue(pipeline.id, form as Omit<CreateQueueRequest, 'pipelineId'>).subscribe({
-        next: () => {
-          this.successMessage.set('Queue created successfully');
-          this.closeEditor();
-          this.loadPipelineDetails(pipeline);
-        },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to create queue');
-          this.isLoading.set(false);
-        },
-      });
-    }
-  }
-
-  deleteQueue(queue: PipelineQueue): void {
-    const pipeline = this.selectedPipeline();
-    if (!pipeline) return;
-
-    if (!confirm(`Delete queue "${queue.name}"? This cannot be undone.`)) {
-      return;
-    }
-
-    this.pipelineApi.deleteQueue(pipeline.id, queue.id).subscribe({
-      next: () => {
-        this.successMessage.set('Queue deleted');
-        this.loadPipelineDetails(pipeline);
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to delete queue');
-      },
-    });
-  }
-
-  addSkill(): void {
-    const value = this.skillInput().trim().toLowerCase();
-    if (!value) return;
-
-    const current = this.queueForm().requiredSkills || [];
-    if (!current.includes(value)) {
-      this.queueForm.update((f) => ({
-        ...f,
-        requiredSkills: [...current, value],
-      }));
-    }
-    this.skillInput.set('');
-  }
-
-  removeSkill(skill: string): void {
-    this.queueForm.update((f) => ({
-      ...f,
-      requiredSkills: (f.requiredSkills || []).filter((s) => s !== skill),
-    }));
-  }
-
-  // ===========================================================================
   // ROUTING RULE OPERATIONS
   // ===========================================================================
 
   openRuleEditor(rule?: RoutingRule): void {
     this.editorMode.set('rule');
     this.isEditMode.set(!!rule);
-    this.editingItem.set(rule || null);
+    this.editingItem.set(rule ?? null);
 
     if (rule) {
       this.ruleForm.set({
@@ -572,8 +572,12 @@ export class PipelinesComponent implements OnInit {
     this.pipelineForm.update((f) => ({ ...f, [field]: value }));
   }
 
-  updateQueueField(field: string, value: unknown): void {
-    this.queueForm.update((f) => ({ ...f, [field]: value }));
+  updateDefaultRoutingBehavior(behavior: string): void {
+    this.defaultRoutingForm.update((f) => ({ ...f, behavior: behavior as 'route_to_queue' | 'reject' | 'hold' }));
+  }
+
+  updateDefaultRoutingQueue(queueId: string): void {
+    this.defaultRoutingForm.update((f) => ({ ...f, defaultQueueId: queueId }));
   }
 
   updateRuleField(field: string, value: unknown): void {
