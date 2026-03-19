@@ -54,10 +54,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   switchableTeams: Team[] = [];
   switcherLoaded = false;
 
-  constructor(
-    private authService: AuthService,
-    private queueService: QueueService
-  ) {}
+  private authService = inject(AuthService);
+  private queueService = inject(QueueService);
 
   ngOnInit(): void {
     this.agent$ = this.authService.currentAgent$;

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AgentState } from '@nexus-queue/shared-models';
@@ -32,10 +32,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   /** True when agent just completed a task (in post-disposition flow) */
   isPostDisposition = false;
 
-  constructor(
-    private queueService: QueueService,
-    private socketService: SocketService
-  ) {}
+  private queueService = inject(QueueService);
+  private socketService = inject(SocketService);
 
   ngOnInit(): void {
     // Subscribe to agent state changes

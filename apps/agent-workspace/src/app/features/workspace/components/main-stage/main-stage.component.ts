@@ -93,11 +93,9 @@ export class MainStageComponent implements OnInit, OnDestroy {
   /** Interval for polling popup.closed status */
   private popupPollInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor(
-    private queueService: QueueService,
-    private sanitizer: DomSanitizer,
-    private ngZone: NgZone
-  ) {}
+  private queueService = inject(QueueService);
+  private sanitizer = inject(DomSanitizer);
+  private ngZone = inject(NgZone);
 
   ngOnInit(): void {
     this.currentTask$ = this.queueService.currentTask$;

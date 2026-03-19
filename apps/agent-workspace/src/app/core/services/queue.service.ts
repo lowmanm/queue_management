@@ -69,12 +69,12 @@ export class QueueService implements OnDestroy {
     tasksTransferred: 0,
   };
 
-  constructor(
-    private http: HttpClient,
-    private authService: AuthService,
-    private socketService: SocketService,
-    private agentStatsService: AgentStatsService
-  ) {
+  private http = inject(HttpClient);
+  private authService = inject(AuthService);
+  private socketService = inject(SocketService);
+  private agentStatsService = inject(AgentStatsService);
+
+  constructor() {
     this.setupSocketListeners();
   }
 
