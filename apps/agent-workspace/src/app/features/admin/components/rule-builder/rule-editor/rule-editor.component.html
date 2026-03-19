@@ -1,0 +1,196 @@
+@if (form) {
+  <div class="rule-editor" [formGroup]="form">
+
+    <!-- Conditions Section -->
+    <div class="editor-section">
+      <div class="section-header">
+        <h4 class="section-title">Conditions</h4>
+        <div class="logic-selector">
+          <label class="logic-label" for="logic-select">Logic:</label>
+          <select id="logic-select" class="select-sm" formControlName="logic">
+            <option value="AND">AND — all conditions must match</option>
+            <option value="OR">OR — any condition must match</option>
+          </select>
+        </div>
+      </div>
+
+      <div formArrayName="conditions" class="conditions-list">
+        @if (conditions.length === 0) {
+          <div class="empty-hint">No conditions — rule always matches.</div>
+        }
+        @for (condCtrl of conditions.controls; track trackByIndex($index)) {
+          <div class="condition-row" [formGroupName]="$index">
+            <!-- Field -->
+            <select class="select-field" formControlName="field" aria-label="Field">
+              <option value="">Select field…</option>
+              @for (field of availableFields; track field.field) {
+                <option [value]="field.field">{{ field.label }}</option>
+              }
+            </select>
+
+            <!-- Operator -->
+            <select class="select-operator" formControlName="operator" aria-label="Operator">
+              @for (op of getOperatorsForField(condCtrl.get('field')?.value); track op.operator) {
+                <option [value]="op.operator">{{ op.label }}</option>
+              }
+            </select>
+
+            <!-- Value -->
+            @if (operatorNeedsValue(condCtrl.get('operator')?.value)) {
+              @if (operatorIsArray(condCtrl.get('operator')?.value)) {
+                <input
+                  class="input-value"
+                  type="text"
+                  formControlName="value"
+                  placeholder="val1, val2, val3"
+                  aria-label="Values (comma-separated)"
+                />
+              } @else {
+                <input
+                  class="input-value"
+                  type="text"
+                  formControlName="value"
+                  placeholder="Value"
+                  aria-label="Value"
+                />
+              }
+            } @else {
+              <span class="no-value-placeholder"></span>
+            }
+
+            <!-- Remove -->
+            <button
+              type="button"
+              class="btn-icon danger"
+              (click)="removeCondition($index)"
+              title="Remove condition"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        }
+      </div>
+
+      <button type="button" class="btn-add" (click)="addCondition()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Add Condition
+      </button>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="editor-section">
+      <div class="section-header">
+        <h4 class="section-title">Actions</h4>
+        <span class="section-hint">Applied in order when conditions match</span>
+      </div>
+
+      <div formArrayName="actions" class="actions-list">
+        @if (actions.length === 0) {
+          <div class="empty-hint">No actions — rule matches but does nothing.</div>
+        }
+        @for (actionCtrl of actions.controls; track trackByIndex($index)) {
+          <div class="action-row" [formGroupName]="$index">
+            <!-- Reorder -->
+            <div class="action-order">
+              <button
+                type="button"
+                class="btn-icon small"
+                [disabled]="$index === 0"
+                (click)="moveActionUp($index)"
+                title="Move up"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="btn-icon small"
+                [disabled]="$index === actions.length - 1"
+                (click)="moveActionDown($index)"
+                title="Move down"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Action Type -->
+            <select class="select-action-type" formControlName="type" aria-label="Action type">
+              @for (action of availableActions; track action.type) {
+                <option [value]="action.type">{{ action.label }}</option>
+              }
+            </select>
+
+            <!-- Value (type-specific) -->
+            @if (!actionHasNoValue(actionCtrl.get('type')?.value)) {
+              @if (actionIsMetadata(actionCtrl.get('type')?.value)) {
+                <input
+                  class="input-value-sm"
+                  type="text"
+                  formControlName="field"
+                  placeholder="Key"
+                  aria-label="Metadata key"
+                />
+                <input
+                  class="input-value"
+                  type="text"
+                  formControlName="value"
+                  placeholder="Value"
+                  aria-label="Metadata value"
+                />
+              } @else if (actionIsNumber(actionCtrl.get('type')?.value)) {
+                <input
+                  class="input-value-sm"
+                  type="number"
+                  formControlName="value"
+                  placeholder="0"
+                  aria-label="Numeric value"
+                />
+              } @else {
+                <input
+                  class="input-value"
+                  type="text"
+                  formControlName="value"
+                  placeholder="Value"
+                  aria-label="Value"
+                />
+              }
+            } @else {
+              <span class="no-value-placeholder"></span>
+            }
+
+            <!-- Remove -->
+            <button
+              type="button"
+              class="btn-icon danger"
+              (click)="removeAction($index)"
+              title="Remove action"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        }
+      </div>
+
+      <button type="button" class="btn-add" (click)="addAction()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Add Action
+      </button>
+    </div>
+
+  </div>
+}

@@ -6,6 +6,8 @@ import {
   RuleFieldConfig,
   RuleActionConfig,
   ConditionOperator,
+  RuleSetTestRequest,
+  RuleSetTestResponse,
 } from '@nexus-queue/shared-models';
 import { environment } from '../../../../environments/environment';
 import { LoggerService } from '../../../core/services';
@@ -161,6 +163,21 @@ export class RulesService {
         // Update cache
         const current = this.ruleSetsSubject.value;
         this.ruleSetsSubject.next(current.filter((rs) => rs.id !== id));
+      })
+    );
+  }
+
+  /**
+   * Test a rule set against sample task data
+   */
+  testRuleSet(ruleSetId: string, sampleTask: Record<string, unknown>): Observable<RuleSetTestResponse> {
+    const request: RuleSetTestRequest = { sampleTask };
+    return this.http.post<RuleSetTestResponse>(
+      `${this.baseUrl}/sets/${ruleSetId}/test`,
+      request
+    ).pipe(
+      tap(() => {
+        this.logger.debug(LOG_CONTEXT, 'Rule set test completed', { ruleSetId });
       })
     );
   }
