@@ -81,24 +81,27 @@
 
 ### Phase 3 — Logic Builder 🔄
 
-**Status:** Planned (next)
+**Status:** In Progress — Wave 1 complete, Wave 2 pending
 **Target branch:** `feature/NQ-300-logic-builder`
 **Requirements:** See `REQUIREMENTS.md` §Phase 3
-**Plans:** Will be generated in `.planning/phases/3/`
+**Plans:** `.planning/phases/3/`
 
 **Goal:** Give Designers a visual, no-code interface to configure queue routing logic, create pipelines end-to-end, and monitor failed tasks — replacing the current API/seed-data approach with a self-service configuration experience.
 
-| Deliverable | Category | Description |
-|---|---|---|
-| Pipeline Creation Wizard | Frontend | Step-by-step wizard: name → schema → routing rules → queue assignment → SLA config |
-| Rule Builder UI | Frontend | Visual condition/action builder for RuleEngine rule sets (drag-and-drop or form-based) |
-| Routing Rule Editor | Frontend | Configure pipeline routing rules with condition trees (field, operator, value → target queue) |
-| Queue Configuration Panel | Frontend | Create/edit queues with priority, required skills, capacity, SLA thresholds |
-| DLQ Monitor | Frontend | View dead-lettered tasks, inspect failure reasons, retry/reassign/discard actions |
-| Pipeline Validation | Backend | Dry-run validation endpoint — test pipeline config against sample data before activation |
-| Rule Set Testing | Backend | Test rule set execution against sample tasks with before/after comparison |
-| Configuration Versioning | Backend | Track pipeline config changes with rollback capability |
-| Pipeline Status Dashboard | Frontend | Real-time pipeline health: throughput, error rate, SLA compliance per pipeline |
+| Deliverable | Category | Status | Description |
+|---|---|---|---|
+| Pipeline Creation Wizard | Frontend | ⬜ Pending | Step-by-step wizard: name → schema → routing rules → queue assignment → SLA config |
+| Rule Builder UI | Frontend | ⬜ Pending | Visual condition/action builder for RuleEngine rule sets (form-based) |
+| Routing Rule Editor | Frontend | ⬜ Pending | Configure pipeline routing rules with condition trees (field, operator, value → target queue) |
+| Queue Configuration Panel | Frontend | ⬜ Pending | Create/edit queues with priority, required skills, capacity, SLA thresholds |
+| DLQ Monitor | Frontend | ⬜ Pending | View dead-lettered tasks, inspect failure reasons, retry/reassign/discard actions |
+| Pipeline Status Dashboard | Frontend | ⬜ Pending | Real-time pipeline health: throughput, error rate, SLA compliance per pipeline |
+| Pipeline Validation | Backend | ✅ Done | Dry-run validation endpoint — test pipeline config against sample data before activation |
+| Rule Set Testing | Backend | ✅ Done | Test rule set execution against sample tasks with before/after comparison |
+| Configuration Versioning | Backend | ✅ Done | Track pipeline config changes with rollback capability (max 20 versions, in-memory) |
+| Pipeline Metrics API | Backend | ✅ Done | Per-pipeline and aggregate metrics; real-time `pipeline:metrics` WebSocket broadcast |
+| DLQ API | Backend | ✅ Done | Filter, stats, retry, reroute, discard endpoints for dead-letter queue |
+| Phase 3 Shared Models | Models | ✅ Done | `PipelineMetrics`, `PipelineValidationResult`, `PipelineVersion`, `RuleSetTestRequest/Response` |
 
 ---
 
@@ -131,5 +134,5 @@
 
 ---
 
-*Last Updated: March 2026*
-*Version: 1.0*
+*Last Updated: March 2026 (Phase 3 Wave 1 complete)*
+*Version: 1.1*
