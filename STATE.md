@@ -9,78 +9,77 @@
 
 | Field | Value |
 |---|---|
-| **Active Phase** | Phase 3 — Logic Builder |
-| **Phase Status** | In Progress — Wave 2 all plans complete, run `/verify-phase 3` next |
+| **Active Phase** | Phase 4 — Persistence + Production (next) |
+| **Phase Status** | Not yet started — run `/plan-phase 4` to begin |
 | **Last Session** | 2026-03-19 |
-| **Next Action** | `/verify-phase 3` |
+| **Next Action** | `/plan-phase 4` |
 
 ---
 
 ## What Just Happened (Session: 2026-03-19)
 
-### Phase 3 Wave 1 — Backend Extensions Complete
+### Phase 3 — Logic Builder — SHIPPED ✅
 
-All backend services and APIs required for Phase 3 are implemented and merged to `develop`.
+All 22 v1 requirements implemented, verified, and PR opened.
 
-**Plan executed:** `.planning/phases/3/1-1-backend-extensions-PLAN.md`
-**Summary:** `.planning/phases/3/1-1-backend-extensions-PLAN-SUMMARY.md`
+**PR branch:** `claude/dlq-monitor-pipeline-status-Iq03S` → `develop`
+**PR URL:** https://github.com/lowmanm/queue_management/pull/new/claude/dlq-monitor-pipeline-status-Iq03S
+**Verification:** `.planning/phases/3/VERIFICATION.md` — PASS
 
-### Decisions Made
+### What Was Delivered
 
-1. **Phase 3 Wave 1 scoped to backend-only** — All new API endpoints and services needed by the Wave 2 frontend plans are implemented. Frontend work (wizard, rule builder, DLQ monitor, pipeline dashboard) is Wave 2.
+| Feature | Routes | Guard |
+|---|---|---|
+| Pipeline Creation Wizard | `/admin/pipelines/new` | `designerGuard` |
+| Rule Builder UI | `/admin/rule-sets` | `designerGuard` |
+| Queue Configuration Panel | Embedded in Pipelines admin | `designerGuard` |
+| DLQ Monitor | `/manager/dlq` | `managerGuard` |
+| Pipeline Status Dashboard | `/manager/pipeline-status` | `managerGuard` |
 
-2. **`RuleEngineService` was already wired** — Research said it wasn't connected to `PipelineOrchestratorService` but it was already calling `this.ruleEngine.evaluateTask(task)`. Wave 1 Task 2 was re-scoped to add pipeline-scoped rule set filtering instead.
+**Backend additions:**
+- `DlqController` — 5 DLQ endpoints (filter, stats, retry, reroute, discard)
+- `PipelineMetricsService` — per-pipeline throughput, SLA %, error rate
+- `PipelineVersionService` — config snapshots + rollback (max 20 versions)
+- `POST /api/pipelines/:id/validate` — dry-run validation
+- `POST /api/rules/sets/:id/test` — rule set before/after trace
+- `pipeline:metrics` WebSocket broadcast every 10s
 
-3. **`PipelineMetricsService` placed in `ServicesModule`** — Avoids a new circular dependency; `ServicesModule` already has `forwardRef(() => PipelineModule)`.
+### Decisions Made This Phase
 
-4. **`@Optional()` injection pattern** — Used for `PipelineVersionService` in `PipelineService` and `PipelineMetricsService` in `PipelineController` to allow graceful degradation if services are unavailable at construction time.
-
-5. **`setInterval` instead of `@nestjs/schedule`** — Gateway uses `setInterval` in `afterInit()` to broadcast pipeline metrics every 10s rather than pulling in a new dependency.
-
-### New Backend Capabilities
-
-| Endpoint | Purpose |
+| Decision | Rationale |
 |---|---|
-| `GET /api/queues/dlq` | List DLQ tasks with filters (pipeline, queue, reason, date range) |
-| `GET /api/queues/dlq/stats` | DLQ counts grouped by reason/queue/pipeline |
-| `POST /api/queues/dlq/:taskId/retry` | Retry failed task through orchestrator |
-| `POST /api/queues/dlq/:taskId/reroute` | Move DLQ task to a different queue |
-| `DELETE /api/queues/dlq/:taskId` | Discard a DLQ task |
-| `POST /api/rules/sets/:id/test` | Test rule set against sample task (before/after trace) |
-| `POST /api/pipelines/:id/validate` | Dry-run pipeline config against sample task |
-| `GET /api/pipelines/metrics` | Aggregate metrics for all pipelines |
-| `GET /api/pipelines/:id/metrics` | Metrics for a single pipeline |
-| `GET /api/pipelines/:id/versions` | Version history (newest first, max 20) |
-| `POST /api/pipelines/:id/versions/:versionId/rollback` | Restore a prior config snapshot |
-
-### New Services
-
-| Service | Location |
-|---|---|
-| `PipelineMetricsService` | `apps/api-server/src/app/services/` |
-| `PipelineVersionService` | `apps/api-server/src/app/pipelines/` |
-
-### WebSocket
-
-- `pipeline:metrics` event broadcast every 10s from `AgentGateway` (payload: `PipelineMetricsSummary`)
-
-### New Shared Model Types
-
-`PipelineMetrics`, `PipelineMetricsSummary`, `PipelineValidationRequest`, `PipelineValidationResult`, `PipelineVersion`, `RuleSetTestRequest`, `RuleSetTestResponse`, `pipelineIds` in `RuleSet.appliesTo`
+| Form-based rule builder (not visual drag-and-drop) | Faster to build, sufficient for v1. Visual builder is Phase 5+ |
+| Pipeline wizard is multi-step | Complex config benefits from guided steps |
+| DLQ monitor is Manager/Admin only | Agents/Designers shouldn't manage failed tasks |
+| In-memory stores continue for Phase 3 | Persistence is Phase 4 |
+| `setInterval` in gateway for metrics broadcast | Avoids `@nestjs/schedule` dependency |
+| `@Optional()` injection for version/metrics services | Graceful degradation at construction time |
 
 ---
 
-## Phase 3 Progress
+## Phase 3 — Complete
 
 | Wave | Plan | Status |
 |---|---|---|
-| Wave 1 | `1-1-backend-extensions-PLAN.md` | ✅ Complete (merged to develop) |
+| Wave 1 | `1-1-backend-extensions-PLAN.md` | ✅ Complete |
 | Wave 2 | `2-1-pipeline-wizard-queue-config-PLAN.md` | ✅ Complete |
 | Wave 2 | `2-2-rule-builder-ui-PLAN.md` | ✅ Complete |
 | Wave 2 | `2-3-dlq-monitor-pipeline-status-PLAN.md` | ✅ Complete |
 
-Wave 2 plans are independent of each other and can be executed in any order.
-Recommended order: `2-1` → `2-2` → `2-3` (wizard first, then rule builder, then monitor/dashboard)
+---
+
+## Phase 4 — Planned
+
+**Goal:** Replace in-memory stores with durable persistence, add horizontal scaling, prepare for production.
+
+| Deliverable | Description |
+|---|---|
+| PostgreSQL queue backing | `queue_tasks` table with priority index |
+| Redis real-time layer | Agent state, session cache, pub/sub for multi-instance |
+| Event sourcing | Immutable event log for task lifecycle audit trail |
+| Horizontal scaling | Stateless API servers behind load balancer |
+| Real authentication | Replace mock auth with OAuth2/OIDC provider |
+| Monitoring & alerting | Prometheus metrics, Grafana dashboards |
 
 ---
 
@@ -88,12 +87,9 @@ Recommended order: `2-1` → `2-2` → `2-3` (wizard first, then rule builder, t
 
 | Decision | Rationale |
 |---|---|
-| Form-based rule builder (not visual drag-and-drop flow) | Faster to build, sufficient for v1. Visual flow builder is Phase 5+ |
-| Pipeline wizard is multi-step (not single-page form) | Complex config benefits from guided steps; each step validates before next |
-| DLQ monitor is Manager/Admin only | Agents shouldn't manage failed tasks; Designers shouldn't need to |
-| In-memory stores continue for Phase 3 | Persistence is Phase 4; Phase 3 adds config UIs on top of existing services |
-| Config versioning is backend-only in Phase 3 | No diff UI until Phase 4; just track changes for rollback |
-| `npx nx lint api-server` target is `eslint:lint` | Run as `npx nx run api-server:eslint:lint`; the short `lint` alias does not exist for api-server |
+| `npx nx lint api-server` — correct target is `npx nx run api-server:eslint:lint` | The short `lint` alias does not exist for api-server |
+| ~167 pre-existing lint errors in `agent-workspace` | From Phase 2 and earlier; not introduced by Phase 3; address during Phase 4 refactor |
+| 10 pre-existing lint errors in `api-server` | In `routing.service.ts` and `tasks.service.ts`; document in Phase 4 scope |
 
 ---
 
@@ -107,10 +103,10 @@ None currently.
 
 | Metric | Status |
 |---|---|
-| Build | ✅ Passing (`nx build agent-workspace`, `nx build api-server`) |
-| Lint | ⚠️ `agent-workspace` passes. `api-server` has 8 pre-existing errors in `routing.service.ts` and `tasks.service.ts` (not introduced by Phase 3 work) |
-| Tests | ✅ Passing |
-| Tech Debt | Low — clean separation between frontend features and backend services |
+| Build | ✅ Passing |
+| Lint | ⚠️ 167 pre-existing errors in agent-workspace; 10 in api-server — none in Phase 3 files |
+| Tests | ✅ 51 tests passing |
+| Tech Debt | Low — Phase 4 will address in-memory stores and lint debt |
 
 ---
 
@@ -123,4 +119,4 @@ None currently.
 
 ---
 
-*Last Updated: 2026-03-19 (Phase 3 Wave 1 complete)*
+*Last Updated: 2026-03-19 (Phase 3 complete, Phase 4 next)*

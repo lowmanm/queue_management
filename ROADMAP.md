@@ -79,9 +79,9 @@
 
 ## Milestone 2: Configuration Intelligence
 
-### Phase 3 — Logic Builder 🔄
+### Phase 3 — Logic Builder ✅
 
-**Status:** In Progress — Wave 1 complete, Wave 2 pending
+**Status:** Complete — PR open on `claude/dlq-monitor-pipeline-status-Iq03S` → `develop`
 **Target branch:** `feature/NQ-300-logic-builder`
 **Requirements:** See `REQUIREMENTS.md` §Phase 3
 **Plans:** `.planning/phases/3/`
@@ -90,12 +90,12 @@
 
 | Deliverable | Category | Status | Description |
 |---|---|---|---|
-| Pipeline Creation Wizard | Frontend | ⬜ Pending | Step-by-step wizard: name → schema → routing rules → queue assignment → SLA config |
-| Rule Builder UI | Frontend | ⬜ Pending | Visual condition/action builder for RuleEngine rule sets (form-based) |
-| Routing Rule Editor | Frontend | ⬜ Pending | Configure pipeline routing rules with condition trees (field, operator, value → target queue) |
-| Queue Configuration Panel | Frontend | ⬜ Pending | Create/edit queues with priority, required skills, capacity, SLA thresholds |
-| DLQ Monitor | Frontend | ⬜ Pending | View dead-lettered tasks, inspect failure reasons, retry/reassign/discard actions |
-| Pipeline Status Dashboard | Frontend | ⬜ Pending | Real-time pipeline health: throughput, error rate, SLA compliance per pipeline |
+| Pipeline Creation Wizard | Frontend | ✅ Done | Step-by-step wizard: name → schema → routing rules → queue assignment → SLA config |
+| Rule Builder UI | Frontend | ✅ Done | Visual condition/action builder for RuleEngine rule sets (form-based) |
+| Routing Rule Editor | Frontend | ✅ Done | Configure pipeline routing rules with condition trees (field, operator, value → target queue) |
+| Queue Configuration Panel | Frontend | ✅ Done | Create/edit queues with priority, required skills, capacity, SLA thresholds |
+| DLQ Monitor | Frontend | ✅ Done | View dead-lettered tasks, inspect failure reasons, retry/reassign/discard actions |
+| Pipeline Status Dashboard | Frontend | ✅ Done | Real-time pipeline health: throughput, error rate, SLA compliance per pipeline |
 | Pipeline Validation | Backend | ✅ Done | Dry-run validation endpoint — test pipeline config against sample data before activation |
 | Rule Set Testing | Backend | ✅ Done | Test rule set execution against sample tasks with before/after comparison |
 | Configuration Versioning | Backend | ✅ Done | Track pipeline config changes with rollback capability (max 20 versions, in-memory) |
@@ -134,5 +134,5 @@
 
 ---
 
-*Last Updated: March 2026 (Phase 3 Wave 1 complete)*
+*Last Updated: March 2026 (Phase 3 complete — all 22 v1 requirements shipped)*
 *Version: 1.1*
