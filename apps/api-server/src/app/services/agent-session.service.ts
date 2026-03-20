@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import {
   AgentWorkState,
   AgentSession,
@@ -17,6 +17,7 @@ import {
 } from '@nexus-queue/shared-models';
 import { RbacService } from './rbac.service';
 import { RedisService } from '../redis';
+import { EventStoreService } from './event-store.service';
 
 /** TTL for session keys in Redis — 8 hours */
 const SESSION_TTL_SECONDS = 28800;
@@ -35,6 +36,8 @@ export class AgentSessionService {
   constructor(
     private readonly rbacService: RbacService,
     private readonly redisService: RedisService,
+    @Optional()
+    private readonly eventStore?: EventStoreService,
   ) {
     this.initializeWorkStates();
   }
@@ -253,6 +256,16 @@ export class AgentSessionService {
     );
 
     this.logger.log(`Agent ${agentId} state changed: ${fromState} -> ${toState} (${trigger})`);
+
+    // Emit agent.state_changed event (fire-and-forget)
+    void this.eventStore?.emit({
+      eventType: 'agent.state_changed',
+      aggregateId: agentId,
+      aggregateType: 'agent',
+      payload: { fromState, toState, trigger, taskId: options?.taskId },
+      agentId,
+    });
+
     return { success: true, session };
   }
 

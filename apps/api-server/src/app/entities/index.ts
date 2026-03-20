@@ -15,3 +15,4 @@ export { WorkStateConfigEntity } from './work-state-config.entity';
 export { UserEntity } from './user.entity';
 export { TeamEntity } from './team.entity';
 export { TaskCompletionEntity } from './task-completion.entity';
+export { TaskEventEntity } from './task-event.entity';

@@ -18,6 +18,7 @@ import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.s
 import { TaskStoreService } from '../services/task-store.service';
 import { SLAMonitorService, SLABreachEvent } from '../services/sla-monitor.service';
 import { PipelineMetricsService } from '../services/pipeline-metrics.service';
+import { EventStoreService } from '../services/event-store.service';
 
 interface AgentConnectPayload {
   agentId: string;
@@ -66,7 +67,10 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     private readonly slaMonitor?: SLAMonitorService,
     @Optional()
     @Inject(forwardRef(() => PipelineMetricsService))
-    private readonly pipelineMetrics?: PipelineMetricsService
+    private readonly pipelineMetrics?: PipelineMetricsService,
+    @Optional()
+    @Inject(forwardRef(() => EventStoreService))
+    private readonly eventStore?: EventStoreService,
   ) {}
 
   afterInit(): void {
@@ -196,12 +200,26 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
         await this.taskStore?.updateStatus(payload.taskId, 'ACTIVE' as TaskStatus, {
           assignedAgentId: payload.agentId,
         });
+        void this.eventStore?.emit({
+          eventType: 'task.accepted',
+          aggregateId: payload.taskId,
+          aggregateType: 'task',
+          payload: { agentId: payload.agentId },
+          agentId: payload.agentId,
+        });
         break;
       case 'reject':
         await this.agentManager.clearAgentTask(payload.agentId);
         await this.agentManager.updateAgentState(payload.agentId, 'IDLE');
         await this.requeueTask(payload.taskId, 'agent_rejected');
         await this.tryAssignTask(payload.agentId);
+        void this.eventStore?.emit({
+          eventType: 'task.rejected',
+          aggregateId: payload.taskId,
+          aggregateType: 'task',
+          payload: { agentId: payload.agentId, reason: 'agent_rejected' },
+          agentId: payload.agentId,
+        });
         break;
       case 'complete':
         await this.agentManager.updateAgentState(payload.agentId, 'WRAP_UP');
@@ -229,6 +247,14 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       completedAt: new Date().toISOString(),
     });
 
+    void this.eventStore?.emit({
+      eventType: 'task.completed',
+      aggregateId: payload.taskId,
+      aggregateType: 'task',
+      payload: { agentId: payload.agentId, dispositionCode: payload.dispositionCode },
+      agentId: payload.agentId,
+    });
+
     await this.tryAssignTask(payload.agentId);
   }
 
@@ -245,6 +271,14 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     this.logger.log(`Force-pushing task ${task.id} to agent ${agentId}`);
     this.server.to(agent.socketId).emit('task:assigned', task);
     await this.agentManager.assignTaskToAgent(agentId, task.id);
+
+    void this.eventStore?.emit({
+      eventType: 'task.assigned',
+      aggregateId: task.id,
+      aggregateType: 'task',
+      payload: { agentId, taskId: task.id, workType: task.workType },
+      agentId,
+    });
 
     return true;
   }

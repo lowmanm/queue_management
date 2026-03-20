@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { QueueManagerService, DLQEntry } from '../services/queue-manager.service';
 import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
+import { EventStoreService } from '../services/event-store.service';
 
 /**
  * Query parameters for filtering DLQ entries.
@@ -45,6 +46,7 @@ export class DlqController {
   constructor(
     private readonly queueManager: QueueManagerService,
     private readonly orchestrator: PipelineOrchestratorService,
+    private readonly eventStore: EventStoreService,
   ) {}
 
   /**
@@ -110,6 +112,12 @@ export class DlqController {
     if (!result.success) {
       throw new NotFoundException(result.error ?? `Task not found in DLQ: ${taskId}`);
     }
+    void this.eventStore.emit({
+      eventType: 'task.retried',
+      aggregateId: taskId,
+      aggregateType: 'task',
+      payload: { newTaskId: result.taskId, trigger: 'dlq_retry' },
+    });
     return { success: true, message: `Task ${taskId} re-ingested successfully` };
   }
 

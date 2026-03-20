@@ -9,6 +9,7 @@ import { TaskStoreService } from './task-store.service';
 import { QueueManagerService, QueuedTask } from './queue-manager.service';
 import { RuleEngineService } from './rule-engine.service';
 import { PipelineService } from '../pipelines/pipeline.service';
+import { EventStoreService } from './event-store.service';
 
 /**
  * Input accepted by the orchestrator from any data source.
@@ -75,7 +76,8 @@ export class PipelineOrchestratorService {
     @Inject(forwardRef(() => RuleEngineService))
     private readonly ruleEngine: RuleEngineService,
     @Inject(forwardRef(() => PipelineService))
-    private readonly pipelineService: PipelineService
+    private readonly pipelineService: PipelineService,
+    private readonly eventStore: EventStoreService,
   ) {
     this.logger.log('Pipeline Orchestrator initialized');
   }
@@ -180,6 +182,15 @@ export class PipelineOrchestratorService {
     };
 
     const createdTask = await this.taskStore.create(task);
+
+    // Emit task.ingested event (fire-and-forget)
+    void this.eventStore.emit({
+      eventType: 'task.ingested',
+      aggregateId: createdTask.id,
+      aggregateType: 'task',
+      payload: { source, sourceId, pipelineId, workType: createdTask.workType, priority: createdTask.priority },
+      pipelineId,
+    });
 
     // === Step 3: TRANSFORM via Rule Engine ===
     const { task: transformedTask, results } =

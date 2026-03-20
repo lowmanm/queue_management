@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Not, IsNull, Repository, DataSource } from 'typeorm';
 import { Task } from '@nexus-queue/shared-models';
 import { QueuedTaskEntity } from '../entities/queued-task.entity';
 import { DLQEntryEntity } from '../entities/dlq-entry.entity';
+import { EventStoreService } from './event-store.service';
 
 /**
  * Entry in the priority queue. Wraps a Task with queue metadata.
@@ -69,6 +70,8 @@ export class QueueManagerService {
     private readonly dlqRepo: Repository<DLQEntryEntity>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly eventStore?: EventStoreService,
   ) {}
 
   private get isPostgres(): boolean {
@@ -105,6 +108,15 @@ export class QueueManagerService {
     this.logger.debug(
       `Enqueued task ${queuedTask.id} in queue ${queueId} (priority: ${queuedTask.priority})`
     );
+
+    // Emit task.queued event (fire-and-forget)
+    void this.eventStore?.emit({
+      eventType: 'task.queued',
+      aggregateId: queuedTask.id,
+      aggregateType: 'task',
+      payload: { queueId, priority: queuedTask.priority, pipelineId: queuedTask.pipelineId },
+      pipelineId: queuedTask.pipelineId,
+    });
 
     return this.toModel(saved);
   }
@@ -273,6 +285,15 @@ export class QueueManagerService {
     await this.dlqRepo.save(entry);
 
     this.logger.warn(`Task ${queuedTask.id} moved to DLQ: ${reason}`);
+
+    // Emit task.dlq event (fire-and-forget)
+    void this.eventStore?.emit({
+      eventType: 'task.dlq',
+      aggregateId: queuedTask.id,
+      aggregateType: 'task',
+      payload: { reason, queueId: queuedTask.queueId, retryCount: queuedTask.retryCount },
+      pipelineId: queuedTask.pipelineId,
+    });
   }
 
   /**
