@@ -530,6 +530,7 @@ export interface CreateQueueRequest {
   preferredSkills?: string[];
   maxCapacity?: number;
   slaOverrides?: Partial<PipelineSLA>;
+  dlqAutoRetry?: PipelineQueue['dlqAutoRetry'];
 }
 
 /**
@@ -544,6 +545,7 @@ export interface UpdateQueueRequest {
   preferredSkills?: string[];
   maxCapacity?: number;
   slaOverrides?: Partial<PipelineSLA>;
+  dlqAutoRetry?: PipelineQueue['dlqAutoRetry'];
 }
 
 /**

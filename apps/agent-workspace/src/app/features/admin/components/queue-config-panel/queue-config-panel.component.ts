@@ -22,6 +22,13 @@ import {
 import { PipelineApiService } from '../../services/pipeline.service';
 import { SkillApiService } from '../../services/skill.service';
 
+interface DlqAutoRetryConfig {
+  enabled: boolean;
+  intervalMinutes: number;
+  maxRetries: number;
+  backoffMultiplier: number;
+}
+
 interface QueueFormState {
   name: string;
   description: string;
@@ -30,6 +37,7 @@ interface QueueFormState {
   maxCapacity: number;
   slaWarningPercent: number;
   slaBreachPercent: number;
+  dlqAutoRetry: DlqAutoRetryConfig;
 }
 
 const DEFAULT_FORM: QueueFormState = {
@@ -40,6 +48,12 @@ const DEFAULT_FORM: QueueFormState = {
   maxCapacity: 0,
   slaWarningPercent: 80,
   slaBreachPercent: 100,
+  dlqAutoRetry: {
+    enabled: false,
+    intervalMinutes: 5,
+    maxRetries: 3,
+    backoffMultiplier: 2,
+  },
 };
 
 @Component({
@@ -176,6 +190,7 @@ export class QueueConfigPanelComponent implements OnInit, OnChanges, OnDestroy {
       slaOverrides: {
         serviceLevelTarget: f.slaWarningPercent,
       },
+      dlqAutoRetry: f.dlqAutoRetry.enabled ? f.dlqAutoRetry : undefined,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (queue) => {
@@ -209,6 +224,9 @@ export class QueueConfigPanelComponent implements OnInit, OnChanges, OnDestroy {
       maxCapacity: queue.maxCapacity,
       slaWarningPercent: queue.slaOverrides?.serviceLevelTarget ?? 80,
       slaBreachPercent: 100,
+      dlqAutoRetry: queue.dlqAutoRetry
+        ? { ...queue.dlqAutoRetry }
+        : { ...DEFAULT_FORM.dlqAutoRetry },
     });
     this.clearMessages();
   }
@@ -244,6 +262,7 @@ export class QueueConfigPanelComponent implements OnInit, OnChanges, OnDestroy {
       slaOverrides: {
         serviceLevelTarget: f.slaWarningPercent,
       },
+      dlqAutoRetry: f.dlqAutoRetry.enabled ? f.dlqAutoRetry : undefined,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (updated) => {
@@ -318,6 +337,13 @@ export class QueueConfigPanelComponent implements OnInit, OnChanges, OnDestroy {
 
   updateField(field: keyof QueueFormState, value: unknown): void {
     this.form.update((f) => ({ ...f, [field]: value }));
+  }
+
+  updateDlqRetryField(field: keyof DlqAutoRetryConfig, value: unknown): void {
+    this.form.update((f) => ({
+      ...f,
+      dlqAutoRetry: { ...f.dlqAutoRetry, [field]: value },
+    }));
   }
 
   // ============================================================
