@@ -1,0 +1,103 @@
+<div class="portability-panel">
+  <div class="panel-header">
+    <h2 class="panel-title">Pipeline Portability</h2>
+    <button class="btn-icon" (click)="close()" aria-label="Close">✕</button>
+  </div>
+
+  <div class="panel-body">
+    <!-- EXPORT SECTION -->
+    @if (pipelineId()) {
+      <section class="action-card">
+        <div class="action-card__info">
+          <h3 class="action-card__title">Export</h3>
+          <p class="action-card__desc">Download this pipeline as a JSON file.</p>
+        </div>
+        <div class="action-card__controls">
+          @if (exportSuccess()) {
+            <span class="badge badge--success">Exported</span>
+          }
+          <button class="btn btn--primary" (click)="startExport()">
+            Export JSON
+          </button>
+        </div>
+      </section>
+    }
+
+    <!-- IMPORT SECTION -->
+    <section class="action-card">
+      <div class="action-card__info">
+        <h3 class="action-card__title">Import</h3>
+        <p class="action-card__desc">Create a new pipeline from a JSON file.</p>
+      </div>
+      <div class="action-card__controls">
+        <label class="file-label" for="bundle-file-input">
+          Choose .json file
+          <input
+            id="bundle-file-input"
+            type="file"
+            accept=".json,application/json"
+            class="file-input"
+            (change)="onFileSelected($event)"
+          />
+        </label>
+
+        @if (parseError()) {
+          <p class="error-text">{{ parseError() }}</p>
+        }
+
+        @if (importBundle()) {
+          <p class="success-text">File loaded: {{ importBundle()!.pipeline.name }}</p>
+        }
+
+        @if (importErrors().length > 0) {
+          <ul class="error-list">
+            @for (err of importErrors(); track err.field) {
+              <li class="error-list__item">
+                <strong>{{ err.field }}</strong>: {{ err.message }}
+              </li>
+            }
+          </ul>
+        }
+
+        <button
+          class="btn btn--primary"
+          [disabled]="!importBundle() || importing()"
+          (click)="submitImport()"
+        >
+          @if (importing()) {
+            Importing…
+          } @else {
+            Import Pipeline
+          }
+        </button>
+      </div>
+    </section>
+
+    <!-- CLONE SECTION -->
+    @if (pipelineId()) {
+      <section class="action-card">
+        <div class="action-card__info">
+          <h3 class="action-card__title">Clone</h3>
+          <p class="action-card__desc">Duplicate this pipeline as a new inactive draft.</p>
+        </div>
+        <div class="action-card__controls">
+          <button
+            class="btn btn--secondary"
+            [disabled]="cloning()"
+            (click)="startClone()"
+          >
+            @if (cloning()) {
+              Cloning…
+            } @else {
+              Clone Pipeline
+            }
+          </button>
+        </div>
+      </section>
+    }
+  </div>
+
+  <div class="panel-footer">
+    <button class="btn btn--ghost" (click)="close()">Cancel</button>
+  </div>
+</div>
