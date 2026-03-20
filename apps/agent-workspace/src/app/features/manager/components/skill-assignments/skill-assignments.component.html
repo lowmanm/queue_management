@@ -42,7 +42,7 @@
     <div class="agents-list">
       @for (entry of filteredAgents(); track entry.agent.username) {
         <div class="agent-card">
-          <div class="agent-row" (click)="toggleAgent(entry)">
+          <div class="agent-row" role="button" tabindex="0" (click)="toggleAgent(entry)" (keydown.enter)="toggleAgent(entry)" (keydown.space)="toggleAgent(entry)">
             <div class="agent-info">
               <div class="agent-avatar">{{ entry.agent.displayName.charAt(0) }}</div>
               <div class="agent-details">
@@ -123,8 +123,8 @@
 
   <!-- Assignment Modal -->
   @if (showAssignModal()) {
-    <div class="modal-overlay" (click)="closeAssignModal()">
-      <div class="modal modal-wide" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" role="button" tabindex="0" (click)="closeAssignModal()" (keydown.enter)="closeAssignModal()" (keydown.space)="closeAssignModal()">
+      <div class="modal modal-wide" role="presentation" (click)="$event.stopPropagation()">
         <div class="modal-header">
           <h2>Manage Skills &mdash; {{ assignTarget()?.displayName }}</h2>
           <button class="close-btn" (click)="closeAssignModal()">&times;</button>

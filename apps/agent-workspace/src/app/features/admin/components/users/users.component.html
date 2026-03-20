@@ -166,8 +166,8 @@
 
 <!-- User Modal -->
 @if (showModal) {
-  <div class="modal-overlay" (click)="closeModal()">
-    <div class="modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="closeModal()" (keydown.enter)="closeModal()" (keydown.space)="closeModal()">
+    <div class="modal" role="presentation" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>{{ modalMode === 'create' ? 'Add New User' : 'Edit User' }}</h2>
         <button class="close-btn" (click)="closeModal()">×</button>
@@ -244,7 +244,7 @@
         </div>
 
         <div class="form-group">
-          <label>Skills</label>
+          <span class="form-label">Skills</span>
           <!-- Selected skills chips -->
           @if ((formData.skills || []).length > 0) {
             <div class="skill-chips">

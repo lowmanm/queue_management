@@ -137,8 +137,8 @@
 
   <!-- Editor Modal -->
   @if (showEditor()) {
-    <div class="modal-overlay" (click)="closeEditor()">
-      <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" role="button" tabindex="0" (click)="closeEditor()" (keydown.enter)="closeEditor()" (keydown.space)="closeEditor()">
+      <div class="modal" role="presentation" (click)="$event.stopPropagation()">
         <div class="modal-header">
           <h2>{{ isEditMode() ? 'Edit' : 'New' }} Unavailable State</h2>
           <button class="btn-icon" (click)="closeEditor()">
@@ -160,9 +160,10 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Color</label>
+              <label for="ws-color-picker">Color</label>
               <div class="color-picker">
                 <input
+                  id="ws-color-picker"
                   type="color"
                   [ngModel]="formData().color"
                   (ngModelChange)="updateFormField('color', $event)"
@@ -182,7 +183,7 @@
             </div>
 
             <div class="form-group">
-              <label>Icon</label>
+              <span class="form-label">Icon</span>
               <div class="icon-picker">
                 @for (icon of iconOptions; track icon) {
                   <button

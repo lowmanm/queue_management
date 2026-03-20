@@ -17,53 +17,21 @@
 
 ## Baseline — Established Phase 3 (2026-03-19)
 
-### `agent-workspace` — 119 errors (Wave 1 baseline)
+### `agent-workspace` — **0 errors** ✅
 
-**Target phase for full clearance:** Phase 4 Wave 3
+**Cleared:** Phase 4 Wave 3 (2026-03-20)
 
 | Rule | Count | Fix Strategy |
 |---|---|---|
-| `@angular-eslint/template/label-has-associated-control` | 44 | Add `for`/`id` wiring to all unassociated form labels |
-| `@angular-eslint/template/interactive-supports-focus` | 36 | Add `tabindex="0"` + `role` to interactive non-button elements |
-| `@angular-eslint/template/click-events-have-key-events` | 36 | Add `keydown.enter`/`keydown.space` handlers alongside `click` |
+| ~~`@angular-eslint/template/label-has-associated-control`~~ | ~~44~~ **0** | ✅ Cleared Phase 4 Wave 3 |
+| ~~`@angular-eslint/template/interactive-supports-focus`~~ | ~~36~~ **0** | ✅ Cleared Phase 4 Wave 3 |
+| ~~`@angular-eslint/template/click-events-have-key-events`~~ | ~~36~~ **0** | ✅ Cleared Phase 4 Wave 3 |
 | ~~`@angular-eslint/template/prefer-control-flow`~~ | ~~29~~ **0** | ✅ Cleared Phase 4 Wave 1 |
 | ~~`@angular-eslint/prefer-inject`~~ | ~~15~~ **0** | ✅ Cleared Phase 4 Wave 1 |
 | ~~`@typescript-eslint/ban-ts-comment`~~ | ~~3~~ **0** | ✅ Cleared Phase 4 Wave 1 |
 | ~~`@angular-eslint/no-output-native`~~ | ~~1~~ **0** | ✅ Cleared Phase 4 Wave 1 |
 
-**Affected files (29):**
-
-| File | Phase Introduced |
-|---|---|
-| `apps/agent-workspace/src/app/core/services/agent-stats.service.ts` | Phase 2.5 |
-| `apps/agent-workspace/src/app/core/services/disposition.service.ts` | Phase 2.5 |
-| `apps/agent-workspace/src/app/core/services/manager-api.service.ts` | Phase 2.5 |
-| `apps/agent-workspace/src/app/core/services/queue.service.ts` | Phase 2.5 |
-| `apps/agent-workspace/src/app/core/services/socket.service.ts` | Phase 2.5 |
-| `apps/agent-workspace/src/app/features/admin/components/dispositions/dispositions.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/pipelines/pipelines.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/rule-builder/rule-builder.component.spec.ts` | Phase 3 |
-| `apps/agent-workspace/src/app/features/admin/components/skills/skills.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/users/users.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/users/users.component.ts` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/volume-loader/volume-loader.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/volume-loader/volume-loader.component.ts` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/admin/components/work-states/work-states.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/manager/components/queue-monitor/queue-monitor.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/manager/components/skill-assignments/skill-assignments.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/manager/components/team-dashboard/team-dashboard.component.html` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/manager/components/team-dashboard/team-dashboard.component.ts` | Phase 2.5b |
-| `apps/agent-workspace/src/app/features/workspace/components/action-bar/action-bar.component.html` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/action-bar/action-bar.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/agent-stats/agent-stats.component.html` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/agent-stats/agent-stats.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/header/header.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/log-viewer/log-viewer.component.html` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/log-viewer/log-viewer.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/main-stage/main-stage.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/components/sidebar/sidebar.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/features/workspace/workspace.component.ts` | Phase 2 |
-| `apps/agent-workspace/src/app/shared/components/layout/page-layout.component.ts` | Phase 2 |
+All pre-existing errors resolved. No affected files remaining.
 
 ---
 
@@ -82,6 +50,7 @@ All pre-existing errors resolved. No affected files remaining.
 | Phase 3 (baseline set) | 2026-03-19 | 167 | 10 | Established register; 26 Phase 3 errors fixed before ship |
 | Phase 4 Wave 1 (Task 2) | 2026-03-19 | 167 | 0 | Cleared `no-case-declarations` (9) + `prefer-const` (1) in api-server |
 | Phase 4 Wave 1 (Tasks 3–4) | 2026-03-19 | 119 | 0 | Cleared `prefer-inject` (15) + `prefer-control-flow` (29) + `ban-ts-comment` (3) + `no-output-native` (1) in agent-workspace |
+| Phase 4 Wave 3 (Task 5) | 2026-03-20 | 0 | 0 | Cleared `label-has-associated-control` (44) + `interactive-supports-focus` (36) + `click-events-have-key-events` (36) + `no-case-declarations` (3) in agent-workspace |
 
 ---
 

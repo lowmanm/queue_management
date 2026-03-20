@@ -122,8 +122,8 @@
 
   <!-- Editor Modal -->
   @if (showEditor()) {
-    <div class="modal-overlay" (click)="closeEditor()">
-      <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" role="button" tabindex="0" (click)="closeEditor()" (keydown.enter)="closeEditor()" (keydown.space)="closeEditor()">
+      <div class="modal" role="button" tabindex="-1" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
         <div class="modal-header">
           <h2>{{ isEditMode() ? 'Edit Disposition' : 'New Disposition' }}</h2>
           <button class="close-btn" (click)="closeEditor()">&times;</button>
@@ -236,7 +236,7 @@
 
           <!-- Queue Restrictions -->
           <div class="form-group">
-            <label>Queue Restrictions</label>
+            <span class="form-label">Queue Restrictions</span>
             <p class="hint">Leave empty to apply to all queues</p>
             <div class="checkbox-list">
               @for (queue of queues(); track queue.id) {
@@ -254,7 +254,7 @@
 
           <!-- Work Type Restrictions -->
           <div class="form-group">
-            <label>Work Type Restrictions</label>
+            <span class="form-label">Work Type Restrictions</span>
             <p class="hint">Leave empty to apply to all work types</p>
             <div class="checkbox-list">
               @for (wt of workTypes(); track wt.id) {

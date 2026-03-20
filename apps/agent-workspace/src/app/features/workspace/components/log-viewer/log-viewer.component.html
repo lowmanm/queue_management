@@ -1,5 +1,5 @@
-<div class="log-viewer-overlay" (click)="onClose()">
-  <div class="log-viewer-panel" (click)="$event.stopPropagation()">
+<div class="log-viewer-overlay" role="button" tabindex="0" (click)="onClose()" (keydown.enter)="onClose()" (keydown.space)="onClose()">
+  <div class="log-viewer-panel" role="presentation" (click)="$event.stopPropagation()">
     <!-- Header -->
     <div class="log-viewer-header">
       <h3>Debug Logs</h3>
@@ -16,8 +16,8 @@
     <!-- Toolbar -->
     <div class="log-viewer-toolbar">
       <div class="filter-group">
-        <label>Level:</label>
-        <select [ngModel]="selectedLevel" (ngModelChange)="onLevelChange($event)">
+        <label for="log-level-filter">Level:</label>
+        <select id="log-level-filter" [ngModel]="selectedLevel" (ngModelChange)="onLevelChange($event)">
           <option [ngValue]="LogLevel.DEBUG">DEBUG</option>
           <option [ngValue]="LogLevel.INFO">INFO</option>
           <option [ngValue]="LogLevel.WARN">WARN</option>
@@ -26,8 +26,9 @@
       </div>
 
       <div class="filter-group">
-        <label>Context:</label>
+        <label for="log-context-filter">Context:</label>
         <input
+          id="log-context-filter"
           type="text"
           [(ngModel)]="filterContext"
           (ngModelChange)="onContextFilterChange()"
