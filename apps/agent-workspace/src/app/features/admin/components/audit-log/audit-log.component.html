@@ -4,6 +4,62 @@
     <p class="page-description">Domain event history across the task and agent lifecycle.</p>
   </div>
 
+  <!-- Replay Panel Overlay -->
+  @if (replayingAggregateId()) {
+    <div class="replay-overlay">
+      <div class="replay-panel">
+        <div class="replay-header">
+          <h2 class="replay-title">Task Replay — {{ replayingAggregateId() }}</h2>
+          <button class="btn-icon replay-close" (click)="closeReplay()" title="Close">✕</button>
+        </div>
+
+        @if (isReplaying()) {
+          <div class="replay-loading">
+            <span class="loading-spinner"></span>
+            Loading replay data…
+          </div>
+        }
+
+        @if (replayError()) {
+          <div class="error-state">{{ replayError() }}</div>
+        }
+
+        @if (replayData(); as data) {
+          <!-- Event timeline -->
+          <div class="replay-timeline">
+            <h3>Event Timeline ({{ data.events.length }} events)</h3>
+            <ol class="timeline-list">
+              @for (event of data.events; track event.id) {
+                <li class="timeline-item">
+                  <div class="timeline-meta">
+                    <span class="event-badge">{{ event.eventType }}</span>
+                    <span class="timeline-seq">#{{ event.sequenceNum }}</span>
+                    <span class="timeline-time">
+                      {{ event.occurredAt | date:'yyyy-MM-dd HH:mm:ss' }}
+                    </span>
+                  </div>
+                  @if (event.payload && $any(event.payload | keyvalue).length > 0) {
+                    <pre class="timeline-payload">{{ formatPayload(event.payload) }}</pre>
+                  }
+                </li>
+              }
+            </ol>
+          </div>
+
+          <!-- Reconstructed state -->
+          <div class="replay-state">
+            <h3>Reconstructed State</h3>
+            <pre class="state-json">{{ formatState(data.reconstructedState) }}</pre>
+          </div>
+        }
+
+        <div class="replay-footer">
+          <button class="btn-secondary" (click)="closeReplay()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
   <!-- Filter Bar -->
   <div class="filter-bar">
     <div class="filter-row">
@@ -104,6 +160,7 @@
             <th>Pipeline</th>
             <th>Agent</th>
             <th>Payload</th>
+            <th>Replay</th>
           </tr>
         </thead>
         <tbody>
@@ -142,6 +199,17 @@
                 </button>
                 @if (isExpanded(event.id)) {
                   <pre class="payload-json">{{ formatPayload(event.payload) }}</pre>
+                }
+              </td>
+              <td class="col-replay">
+                @if (event.aggregateType === 'task') {
+                  <button
+                    class="payload-toggle"
+                    (click)="startReplay(event.aggregateId)"
+                    title="Replay task state reconstruction"
+                  >
+                    Replay
+                  </button>
                 }
               </td>
             </tr>
