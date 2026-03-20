@@ -10,9 +10,9 @@
 | Field | Value |
 |---|---|
 | **Active Phase** | Phase 4 — Persistence + Production |
-| **Phase Status** | In Progress — Wave 1 complete, Wave 2 next |
+| **Phase Status** | In Progress — Wave 1 complete, Wave 2a complete, Wave 2b next |
 | **Last Session** | 2026-03-19 |
-| **Next Action** | `/execute-task .planning/phases/4/2-1-postgresql-persistence-PLAN.md` |
+| **Next Action** | `/execute-task .planning/phases/4/2-2-redis-event-sourcing-PLAN.md` |
 
 ---
 
@@ -75,7 +75,7 @@ All 22 v1 requirements implemented, verified, and PR opened.
 | Wave | Plan | Status |
 |---|---|---|
 | Wave 1 | `1-1-debt-clearance-PLAN.md` | ✅ Complete |
-| Wave 2a | `2-1-postgresql-persistence-PLAN.md` | ⏳ Next |
+| Wave 2a | `2-1-postgresql-persistence-PLAN.md` | ✅ Complete |
 | Wave 2b | `2-2-redis-event-sourcing-PLAN.md` | ⏳ Pending |
 | Wave 3 | `3-1-auth-monitoring-deploy-PLAN.md` | ⏳ Pending |
 
@@ -126,4 +126,4 @@ None currently.
 
 ---
 
-*Last Updated: 2026-03-19 (Phase 3 complete, Phase 4 next)*
+*Last Updated: 2026-03-19 (Phase 4 Wave 2a complete — TypeORM persistence layer; Wave 2b next — Redis/event sourcing)*
