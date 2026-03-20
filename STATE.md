@@ -9,16 +9,51 @@
 
 | Field | Value |
 |---|---|
-| **Active Phase** | Phase 5 — External Integrations & Advanced Routing |
-| **Phase Status** | **In Progress** — Wave 1 + Wave 2 complete (`2-1-webhook-ui`, `2-2-pipeline-portability`) |
+| **Active Phase** | Phase 6 — (unplanned) |
+| **Phase Status** | **Phase 5 shipped ✅** — PR open on `claude/verify-phase-5-XinDF` → `develop` |
 | **Last Session** | 2026-03-20 |
-| **Next Action** | `/verify-phase 5` — all plans complete, run phase verification |
+| **Next Action** | Merge PR, then `/plan-phase 6` to define the next phase |
 
 ---
 
 ## What Just Happened (Session: 2026-03-20)
 
-### Phase 4 — Persistence + Production — SHIPPED ✅
+### Phase 5 — External Integrations & Advanced Routing — SHIPPED ✅
+
+All 19 v1 requirements implemented, verified, and PR branch pushed.
+
+**PR branch:** `claude/verify-phase-5-XinDF` → `develop`
+**Verification:** `.planning/phases/5/VERIFICATION.md` — 19/19 requirements covered
+
+### What Was Delivered
+
+| Deliverable | Status |
+|---|---|
+| Webhook Ingestion Gateway (`POST /api/webhooks/{token}`, HMAC-SHA256) | ✅ |
+| `WebhooksService` — in-memory endpoint store, token management, delivery log | ✅ |
+| `WebhooksComponent` at `/admin/webhooks` with endpoint CRUD + delivery log panel | ✅ |
+| Outbound webhooks — `OutboundWebhookService` with 3-retry backoff, EventStore logging | ✅ |
+| Pipeline wizard Callbacks step (callbackUrl + callbackEvents) | ✅ |
+| Cross-pipeline routing in `PipelineOrchestratorService` (`MAX_PIPELINE_HOPS=3`) | ✅ |
+| `task.pipeline_transferred` event, DLQ on hop limit exceeded | ✅ |
+| Pipeline wizard routing rule editor — "Transfer to Pipeline" action type | ✅ |
+| `PipelineService.exportPipeline` / `importPipeline` / `clonePipeline` backend | ✅ |
+| `PipelinePortabilityComponent` — export download, import file upload, clone | ✅ |
+| Pipeline list — Export JSON, Clone, Import Pipeline actions | ✅ |
+
+### Decisions Made This Phase
+
+| Decision | Rationale |
+|---|---|
+| In-memory store for webhook endpoints (no TypeORM entity yet) | Consistent with other Phase 5 services; TypeORM upgrade is Phase 6 |
+| `timingSafeEqual` for HMAC comparison | Prevents timing attacks on webhook verification |
+| `@Public()` on `POST /api/webhooks/:token` | Endpoint secured by HMAC token, not JWT |
+| `POST import` declared before `POST :id/clone` in controller | Prevents NestJS matching "import" as an `:id` segment |
+| Export uses queue names (not IDs) in PipelineBundle | Makes bundles portable across environments |
+
+---
+
+## Phase 4 — Persistence + Production — SHIPPED ✅
 
 All 23 v1 requirements implemented, verified, and PR branch pushed.
 
@@ -80,7 +115,7 @@ All 23 v1 requirements implemented, verified, and PR branch pushed.
 
 ---
 
-## Phase 5 — In Progress
+## Phase 5 — Complete ✅
 
 | Wave | Plan | Status |
 |---|---|---|
@@ -126,4 +161,4 @@ None currently.
 
 ---
 
-*Last Updated: 2026-03-20 (Phase 4 shipped — PR open on claude/add-status-endpoint-dLDyi → develop)*
+*Last Updated: 2026-03-20 (Phase 5 shipped — PR open on claude/verify-phase-5-XinDF → develop)*

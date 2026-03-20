@@ -128,6 +128,29 @@
 
 ---
 
+### Phase 5 — External Integrations & Advanced Routing ✅
+
+**Status:** Complete — PR open on `claude/verify-phase-5-XinDF` → `develop`
+**Target branch:** `feature/NQ-500-external-integrations`
+**Requirements:** See `REQUIREMENTS.md` §Phase 5
+**Plans:** `.planning/phases/5/`
+
+**Goal:** Connect Nexus to real source systems via webhook ingestion and outbound callbacks, enable cross-pipeline task routing for complex workflows, and add pipeline portability (export/import/clone) for Designer productivity.
+
+| Deliverable | Category | Status | Description |
+|---|---|---|---|
+| Webhook Ingestion Gateway | Backend | ✅ Done | `POST /api/webhooks/{token}` — HMAC-SHA256 signed, delivery log, in-memory endpoint store |
+| Webhook Config UI | Frontend | ✅ Done | `/admin/webhooks` — endpoint list, create/delete/regen-token, delivery log panel, secret-reveal banner |
+| Outbound Webhooks | Backend | ✅ Done | `OutboundWebhookService` — HMAC-signed HTTP callbacks, 3-retry backoff (5s/25s/125s), EventStore logging |
+| Pipeline Callbacks Step | Frontend | ✅ Done | Pipeline wizard step 6 — `callbackUrl` + `callbackEvents` checkboxes, validation |
+| Cross-Pipeline Routing | Backend | ✅ Done | `RoutingRule.targetPipelineId`, `MAX_PIPELINE_HOPS=3`, `task.pipeline_transferred` events, DLQ on hop limit |
+| Cross-Pipeline Routing UI | Frontend | ✅ Done | Wizard routing rule editor — "Transfer to Pipeline" action type with active-pipeline dropdown |
+| Pipeline Export/Import | Backend | ✅ Done | `GET :id/export`, `POST import` (field-level validation, new IDs on import) — round-trip faithful |
+| Pipeline Clone | Backend | ✅ Done | `POST :id/clone` — deep copy, "(Copy)" suffix, starts inactive |
+| Pipeline Portability UI | Frontend | ✅ Done | `PipelinePortabilityComponent` — export download, import file upload with error display, clone |
+
+---
+
 ## Out of Scope (Explicit)
 
 | Item | Reason |
@@ -139,5 +162,5 @@
 
 ---
 
-*Last Updated: March 2026 (Phase 4 complete — all 23 v1 requirements shipped)*
-*Version: 1.2*
+*Last Updated: March 2026 (Phase 5 complete — all 19 v1 requirements shipped)*
+*Version: 1.3*
