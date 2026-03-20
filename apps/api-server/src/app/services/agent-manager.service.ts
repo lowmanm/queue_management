@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { AgentState } from '@nexus-queue/shared-models';
 import { RedisService } from '../redis';
+import { MetricsService } from '../monitoring/metrics.service';
 
 export interface ConnectedAgent {
   socketId: string;
@@ -27,7 +28,10 @@ export class AgentManagerService {
   private agents = new Map<string, ConnectedAgent>();
   private socketToAgent = new Map<string, string>();
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    private readonly redisService: RedisService,
+    @Optional() private readonly metricsService?: MetricsService,
+  ) {}
 
   // === Private serialisation helpers ===
 
@@ -126,7 +130,17 @@ export class AgentManagerService {
       agent.lastStateChangeAt = new Date();
       await this.persistAgent(agent);
       this.logger.debug(`Agent ${agentId} state updated to: ${state}`);
+      this.updateAgentMetrics();
     }
+  }
+
+  private updateAgentMetrics(): void {
+    if (!this.metricsService) return;
+    const stateCounts = new Map<string, number>();
+    for (const a of this.agents.values()) {
+      stateCounts.set(a.state, (stateCounts.get(a.state) ?? 0) + 1);
+    }
+    stateCounts.forEach((count, s) => this.metricsService!.setAgentsActive(s, count));
   }
 
   /**

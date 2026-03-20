@@ -20,12 +20,14 @@ import { PipelineModule } from './pipelines/pipeline.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { AuditLogModule } from './audit-log';
 import { AuthModule } from './auth';
+import { MonitoringModule } from './monitoring';
 
 @Module({
   imports: [
     DatabaseModule,
     RedisModule,
     AuthModule,
+    MonitoringModule,
     ServicesModule,
     TasksModule,
     GatewayModule,

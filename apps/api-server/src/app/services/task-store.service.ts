@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Task, TaskStatus } from '@nexus-queue/shared-models';
 import { TaskEntity } from '../entities';
+import { MetricsService } from '../monitoring/metrics.service';
 
 /**
  * Unified task lifecycle store backed by TypeORM.
@@ -14,7 +15,9 @@ export class TaskStoreService {
 
   constructor(
     @InjectRepository(TaskEntity)
-    private readonly taskRepo: Repository<TaskEntity>
+    private readonly taskRepo: Repository<TaskEntity>,
+    @Optional()
+    private readonly metricsService?: MetricsService,
   ) {}
 
   /** Generate a unique task ID (UUID from the DB will be used for new tasks) */
@@ -71,6 +74,11 @@ export class TaskStoreService {
     const saved = await this.taskRepo.save(merged);
 
     this.logger.debug(`Task ${taskId} status: ${oldStatus} → ${status}`);
+
+    if (status === 'COMPLETED' && this.metricsService) {
+      this.metricsService.incrementTasksTotal('COMPLETED', saved.pipelineId ?? 'unknown');
+    }
+
     return this.toModel(saved);
   }
 

@@ -5,6 +5,7 @@ import { Task } from '@nexus-queue/shared-models';
 import { QueuedTaskEntity } from '../entities/queued-task.entity';
 import { DLQEntryEntity } from '../entities/dlq-entry.entity';
 import { EventStoreService } from './event-store.service';
+import { MetricsService } from '../monitoring/metrics.service';
 
 /**
  * Entry in the priority queue. Wraps a Task with queue metadata.
@@ -72,6 +73,8 @@ export class QueueManagerService {
     private readonly dataSource: DataSource,
     @Optional()
     private readonly eventStore?: EventStoreService,
+    @Optional()
+    private readonly metricsService?: MetricsService,
   ) {}
 
   private get isPostgres(): boolean {
@@ -108,6 +111,13 @@ export class QueueManagerService {
     this.logger.debug(
       `Enqueued task ${queuedTask.id} in queue ${queueId} (priority: ${queuedTask.priority})`
     );
+
+    // Update queue depth metric (fire-and-forget)
+    if (this.metricsService) {
+      void this.queuedTaskRepo.count({ where: { queueId } }).then((depth) => {
+        this.metricsService!.setQueueDepth(queueId, queueId, depth);
+      });
+    }
 
     // Emit task.queued event (fire-and-forget)
     void this.eventStore?.emit({
@@ -285,6 +295,13 @@ export class QueueManagerService {
     await this.dlqRepo.save(entry);
 
     this.logger.warn(`Task ${queuedTask.id} moved to DLQ: ${reason}`);
+
+    // Update DLQ depth metric (fire-and-forget)
+    if (this.metricsService) {
+      void this.dlqRepo.count().then((depth) => {
+        this.metricsService!.setDlqDepth(depth);
+      });
+    }
 
     // Emit task.dlq event (fire-and-forget)
     void this.eventStore?.emit({

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { QueueManagerService, QueuedTask } from './queue-manager.service';
 import { EventStoreService } from './event-store.service';
+import { MetricsService } from '../monitoring/metrics.service';
 
 export interface SLABreachEvent {
   taskId: string;
@@ -46,6 +47,8 @@ export class SLAMonitorService implements OnModuleDestroy {
     private readonly queueManager: QueueManagerService,
     @Optional()
     private readonly eventStore?: EventStoreService,
+    @Optional()
+    private readonly metricsService?: MetricsService,
   ) {
     this.logger.log('SLA Monitor initialized');
   }
@@ -160,6 +163,11 @@ export class SLAMonitorService implements OnModuleDestroy {
 
       events.push(event);
       this.recordBreach(event);
+
+      // Increment breach metric (breach and critical severity)
+      if (severity !== 'warning') {
+        this.metricsService?.incrementSlaBreaches(task.queueId);
+      }
 
       // Emit domain event (fire-and-forget)
       const auditType = severity === 'warning' ? 'sla.warning' : 'sla.breach';
