@@ -42,6 +42,13 @@
       "dependsOn": ["prune-lockfile", "copy-workspace-modules"],
       "executor": "nx:noop"
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run",
+        "cwd": "apps/api-server"
+      }
+    },
     "serve": {
       "continuous": true,
       "executor": "@nx/js:node",
