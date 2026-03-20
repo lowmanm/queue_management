@@ -9,51 +9,52 @@
 
 | Field | Value |
 |---|---|
-| **Active Phase** | Phase 4 — Persistence + Production |
-| **Phase Status** | **Complete** — All waves done |
+| **Active Phase** | Phase 5 — (not yet scoped) |
+| **Phase Status** | **Shipped** — Phase 4 PR open on `claude/add-status-endpoint-dLDyi` → `develop` |
 | **Last Session** | 2026-03-20 |
-| **Next Action** | `/ship 4` — create Phase 4 PR and update ROADMAP.md |
+| **Next Action** | Merge Phase 4 PR, then `/plan-phase 5` to scope next phase |
 
 ---
 
-## What Just Happened (Session: 2026-03-19)
+## What Just Happened (Session: 2026-03-20)
 
-### Phase 3 — Logic Builder — SHIPPED ✅
+### Phase 4 — Persistence + Production — SHIPPED ✅
 
-All 22 v1 requirements implemented, verified, and PR opened.
+All 23 v1 requirements implemented, verified, and PR branch pushed.
 
-**PR branch:** `claude/dlq-monitor-pipeline-status-Iq03S` → `develop`
-**PR URL:** https://github.com/lowmanm/queue_management/pull/new/claude/dlq-monitor-pipeline-status-Iq03S
-**Verification:** `.planning/phases/3/VERIFICATION.md` — PASS
+**PR branch:** `claude/add-status-endpoint-dLDyi` → `develop`
+**Verification:** `.planning/phases/4/PLAN-VERIFICATION.md` — 23/23 requirements covered
 
 ### What Was Delivered
 
-| Feature | Routes | Guard |
-|---|---|---|
-| Pipeline Creation Wizard | `/admin/pipelines/new` | `designerGuard` |
-| Rule Builder UI | `/admin/rule-sets` | `designerGuard` |
-| Queue Configuration Panel | Embedded in Pipelines admin | `designerGuard` |
-| DLQ Monitor | `/manager/dlq` | `managerGuard` |
-| Pipeline Status Dashboard | `/manager/pipeline-status` | `managerGuard` |
-
-**Backend additions:**
-- `DlqController` — 5 DLQ endpoints (filter, stats, retry, reroute, discard)
-- `PipelineMetricsService` — per-pipeline throughput, SLA %, error rate
-- `PipelineVersionService` — config snapshots + rollback (max 20 versions)
-- `POST /api/pipelines/:id/validate` — dry-run validation
-- `POST /api/rules/sets/:id/test` — rule set before/after trace
-- `pipeline:metrics` WebSocket broadcast every 10s
+| Deliverable | Status |
+|---|---|
+| TypeORM DatabaseModule (SQLite/PostgreSQL dual-mode) | ✅ |
+| 17 TypeORM entities + InitialSchema migration + seed script | ✅ |
+| All 8 services migrated to TypeORM repositories | ✅ |
+| RedisModule with graceful fallback (no-ops when REDIS_URL absent) | ✅ |
+| AgentManagerService + AgentSessionService → Redis write-through cache | ✅ |
+| TaskDistributorService → Redis pub/sub (`nexus:task:distribute`) | ✅ |
+| EventStoreService + `task_events` append-only table | ✅ |
+| 11 domain events across full task lifecycle | ✅ |
+| `GET /api/audit-log` paginated + filtered | ✅ |
+| AuditLogComponent at `/admin/audit-log` (adminGuard) | ✅ |
+| JWT AuthModule (bcrypt, 15m/7d tokens), JwtAuthGuard globally applied | ✅ |
+| Frontend AuthService: real login, localStorage JWT, auto-refresh | ✅ |
+| Prometheus metrics: 6 custom `nexus_*` metrics at `GET /api/metrics` | ✅ |
+| `GET /api/health` via @nestjs/terminus | ✅ |
+| Multi-stage Dockerfiles (api + nginx), docker-compose.yml | ✅ |
+| agent-workspace accessibility debt cleared: 119 → 0 errors | ✅ |
 
 ### Decisions Made This Phase
 
 | Decision | Rationale |
 |---|---|
-| Form-based rule builder (not visual drag-and-drop) | Faster to build, sufficient for v1. Visual builder is Phase 5+ |
-| Pipeline wizard is multi-step | Complex config benefits from guided steps |
-| DLQ monitor is Manager/Admin only | Agents/Designers shouldn't manage failed tasks |
-| In-memory stores continue for Phase 3 | Persistence is Phase 4 |
-| `setInterval` in gateway for metrics broadcast | Avoids `@nestjs/schedule` dependency |
-| `@Optional()` injection for version/metrics services | Graceful degradation at construction time |
+| SQLite in dev, PostgreSQL in prod | Zero local Docker requirement for development |
+| Write-through cache for AgentManagerService (sync reads, async writes) | Prevents breaking existing sync callers during Redis migration |
+| `APP_GUARD` provider for JwtAuthGuard (not `app.useGlobalGuards()`) | Enables proper NestJS DI for `@Public()` decorator resolution |
+| `@Public()` opt-out vs `@UseGuards()` opt-in | Fewer changes to existing controllers; open endpoints are the exception |
+| prom-client directly (not @willsoto/nestjs-prometheus) | Simpler; metrics service already injectable without extra boilerplate |
 
 ---
 
@@ -68,9 +69,7 @@ All 22 v1 requirements implemented, verified, and PR opened.
 
 ---
 
-## Phase 4 — In Progress
-
-**Goal:** Replace in-memory stores with durable persistence, add horizontal scaling, prepare for production.
+## Phase 4 — Complete ✅
 
 | Wave | Plan | Status |
 |---|---|---|
@@ -78,15 +77,6 @@ All 22 v1 requirements implemented, verified, and PR opened.
 | Wave 2a | `2-1-postgresql-persistence-PLAN.md` | ✅ Complete |
 | Wave 2b | `2-2-redis-event-sourcing-PLAN.md` | ✅ Complete |
 | Wave 3 | `3-1-auth-monitoring-deploy-PLAN.md` | ✅ Complete |
-
-| Deliverable | Description |
-|---|---|
-| PostgreSQL queue backing | `queue_tasks` table with priority index |
-| Redis real-time layer | Agent state, session cache, pub/sub for multi-instance |
-| Event sourcing | Immutable event log for task lifecycle audit trail |
-| Horizontal scaling | Stateless API servers behind load balancer |
-| Real authentication | Replace mock auth with OAuth2/OIDC provider |
-| Monitoring & alerting | Prometheus metrics, Grafana dashboards |
 
 ---
 
@@ -126,4 +116,4 @@ None currently.
 
 ---
 
-*Last Updated: 2026-03-20 (Phase 4 complete — JWT auth, Prometheus metrics, Docker Compose, accessibility debt cleared 119→0)*
+*Last Updated: 2026-03-20 (Phase 4 shipped — PR open on claude/add-status-endpoint-dLDyi → develop)*
