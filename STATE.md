@@ -10,9 +10,9 @@
 | Field | Value |
 |---|---|
 | **Active Phase** | Phase 4 — Persistence + Production |
-| **Phase Status** | In Progress — Wave 1 complete, Wave 2a complete, Wave 2b next |
-| **Last Session** | 2026-03-19 |
-| **Next Action** | `/execute-task .planning/phases/4/2-2-redis-event-sourcing-PLAN.md` |
+| **Phase Status** | In Progress — Wave 1 complete, Wave 2a complete, Wave 2b complete, Wave 3 next |
+| **Last Session** | 2026-03-20 |
+| **Next Action** | `/execute-task .planning/phases/4/3-1-auth-monitoring-deploy-PLAN.md` |
 
 ---
 
@@ -76,7 +76,7 @@ All 22 v1 requirements implemented, verified, and PR opened.
 |---|---|---|
 | Wave 1 | `1-1-debt-clearance-PLAN.md` | ✅ Complete |
 | Wave 2a | `2-1-postgresql-persistence-PLAN.md` | ✅ Complete |
-| Wave 2b | `2-2-redis-event-sourcing-PLAN.md` | ⏳ Pending |
+| Wave 2b | `2-2-redis-event-sourcing-PLAN.md` | ✅ Complete |
 | Wave 3 | `3-1-auth-monitoring-deploy-PLAN.md` | ⏳ Pending |
 
 | Deliverable | Description |
@@ -112,7 +112,7 @@ None currently.
 |---|---|
 | Build | ✅ Passing |
 | Lint | ⚠️ 119 pre-existing accessibility errors in agent-workspace (Wave 3); api-server 0 ✅ |
-| Tests | ✅ 51 tests passing |
+| Tests | ✅ 65 tests passing |
 | Tech Debt | agent-workspace 167→119 (−29%); api-server 0 ✅ |
 
 ---
@@ -126,4 +126,4 @@ None currently.
 
 ---
 
-*Last Updated: 2026-03-19 (Phase 4 Wave 2a complete — TypeORM persistence layer; Wave 2b next — Redis/event sourcing)*
+*Last Updated: 2026-03-20 (Phase 4 Wave 2b complete — Redis layer, event sourcing, audit log; Wave 3 next — auth, monitoring, deploy)*
