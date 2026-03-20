@@ -151,6 +151,44 @@
 
 ---
 
+---
+
+## Milestone 3: Observability, Hardening & Storage
+
+### Phase 6 — Observability, Hardening & Storage Connectors 🔄
+
+**Status:** In Planning
+**Target branch:** `feature/NQ-600-observability-hardening`
+**Requirements:** See `REQUIREMENTS.md` §Phase 6
+**Plans:** `.planning/phases/6/`
+
+**Goal:** Deliver production-grade observability (Grafana dashboard, Prometheus alert rules), harden the platform (webhook rate limiting, DLQ auto-retry policies, event sourcing replay, bulk queue operations), implement real cloud storage connectors (S3, GCS, SFTP) for the Volume Loader, and complete deferred portability features (rule set export/import, pipeline version diff view).
+
+| Deliverable | Category | Status | Description |
+|---|---|---|---|
+| Webhook Rate Limiting | Backend | 🔲 Planned | @nestjs/throttler; per-token 100 req/60s, configurable; RATE_LIMITED delivery log |
+| DLQ Auto-Retry Policies | Backend | 🔲 Planned | DlqAutoRetryService scheduler; configurable interval, maxRetries, backoffMultiplier per queue |
+| Event Sourcing Replay | Backend | 🔲 Planned | GET /api/audit-log/replay/:aggregateId; EventStoreService.replayAggregate() state reducer |
+| Bulk Queue Operations | Backend | 🔲 Planned | POST /api/queues/bulk — activate/deactivate/pause with partial-success reporting |
+| DLQ Config UI | Frontend | 🔲 Planned | Queue Config Panel — DLQ Auto-Retry section; Queue Monitor — bulk selection + toolbar |
+| Audit Log Replay UI | Frontend | 🔲 Planned | Step-by-step task state reconstruction timeline |
+| Grafana Dashboard | Infra | 🔲 Planned | grafana/nexus-queue-dashboard.json — 6-panel importable dashboard |
+| Prometheus Alert Rules | Infra | 🔲 Planned | prometheus/alerts.yml — 4 rules (queue high, SLA breach, DLQ depth, API down) |
+| Monitoring Docker Profile | Infra | 🔲 Planned | docker-compose --profile monitoring adds Prometheus + Grafana services |
+| JSON Metrics Endpoint | Backend | 🔲 Planned | GET /api/metrics/json — MetricsSnapshot for Angular frontend consumption |
+| Admin Observability Page | Frontend | 🔲 Planned | /admin/observability — live metric tiles, per-queue depth table |
+| S3 Connector | Backend | 🔲 Planned | S3ConnectorService via @aws-sdk/client-s3; bucket/prefix/region config |
+| GCS Connector | Backend | 🔲 Planned | GcsConnectorService via @google-cloud/storage; GOOGLE_APPLICATION_CREDENTIALS |
+| SFTP Connector | Backend | 🔲 Planned | SftpConnectorService via ssh2-sftp-client; privateKey or password auth |
+| IStorageConnector Abstraction | Backend | 🔲 Planned | Polymorphic connector interface; VolumeLoader routes by loaderType |
+| Connector Test UI | Frontend | 🔲 Planned | Volume Loader — Test Connection button; shows sample file listing |
+| Rule Set Export/Import | Backend | 🔲 Planned | GET /api/rules/sets/:id/export; POST /api/rules/sets/import with UUID rewrite |
+| Rule Builder Export/Import UI | Frontend | 🔲 Planned | Export JSON download + Import JSON file upload with validation errors |
+| Pipeline Version Diff | Backend | 🔲 Planned | GET /api/pipelines/:id/versions/diff?v1&v2 — field-level VersionDiffResult |
+| Pipeline Diff View | Frontend | 🔲 Planned | PipelineDiffModalComponent — version selector + color-coded diff table |
+
+---
+
 ## Out of Scope (Explicit)
 
 | Item | Reason |
@@ -162,5 +200,5 @@
 
 ---
 
-*Last Updated: March 2026 (Phase 5 complete — all 19 v1 requirements shipped)*
-*Version: 1.3*
+*Last Updated: March 2026 (Phase 6 planning — 27 v1 requirements defined)*
+*Version: 1.4*

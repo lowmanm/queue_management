@@ -240,5 +240,95 @@
 
 ---
 
+## Phase 6 — Observability, Hardening & Storage Connectors
+
+> Scoped 2026-03-20. Goal: Deliver production-grade observability (Grafana dashboard, Prometheus alert rules), harden the platform (webhook rate limiting, DLQ auto-retry policies, event sourcing replay, bulk queue operations), implement real cloud storage connectors (S3, GCS, SFTP), and complete deferred portability features (rule set export/import, pipeline version diff view).
+
+### v1 Requirements (Must Have)
+
+#### Webhook Rate Limiting
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-001 | `@nestjs/throttler` added; `POST /api/webhooks/:token` rate-limited to 100 req/60s by default; configurable via `WEBHOOK_RATE_LIMIT` and `WEBHOOK_RATE_LIMIT_TTL` env vars | Webhook Rate Limiting |
+| P6-002 | `WebhookEndpoint` model adds optional `rateLimit: { limit: number; ttl: number }` field for per-endpoint override of the global throttle | Webhook Rate Limiting |
+| P6-003 | Rate-limited requests return HTTP 429 with `Retry-After` header; delivery log records `RATE_LIMITED` status | Webhook Rate Limiting |
+
+#### DLQ Auto-Retry Policies
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-010 | `PipelineQueue` model adds optional `dlqAutoRetry: { enabled: boolean; intervalMinutes: number; maxRetries: number; backoffMultiplier: number }` field | DLQ Auto-Retry Policies |
+| P6-011 | `DlqAutoRetryService` runs every minute (`@Cron`), checks DLQ for tasks eligible for auto-retry (within `maxRetries`), and re-ingests via `PipelineOrchestratorService.ingestTask()`; backoff delay = `intervalMinutes × backoffMultiplier^retryCount` minutes | DLQ Auto-Retry Policies |
+| P6-012 | Each auto-retry attempt increments the DLQ entry's retry count and emits `task.dlq.auto_retried` domain event to `EventStoreService` | DLQ Auto-Retry Policies |
+| P6-013 | Queue Configuration Panel adds DLQ Auto-Retry section: enable toggle, interval (minutes), max retries, backoff multiplier; sub-fields hidden when disabled | DLQ Auto-Retry Policies |
+
+#### Event Sourcing Replay
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-020 | `GET /api/audit-log/replay/:aggregateId` replays all events for a task aggregate in sequence and returns `{ events: AuditEvent[], reconstructedState: Partial<Task> }` — read-only; does not modify live state | Event Sourcing Replay |
+| P6-021 | Audit Log frontend adds "Replay Task" action per task aggregate group; clicking opens an inline timeline showing each event with the state delta it caused and the final reconstructed state | Event Sourcing Replay |
+| P6-022 | Replay logic isolated in `EventStoreService.replayAggregate(aggregateId)`; applies domain events as a state reducer | Event Sourcing Replay |
+
+#### Bulk Queue Operations
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-030 | `POST /api/queues/bulk` accepts `{ ids: string[], action: 'activate' | 'deactivate' | 'pause' }` and applies atomically; returns `{ succeeded: string[], failed: { id: string, reason: string }[] }` — partial success is allowed | Bulk Queue Operations |
+| P6-031 | Queue Monitor (Manager) adds checkbox selection per queue row (with select-all header); bulk action toolbar appears when ≥1 queue selected; supports Activate, Deactivate, Pause | Bulk Queue Operations |
+
+#### Grafana & Observability
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-040 | `grafana/nexus-queue-dashboard.json` committed to repo — importable Grafana dashboard (requires Prometheus datasource named "Nexus") with 6 panels: Queue Depth (time series per queue), Task Throughput (rate graph), Agent State Distribution (pie), SLA Compliance % (stat), DLQ Depth (gauge), Task Handle Time (heatmap) | Grafana Dashboard |
+| P6-041 | `prometheus/alerts.yml` defines 4 Prometheus alerting rules: `NexusQueueHigh` (depth > 100, warning), `NexusSLABreachRateHigh` (breach rate > 5%, critical), `NexusDLQDepth` (depth > 50, warning), `NexusAPIDown` (scrape target down, critical) | Alert Rules |
+| P6-042 | `docker-compose.yml` adds `prometheus` and `grafana` services under `profiles: [monitoring]` (opt-in, not started by default); `prometheus/prometheus.yml` scrapes `api:3000/api/metrics` | Monitoring Docker Profile |
+| P6-043 | `GET /api/metrics/json` returns `MetricsSnapshot` JSON (queue depth per queue, tasks total per status, agents by state, SLA breaches, DLQ depth, handle time percentiles, collectedAt); public endpoint (no JWT) | JSON Metrics Endpoint |
+| P6-044 | Admin Observability page at `/admin/observability` (designerGuard) shows 5 live metric tiles (total queue depth, agents online, DLQ depth, tasks today, SLA breaches) and per-queue depth table; polls `GET /api/metrics/json` every 10 seconds | Admin Observability Page |
+
+#### Storage Connectors
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-050 | `S3ConnectorService` implements `IStorageConnector`; reads CSV/JSON/JSONL from AWS S3 via `@aws-sdk/client-s3`; configured via `s3Config.bucket`, `s3Config.keyPrefix`, `s3Config.region`; AWS credentials from `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` env vars (or IAM role) | S3 Connector |
+| P6-051 | `GcsConnectorService` implements `IStorageConnector`; reads from Google Cloud Storage via `@google-cloud/storage`; configured via `gcsConfig.bucket`, `gcsConfig.prefix`; credentials from `GOOGLE_APPLICATION_CREDENTIALS` env var | GCS Connector |
+| P6-052 | `SftpConnectorService` implements `IStorageConnector`; reads from SFTP via `ssh2-sftp-client`; configured via `sftpConfig.host`, `sftpConfig.port`, `sftpConfig.username`, `sftpConfig.privateKey` or `sftpConfig.password` | SFTP Connector |
+| P6-053 | `IStorageConnector` interface defines `testConnection()`, `listFiles()`, `downloadFile()` methods; `VolumeLoaderService` dispatches to the correct connector based on `loaderType`; `LOCAL` and `HTTP` refactored as `LocalConnectorService` and `HttpConnectorService` implementing the same interface | IStorageConnector Abstraction |
+| P6-054 | `POST /api/volume-loaders/:id/test-connection` validates credentials and returns up to 5 sample file paths from the remote source; Volume Loader admin UI adds "Test Connection" button showing success (file count + paths) or error message | Connector Test UI |
+
+#### Rule Set Portability
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P6-060 | `GET /api/rules/sets/:id/export` returns `RuleSetBundle { version: '1.0', exportedAt, ruleSet, rules }` as a downloadable JSON attachment | Rule Set Export |
+| P6-061 | `POST /api/rules/sets/import` accepts `RuleSetBundle`, validates structure with field-level errors, and creates a new rule set with new system-generated UUIDs; never overwrites existing rule sets | Rule Set Import |
+| P6-062 | Rule Builder UI adds Export JSON button per rule set (triggers file download) and Import JSON button (file picker with validation error display and success message with new ID) | Rule Builder Export/Import UI |
+| P6-063 | `GET /api/pipelines/:id/versions/diff?v1=:idx&v2=:idx` returns `VersionDiffResult { v1Index, v2Index, v1SnapshotAt, v2SnapshotAt, entries: VersionDiffEntry[] }` where each entry has `{ path, oldValue, newValue, changeType }` | Pipeline Version Diff |
+| P6-064 | `PipelineDiffModalComponent` shows version A/B selectors, "Compare" button, and a color-coded diff table (green=added, red=removed, yellow=changed); accessible from the pipeline versions panel | Pipeline Diff View |
+
+### v2 Requirements (Nice to Have)
+
+| ID | Requirement | Notes |
+|---|---|---|
+| P6-100 | PagerDuty SLA breach integration — `AlertWebhookService` sends PagerDuty Events API v2 on `sla.breach` events | Requires PagerDuty account and alerting policy design |
+| P6-101 | Grafana provisioning via docker-compose — auto-import dashboard and configure datasource on startup | Requires Grafana provisioning YAML files |
+| P6-102 | Webhook endpoint rate limiting UI — per-endpoint rateLimit config in Webhooks admin | Complements P6-002 backend |
+| P6-103 | Volume Loader scheduler UI — start/stop/pause loader runs from admin; show run history inline | Improves Designer UX |
+| P6-104 | Rule set diff view — compare two versions of a rule set (rule-by-rule changes) | Parallels pipeline diff |
+
+### Out of Scope for Phase 6
+
+| Item | Reason | Target |
+|---|---|---|
+| PagerDuty integration (P4-103) | Requires external account + alerting policy design | Phase 7+ |
+| OAuth2/OIDC external provider (P5-100) | Large auth infrastructure change; JWT sufficient | Phase 7+ |
+| Visual drag-and-drop pipeline flow builder (P5-101) | Form-based UI is functional; evaluate after user feedback | Phase 7+ |
+| Multi-tenancy | Single organization deployment; architectural overhaul required | Out of scope |
+| Grafana auto-provisioning | Static JSON sufficient; auto-provisioning is P6-101 (v2) | Phase 7+ |
+
+---
+
 *Last Updated: March 2026*
-*Version: 1.1*
+*Version: 1.2*
