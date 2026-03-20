@@ -117,6 +117,61 @@
         </div>
       }
 
+      <!-- DLQ Auto-Retry Section -->
+      <div class="form-section">
+        <div class="form-section-header">
+          <label class="form-label" for="create-dlq-enabled">DLQ Auto-Retry</label>
+          <input
+            id="create-dlq-enabled"
+            type="checkbox"
+            [checked]="form().dlqAutoRetry.enabled"
+            (change)="updateDlqRetryField('enabled', $any($event.target).checked)"
+          />
+          <span class="form-hint">Automatically retry DLQ tasks on a schedule.</span>
+        </div>
+        @if (form().dlqAutoRetry.enabled) {
+          <p class="form-help-text">
+            Backoff delay = interval × multiplier^retryCount minutes.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="create-dlq-interval">Interval (min)</label>
+              <input
+                id="create-dlq-interval"
+                type="number"
+                class="form-input"
+                [value]="form().dlqAutoRetry.intervalMinutes"
+                (input)="updateDlqRetryField('intervalMinutes', +$any($event.target).value)"
+                min="1"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="create-dlq-max">Max Retries</label>
+              <input
+                id="create-dlq-max"
+                type="number"
+                class="form-input"
+                [value]="form().dlqAutoRetry.maxRetries"
+                (input)="updateDlqRetryField('maxRetries', +$any($event.target).value)"
+                min="1"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="create-dlq-mult">Backoff Multiplier</label>
+              <input
+                id="create-dlq-mult"
+                type="number"
+                class="form-input"
+                [value]="form().dlqAutoRetry.backoffMultiplier"
+                (input)="updateDlqRetryField('backoffMultiplier', +$any($event.target).value)"
+                min="1"
+                step="0.5"
+              />
+            </div>
+          </div>
+        }
+      </div>
+
       <div class="form-actions">
         <button class="btn-secondary btn-sm" (click)="cancelCreate()">Cancel</button>
         <button class="btn-primary btn-sm" (click)="saveCreate()" [disabled]="isLoading()">
@@ -241,6 +296,61 @@
               </div>
             </div>
           }
+
+          <!-- DLQ Auto-Retry Section -->
+          <div class="form-section">
+            <div class="form-section-header">
+              <label class="form-label" [attr.for]="'edit-dlq-enabled-' + queue.id">DLQ Auto-Retry</label>
+              <input
+                [id]="'edit-dlq-enabled-' + queue.id"
+                type="checkbox"
+                [checked]="form().dlqAutoRetry.enabled"
+                (change)="updateDlqRetryField('enabled', $any($event.target).checked)"
+              />
+              <span class="form-hint">Automatically retry DLQ tasks on a schedule.</span>
+            </div>
+            @if (form().dlqAutoRetry.enabled) {
+              <p class="form-help-text">
+                Backoff delay = interval × multiplier^retryCount minutes.
+              </p>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" [attr.for]="'edit-dlq-interval-' + queue.id">Interval (min)</label>
+                  <input
+                    [id]="'edit-dlq-interval-' + queue.id"
+                    type="number"
+                    class="form-input"
+                    [value]="form().dlqAutoRetry.intervalMinutes"
+                    (input)="updateDlqRetryField('intervalMinutes', +$any($event.target).value)"
+                    min="1"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" [attr.for]="'edit-dlq-max-' + queue.id">Max Retries</label>
+                  <input
+                    [id]="'edit-dlq-max-' + queue.id"
+                    type="number"
+                    class="form-input"
+                    [value]="form().dlqAutoRetry.maxRetries"
+                    (input)="updateDlqRetryField('maxRetries', +$any($event.target).value)"
+                    min="1"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" [attr.for]="'edit-dlq-mult-' + queue.id">Backoff Multiplier</label>
+                  <input
+                    [id]="'edit-dlq-mult-' + queue.id"
+                    type="number"
+                    class="form-input"
+                    [value]="form().dlqAutoRetry.backoffMultiplier"
+                    (input)="updateDlqRetryField('backoffMultiplier', +$any($event.target).value)"
+                    min="1"
+                    step="0.5"
+                  />
+                </div>
+              </div>
+            }
+          </div>
 
           <div class="form-actions">
             <button class="btn-secondary btn-sm" (click)="cancelEdit()">Cancel</button>

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, interval, takeUntil, BehaviorSubject, switchMap, startWith } from 'rxjs';
 import { ManagerApiService, QueueStats, QueuesSummary } from '../../../../core/services/manager-api.service';
@@ -27,6 +27,11 @@ export class QueueMonitorComponent implements OnInit, OnDestroy {
 
   selectedFilter: 'all' | 'healthy' | 'warning' | 'critical' = 'all';
   private allQueues: QueueStats[] = [];
+
+  // Bulk selection state
+  selectedQueueIds = signal<Set<string>>(new Set());
+  bulkActionResult = signal<{ succeeded: string[]; failed: Array<{ id: string; reason: string }> } | null>(null);
+  bulkActionPending = signal(false);
 
   ngOnInit(): void {
     // Fetch queue stats from API every 5 seconds
@@ -66,6 +71,72 @@ export class QueueMonitorComponent implements OnInit, OnDestroy {
   setFilter(filter: 'all' | 'healthy' | 'warning' | 'critical'): void {
     this.selectedFilter = filter;
     this.applyFilter();
+  }
+
+  // ============ BULK SELECTION ============
+
+  toggleSelect(id: string): void {
+    this.selectedQueueIds.update((ids) => {
+      const next = new Set(ids);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  selectAll(): void {
+    const allIds = new Set(this.queues$.value.map((q) => q.id));
+    this.selectedQueueIds.set(allIds);
+  }
+
+  clearSelection(): void {
+    this.selectedQueueIds.set(new Set());
+  }
+
+  hasSelection(): boolean {
+    return this.selectedQueueIds().size > 0;
+  }
+
+  isSelected(id: string): boolean {
+    return this.selectedQueueIds().has(id);
+  }
+
+  isAllSelected(): boolean {
+    const queues = this.queues$.value;
+    return queues.length > 0 && queues.every((q) => this.selectedQueueIds().has(q.id));
+  }
+
+  applyBulkAction(action: 'activate' | 'deactivate' | 'pause'): void {
+    const ids = Array.from(this.selectedQueueIds());
+    if (ids.length === 0) return;
+
+    if (!confirm(`Apply "${action}" to ${ids.length} queue(s)?`)) return;
+
+    this.bulkActionPending.set(true);
+    this.bulkActionResult.set(null);
+
+    this.managerApi.bulkQueueAction(ids, action)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (result) => {
+          this.bulkActionResult.set(result);
+          this.bulkActionPending.set(false);
+          this.clearSelection();
+          // Refresh queue list
+          this.managerApi.getQueueStats()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((queues) => {
+              this.allQueues = queues;
+              this.applyFilter();
+            });
+        },
+        error: () => {
+          this.bulkActionPending.set(false);
+        },
+      });
   }
 
   formatDuration(seconds: number): string {

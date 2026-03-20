@@ -57,6 +57,12 @@ export class AuditLogComponent implements OnInit, OnDestroy {
   /** Rows with expanded payload JSON */
   expandedRows = signal<Set<string>>(new Set());
 
+  /** Replay state */
+  replayingAggregateId = signal<string | null>(null);
+  replayData = signal<{ events: AuditEvent[]; reconstructedState: Record<string, unknown> } | null>(null);
+  replayError = signal('');
+  isReplaying = signal(false);
+
   readonly eventTypes: AuditEventType[] = [
     'task.ingested',
     'task.queued',
@@ -186,5 +192,56 @@ export class AuditLogComponent implements OnInit, OnDestroy {
 
   get hasNextPage(): boolean {
     return this.currentPage() * this.pageLimit() < this.totalEvents();
+  }
+
+  // ============================================================
+  // REPLAY
+  // ============================================================
+
+  startReplay(aggregateId: string): void {
+    this.replayingAggregateId.set(aggregateId);
+    this.replayData.set(null);
+    this.replayError.set('');
+    this.isReplaying.set(true);
+
+    this.http
+      .get<{ events: AuditEvent[]; reconstructedState: Record<string, unknown> }>(
+        `${environment.apiUrl}/audit-log/replay/${aggregateId}`,
+      )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.replayData.set(data);
+          this.isReplaying.set(false);
+        },
+        error: () => {
+          this.replayError.set('Failed to load replay data. Please try again.');
+          this.isReplaying.set(false);
+        },
+      });
+  }
+
+  closeReplay(): void {
+    this.replayingAggregateId.set(null);
+    this.replayData.set(null);
+    this.replayError.set('');
+    this.isReplaying.set(false);
+  }
+
+  formatState(state: Record<string, unknown>): string {
+    return JSON.stringify(state, null, 2);
+  }
+
+  /** Returns unique task aggregate IDs from the current event list (task aggregates only) */
+  get taskAggregates(): string[] {
+    const seen = new Set<string>();
+    return this.events()
+      .filter((e) => e.aggregateType === 'task')
+      .map((e) => e.aggregateId)
+      .filter((id) => {
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
   }
 }

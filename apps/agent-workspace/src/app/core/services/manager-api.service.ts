@@ -253,6 +253,20 @@ export class ManagerApiService {
     return this.http.delete<{ success: boolean }>(`${API_BASE}/queues/${id}`);
   }
 
+  /**
+   * Apply a bulk action to multiple queues.
+   * Returns succeeded IDs and failed entries with reasons.
+   */
+  bulkQueueAction(
+    ids: string[],
+    action: 'activate' | 'deactivate' | 'pause',
+  ): Observable<{ succeeded: string[]; failed: Array<{ id: string; reason: string }> }> {
+    return this.http.post<{ succeeded: string[]; failed: Array<{ id: string; reason: string }> }>(
+      `${API_BASE}/queues/bulk`,
+      { ids, action },
+    );
+  }
+
   // ============ METRICS API ============
 
   /**

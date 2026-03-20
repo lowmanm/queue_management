@@ -23,7 +23,11 @@ export class WebhooksService {
    * Create a new webhook endpoint for the given pipeline.
    * The generated token and secret are returned only once — callers must store them.
    */
-  createEndpoint(pipelineId: string, name: string): WebhookEndpoint {
+  createEndpoint(
+    pipelineId: string,
+    name: string,
+    rateLimit?: { limit: number; ttl: number },
+  ): WebhookEndpoint {
     const id = randomBytes(16).toString('hex');
     const token = randomBytes(32).toString('hex');
     const secret = randomBytes(32).toString('hex');
@@ -38,6 +42,7 @@ export class WebhooksService {
       status: 'active',
       createdAt: now,
       deliveryCount: 0,
+      rateLimit,
     };
 
     this.endpoints.set(id, endpoint);
@@ -184,5 +189,22 @@ export class WebhooksService {
     if (orchStatus === 'DLQ') return 'DLQ';
     if (orchStatus === 'REJECTED' || orchStatus === 'DUPLICATE') return 'REJECTED';
     return 'ERROR';
+  }
+
+  /**
+   * Record a RATE_LIMITED delivery log entry when the throttle guard rejects a request.
+   */
+  rateLimitedDelivery(endpointId: string, token: string, ip: string | undefined): WebhookDelivery {
+    this.logger.warn(`Rate limit exceeded for endpoint ${endpointId} (token: ${token.substring(0, 8)}…, ip: ${ip})`);
+    return this.logDelivery(endpointId, {
+      webhookId: endpointId,
+      receivedAt: new Date().toISOString(),
+      sourceIp: ip,
+      payloadBytes: 0,
+      status: 'RATE_LIMITED',
+      orchestrationStatus: 'RATE_LIMITED',
+      errorMessage: 'Rate limit exceeded — too many requests in window',
+      processingMs: 0,
+    });
   }
 }

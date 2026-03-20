@@ -7,12 +7,19 @@ export interface QueueConfig {
   name: string;
   description: string;
   active: boolean;
+  status?: 'active' | 'paused';
   priority: number;
   slaTarget: number; // seconds
   maxWaitTime: number; // seconds
   requiredSkills: string[];
   workTypes: string[];
   routingMode: 'round-robin' | 'least-busy' | 'skill-based' | 'priority';
+  dlqAutoRetry?: {
+    enabled: boolean;
+    intervalMinutes: number;
+    maxRetries: number;
+    backoffMultiplier: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -247,6 +254,35 @@ export class QueuesService {
       return 'warning';
     }
     return 'healthy';
+  }
+
+  /**
+   * Apply a bulk action to a single queue by ID.
+   * Returns the updated queue on success, or throws an Error if not found.
+   */
+  applyBulkAction(id: string, action: 'activate' | 'deactivate' | 'pause'): QueueConfig {
+    const queue = this.queues.get(id);
+    if (!queue) {
+      throw new Error(`Queue not found: ${id}`);
+    }
+
+    switch (action) {
+      case 'activate':
+        queue.active = true;
+        queue.status = 'active';
+        break;
+      case 'deactivate':
+        queue.active = false;
+        queue.status = 'active'; // not paused, just inactive
+        break;
+      case 'pause':
+        queue.status = 'paused';
+        break;
+    }
+
+    queue.updatedAt = new Date();
+    this.queues.set(id, queue);
+    return queue;
   }
 
   /**

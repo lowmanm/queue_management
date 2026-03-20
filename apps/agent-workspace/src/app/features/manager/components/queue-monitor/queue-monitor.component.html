@@ -38,6 +38,34 @@
     </div>
   }
 
+  <!-- Bulk Action Toolbar (shown when ≥1 queue selected) -->
+  @if (hasSelection()) {
+    <div class="bulk-toolbar">
+      <span class="bulk-count">{{ selectedQueueIds().size }} queue(s) selected</span>
+      <div class="bulk-actions">
+        <button class="btn-primary btn-sm" (click)="applyBulkAction('activate')" [disabled]="bulkActionPending()">
+          Activate
+        </button>
+        <button class="btn-secondary btn-sm" (click)="applyBulkAction('deactivate')" [disabled]="bulkActionPending()">
+          Deactivate
+        </button>
+        <button class="btn-secondary btn-sm" (click)="applyBulkAction('pause')" [disabled]="bulkActionPending()">
+          Pause
+        </button>
+        <button class="btn-icon" (click)="clearSelection()" title="Clear selection">✕</button>
+      </div>
+    </div>
+  }
+
+  @if (bulkActionResult(); as result) {
+    <div class="bulk-result">
+      <span class="success">✓ {{ result.succeeded.length }} succeeded</span>
+      @if (result.failed.length > 0) {
+        <span class="failure">✕ {{ result.failed.length }} failed</span>
+      }
+    </div>
+  }
+
   <!-- Filter Tabs -->
   <div class="filter-tabs">
     <button
@@ -70,11 +98,34 @@
     </button>
   </div>
 
+  <!-- Select-All row -->
+  @if ((queues$ | async)?.length) {
+    <div class="select-all-row">
+      <label class="select-all-label">
+        <input
+          type="checkbox"
+          [checked]="isAllSelected()"
+          (change)="isAllSelected() ? clearSelection() : selectAll()"
+        />
+        Select all
+      </label>
+    </div>
+  }
+
   <!-- Queue List -->
   <div class="queue-list">
     @for (queue of queues$ | async; track queue.id) {
-      <div class="queue-card" [class]="'status-' + queue.status">
+      <div class="queue-card" [class]="'status-' + queue.status" [class.selected]="isSelected(queue.id)">
         <div class="queue-header">
+          <label class="queue-select-checkbox" [attr.for]="'select-' + queue.id">
+            <input
+              [id]="'select-' + queue.id"
+              type="checkbox"
+              [checked]="isSelected(queue.id)"
+              (change)="toggleSelect(queue.id)"
+              (click)="$event.stopPropagation()"
+            />
+          </label>
           <div class="queue-info">
             <span class="status-indicator" [class]="queue.status">
               {{ getStatusIcon(queue.status) }}

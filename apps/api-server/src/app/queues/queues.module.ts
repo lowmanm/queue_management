@@ -1,16 +1,20 @@
 import { Module } from '@nestjs/common';
 import { ServicesModule } from '../services';
 import { DlqController } from './dlq.controller';
+import { QueuesController } from './queues.controller';
+import { DlqAutoRetryService } from './dlq-auto-retry.service';
 
 /**
  * QueuesModule — registered before PipelineModule in AppModule so that
  * /queues/dlq routes resolve before /queues/:id in the pipeline QueueController.
  *
- * All /queues CRUD routes are handled by QueueController in PipelineModule.
- * DLQ inspection and recovery is handled here by DlqController.
+ * DLQ inspection and recovery: DlqController
+ * Bulk queue operations: QueuesController (POST /queues/bulk)
+ * DLQ automatic retry scheduling: DlqAutoRetryService
  */
 @Module({
   imports: [ServicesModule],
-  controllers: [DlqController],
+  controllers: [DlqController, QueuesController],
+  providers: [DlqAutoRetryService],
 })
 export class QueuesModule {}

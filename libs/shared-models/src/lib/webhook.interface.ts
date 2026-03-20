@@ -10,7 +10,7 @@
 export type WebhookStatus = 'active' | 'inactive';
 
 /** Status of a webhook delivery attempt */
-export type WebhookDeliveryStatus = 'QUEUED' | 'DLQ' | 'REJECTED' | 'ERROR';
+export type WebhookDeliveryStatus = 'QUEUED' | 'DLQ' | 'REJECTED' | 'ERROR' | 'RATE_LIMITED';
 
 /**
  * A registered inbound webhook endpoint.
@@ -45,6 +45,17 @@ export interface WebhookEndpoint {
 
   /** Total number of deliveries received */
   deliveryCount: number;
+
+  /**
+   * Optional per-endpoint rate limit override.
+   * When set, the endpoint uses this limit instead of the module-level default.
+   */
+  rateLimit?: {
+    /** Maximum requests allowed within the TTL window */
+    limit: number;
+    /** Time window in milliseconds */
+    ttl: number;
+  };
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
-import { WebhooksController } from './webhooks.controller';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { WebhooksController, WebhookThrottlerGuard } from './webhooks.controller';
 import { WebhooksService } from './webhooks.service';
 import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
 import { WebhookEndpoint } from '@nexus-queue/shared-models';
@@ -42,9 +43,11 @@ describe('WebhooksController', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])],
       controllers: [WebhooksController],
       providers: [
         WebhooksService,
+        WebhookThrottlerGuard,
         { provide: PipelineOrchestratorService, useValue: orchestrator },
       ],
     }).compile();

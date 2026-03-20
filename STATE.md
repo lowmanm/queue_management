@@ -9,10 +9,10 @@
 
 | Field | Value |
 |---|---|
-| **Active Phase** | Phase 6 — (unplanned) |
-| **Phase Status** | **Phase 5 shipped ✅** — PR open on `claude/verify-phase-5-XinDF` → `develop` |
+| **Active Phase** | Phase 6 — Platform Hardening |
+| **Phase Status** | In Progress — Wave 1 complete (`1-1-platform-hardening-PLAN.md` done) |
 | **Last Session** | 2026-03-20 |
-| **Next Action** | Merge PR, then `/plan-phase 6` to define the next phase |
+| **Next Action** | `/verify-phase 6` to run full verification, then `/ship 6` |
 
 ---
 
