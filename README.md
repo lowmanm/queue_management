@@ -93,6 +93,25 @@ Backend orchestration server with pipeline-centric task flow.
 
 The `@nexus-queue/shared-models` library provides 11 TypeScript interface files covering tasks, agents, pipelines, dispositions, routing, rules, RBAC, volume loaders, and work states.
 
+## Docker Quickstart
+
+Run the full stack (API + web + PostgreSQL + Redis) with Docker Compose:
+
+```bash
+docker-compose up --build
+# API:  http://localhost:3000/api
+# Web:  http://localhost:4200
+# First run: docker-compose exec api npm run db:migrate && npm run db:seed
+```
+
+Environment variables (override in docker-compose.yml or via `.env`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | `changeme_in_production_use_env_secret` | **Change this in production** |
+| `DATABASE_URL` | postgres://nexus:nexus_dev_password@postgres:5432/nexus_queue | PostgreSQL connection string |
+| `REDIS_URL` | redis://redis:6379 | Redis connection string |
+
 ## Documentation
 
 | Document | Purpose |
