@@ -100,7 +100,7 @@ describe('PipelineWizardComponent', () => {
     expect(component.wizardQueues.length).toBe(0);
   });
 
-  it('should show step 6 content after navigating through all steps', () => {
+  it('should show step 7 (Review) content after navigating through all steps', () => {
     // Step 1
     component.step1Form.get('name')?.setValue('Pipeline X');
     component.next();
@@ -114,10 +114,30 @@ describe('PipelineWizardComponent', () => {
     component.next();
     // Step 5
     component.next();
-    // Should be on step 6
-    expect(component.currentStep()).toBe(6);
+    // Step 6 (Callbacks) - skip (both empty = valid)
+    component.next();
+    // Should be on step 7 (Review)
+    expect(component.currentStep()).toBe(7);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Review');
+  });
+
+  it('Callbacks step: valid when both URL and events are empty', () => {
+    component.step6Form.get('callbackUrl')?.setValue('');
+    component.step6Form.patchValue({ callbackEvents: [] });
+    expect(component.callbacksStepValid()).toBe(true);
+  });
+
+  it('Callbacks step: invalid when URL is set but no events are selected', () => {
+    component.step6Form.get('callbackUrl')?.setValue('https://example.com/hook');
+    component.step6Form.patchValue({ callbackEvents: [] });
+    expect(component.callbacksStepValid()).toBe(false);
+  });
+
+  it('Callbacks step: valid when both URL and at least one event are set', () => {
+    component.step6Form.get('callbackUrl')?.setValue('https://example.com/hook');
+    component.toggleCallbackEvent('task.completed');
+    expect(component.callbacksStepValid()).toBe(true);
   });
 });

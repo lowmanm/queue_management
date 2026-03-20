@@ -37,6 +37,8 @@ export interface WizardQueueEntry {
 }
 
 const FIELD_TYPES: PipelineFieldType[] = ['string', 'number', 'boolean', 'date'];
+const CALLBACK_EVENTS = ['task.completed', 'task.dlq', 'sla.breach'] as const;
+type CallbackEvent = (typeof CALLBACK_EVENTS)[number];
 
 @Component({
   selector: 'app-pipeline-wizard',
@@ -57,7 +59,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   // WIZARD STEP STATE
   // ============================================================
 
-  readonly totalSteps = 6;
+  readonly totalSteps = 7;
   currentStep = signal(1);
 
   readonly stepLabels = [
@@ -66,6 +68,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
     'Routing Rules',
     'Queue Assignment',
     'SLA Config',
+    'Callbacks',
     'Review',
   ];
 
@@ -78,6 +81,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   step3Form!: FormGroup;
   step4Form!: FormGroup;
   step5Form!: FormGroup;
+  step6Form!: FormGroup;
 
   // ============================================================
   // REVIEW / VALIDATION STATE
@@ -118,6 +122,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   });
 
   readonly fieldTypes = FIELD_TYPES;
+  readonly callbackEventOptions = CALLBACK_EVENTS;
 
   // ============================================================
   // LIFECYCLE
@@ -159,6 +164,11 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       escalationAction: ['escalate_priority'],
       defaultHandleTimeMs: [300000],
       maxQueueWaitMs: [900000],
+    });
+
+    this.step6Form = this.fb.group({
+      callbackUrl: ['', Validators.pattern(/^https?:\/\/.+/)],
+      callbackEvents: [[] as CallbackEvent[]],
     });
   }
 
@@ -328,6 +338,16 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
           errors.push('SLA thresholds must be valid percentages (0-100)');
         }
         break;
+      case 6:
+        if (!this.callbacksStepValid()) {
+          errors.push(
+            'Callbacks: either leave both URL and events empty, or fill in the URL and select at least one event'
+          );
+        }
+        if (this.step6Form.get('callbackUrl')?.invalid) {
+          errors.push('Callback URL must be a valid http or https URL');
+        }
+        break;
     }
     return errors;
   }
@@ -381,7 +401,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   // ============================================================
 
   submit(active: boolean): void {
-    const allErrors = [1, 2, 3, 4, 5]
+    const allErrors = [1, 2, 3, 4, 5, 6]
       .flatMap((s) => this.validateStep(s));
     if (allErrors.length > 0) {
       this.errorMessage.set(allErrors[0]);
@@ -393,16 +413,22 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
 
     const s1 = this.step1Form.value;
     const sla = this.step5Form.value;
+    const callbacks = this.step6Form.value;
+    const callbackUrl: string = callbacks.callbackUrl?.trim() ?? '';
+    const callbackEvents: CallbackEvent[] = callbacks.callbackEvents ?? [];
 
     const createRequest = {
-      name: s1.name,
-      description: s1.description,
-      allowedWorkTypes: [],
+      name: s1.name as string,
+      description: s1.description as string,
+      allowedWorkTypes: [] as string[],
       sla: {
-        targetHandleTime: Math.round(sla.defaultHandleTimeMs / 1000),
-        maxQueueWaitTime: Math.round(sla.maxQueueWaitMs / 1000),
-        serviceLevelTarget: sla.warningThresholdPercent,
+        targetHandleTime: Math.round((sla.defaultHandleTimeMs as number) / 1000),
+        maxQueueWaitTime: Math.round((sla.maxQueueWaitMs as number) / 1000),
+        serviceLevelTarget: sla.warningThresholdPercent as number,
       },
+      ...(callbackUrl && callbackEvents.length > 0
+        ? { callbackUrl, callbackEvents }
+        : {}),
     };
 
     this.pipelineApi.createPipeline(createRequest)
@@ -479,6 +505,38 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
           this.isSubmitting.set(false);
         },
       });
+  }
+
+  // ============================================================
+  // STEP 6 — CALLBACKS
+  // ============================================================
+
+  /**
+   * Returns true when Callbacks step is valid:
+   * - Both callbackUrl and callbackEvents are empty (no callbacks configured), OR
+   * - callbackUrl is filled AND at least one event is checked.
+   */
+  callbacksStepValid(): boolean {
+    const url: string = this.step6Form.get('callbackUrl')?.value ?? '';
+    const events: CallbackEvent[] = this.step6Form.get('callbackEvents')?.value ?? [];
+    const hasUrl = url.trim().length > 0;
+    const hasEvents = events.length > 0;
+    if (!hasUrl && !hasEvents) return true;          // both empty — no callbacks
+    if (hasUrl && hasEvents) return true;            // both filled — valid
+    return false;                                    // one side filled, other empty
+  }
+
+  toggleCallbackEvent(event: CallbackEvent): void {
+    const current: CallbackEvent[] = this.step6Form.get('callbackEvents')?.value ?? [];
+    const updated = current.includes(event)
+      ? current.filter((e) => e !== event)
+      : [...current, event];
+    this.step6Form.patchValue({ callbackEvents: updated });
+  }
+
+  isCallbackEventSelected(event: CallbackEvent): boolean {
+    const selected: CallbackEvent[] = this.step6Form.get('callbackEvents')?.value ?? [];
+    return selected.includes(event);
   }
 
   // ============================================================
