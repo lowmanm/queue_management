@@ -19,11 +19,13 @@ import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
 import { PipelineModule } from './pipelines/pipeline.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { AuditLogModule } from './audit-log';
+import { AuthModule } from './auth';
 
 @Module({
   imports: [
     DatabaseModule,
     RedisModule,
+    AuthModule,
     ServicesModule,
     TasksModule,
     GatewayModule,
