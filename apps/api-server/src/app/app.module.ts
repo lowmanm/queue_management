@@ -21,6 +21,7 @@ import { ProxyModule } from './proxy/proxy.module';
 import { AuditLogModule } from './audit-log';
 import { AuthModule } from './auth';
 import { MonitoringModule } from './monitoring';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { MonitoringModule } from './monitoring';
     PipelineModule,
     ProxyModule,
     AuditLogModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

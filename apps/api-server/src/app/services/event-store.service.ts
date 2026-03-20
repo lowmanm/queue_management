@@ -1,9 +1,10 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditEvent, AuditEventType, AggregateType } from '@nexus-queue/shared-models';
 import { TaskEventEntity } from '../entities/task-event.entity';
 import { MetricsService } from '../monitoring/metrics.service';
+import { OutboundWebhookService } from './outbound-webhook.service';
 
 /** Fields emitted by callers — id, occurredAt, and sequenceNum are set by the store */
 export type EmitEventInput = Omit<AuditEvent, 'id' | 'occurredAt' | 'sequenceNum'>;
@@ -23,6 +24,9 @@ export class EventStoreService {
     private readonly eventRepo: Repository<TaskEventEntity>,
     @Optional()
     private readonly metricsService?: MetricsService,
+    @Optional()
+    @Inject(forwardRef(() => OutboundWebhookService))
+    private readonly outboundWebhooks?: OutboundWebhookService,
   ) {}
 
   /**
@@ -47,6 +51,24 @@ export class EventStoreService {
         if (typeof handleTime === 'number') {
           this.metricsService.observeHandleTime(handleTime);
         }
+      }
+
+      // Fire-and-forget outbound webhook delivery — does not block task flow
+      if (this.outboundWebhooks) {
+        const saved = entity as TaskEventEntity & { id: string; occurredAt: Date; sequenceNum: number };
+        setImmediate(() => {
+          void this.outboundWebhooks?.onEvent({
+            id: saved.id,
+            eventType: event.eventType,
+            aggregateId: event.aggregateId,
+            aggregateType: event.aggregateType,
+            payload: event.payload ?? {},
+            occurredAt: saved.occurredAt ?? new Date(),
+            pipelineId: event.pipelineId,
+            agentId: event.agentId,
+            sequenceNum: saved.sequenceNum ?? 0,
+          } as AuditEvent);
+        });
       }
     } catch (err) {
       this.logger.error(

@@ -15,6 +15,7 @@ import { PipelineOrchestratorService } from './pipeline-orchestrator.service';
 import { SLAMonitorService } from './sla-monitor.service';
 import { PipelineMetricsService } from './pipeline-metrics.service';
 import { EventStoreService } from './event-store.service';
+import { OutboundWebhookService } from './outbound-webhook.service';
 import { PipelineModule } from '../pipelines/pipeline.module';
 import {
   TaskEntity,
@@ -68,6 +69,8 @@ import {
     PipelineMetricsService,
     // Phase 4 services
     EventStoreService,
+    // Phase 5 services
+    OutboundWebhookService,
   ],
   exports: [
     AgentManagerService,
@@ -88,6 +91,8 @@ import {
     PipelineMetricsService,
     // Phase 4 services
     EventStoreService,
+    // Phase 5 services
+    OutboundWebhookService,
   ],
 })
 export class ServicesModule {}

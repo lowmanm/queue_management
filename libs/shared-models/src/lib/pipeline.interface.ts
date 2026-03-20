@@ -17,6 +17,12 @@
 // =============================================================================
 
 /**
+ * Callback event types that a pipeline can subscribe to for outbound webhooks.
+ * When a pipeline has a callbackUrl, these events will be POSTed to it.
+ */
+export type CallbackEvent = 'task.completed' | 'task.dlq' | 'sla.breach';
+
+/**
  * Pipeline - Top-level workflow container
  *
  * Examples:
@@ -56,6 +62,18 @@ export interface Pipeline {
 
   /** Statistics */
   stats: PipelineStats;
+
+  /**
+   * Outbound callback URL — Nexus will POST task lifecycle events here.
+   * Only events listed in callbackEvents will be sent.
+   */
+  callbackUrl?: string;
+
+  /**
+   * Which lifecycle events to send to callbackUrl.
+   * When empty or absent, no outbound webhooks are sent even if callbackUrl is set.
+   */
+  callbackEvents?: CallbackEvent[];
 
   /** Created timestamp */
   createdAt: string;
@@ -320,8 +338,19 @@ export interface RoutingRule {
   /** Condition matching logic */
   conditionLogic: 'AND' | 'OR';
 
-  /** Target queue ID when rule matches */
-  targetQueueId: string;
+  /**
+   * Target queue ID when rule matches.
+   * Optional when targetPipelineId is set (cross-pipeline transfer).
+   */
+  targetQueueId?: string;
+
+  /**
+   * Target pipeline ID for cross-pipeline task transfer.
+   * When set, the task is re-ingested into the specified pipeline
+   * instead of being placed into a queue.
+   * Takes precedence over targetQueueId.
+   */
+  targetPipelineId?: string;
 
   /** Optional: Override priority when routing */
   priorityOverride?: number;

@@ -41,6 +41,12 @@ export class PipelineEntity {
   @Column({ name: 'data_schema', type: 'simple-json', nullable: true })
   dataSchema?: Record<string, unknown>;
 
+  @Column({ name: 'callback_url', type: 'varchar', nullable: true })
+  callbackUrl?: string;
+
+  @Column({ name: 'callback_events', type: 'simple-array', nullable: true })
+  callbackEvents?: string[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

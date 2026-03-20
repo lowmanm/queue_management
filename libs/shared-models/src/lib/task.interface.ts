@@ -92,6 +92,14 @@ export interface Task {
   /** Max seconds task can stay in RESERVED state before auto-release */
   reservationTimeout?: number;
 
+  // === Cross-Pipeline Routing ===
+  /**
+   * Number of times this task has been transferred across pipelines.
+   * Used to enforce MAX_PIPELINE_HOPS safety limit.
+   * Defaults to 0 on initial ingestion.
+   */
+  pipelineHops?: number;
+
   // === Outcome ===
   /** Final disposition of the task */
   disposition?: TaskDisposition;
