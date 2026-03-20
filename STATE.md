@@ -10,9 +10,9 @@
 | Field | Value |
 |---|---|
 | **Active Phase** | Phase 5 — External Integrations & Advanced Routing |
-| **Phase Status** | **In Progress** — Wave 1 complete (`1-1-backend-integration-core`) |
+| **Phase Status** | **In Progress** — Wave 1 + Wave 2 plan 1 complete (`2-1-webhook-ui`) |
 | **Last Session** | 2026-03-20 |
-| **Next Action** | Continue with Wave 2 plans (see `.planning/phases/5/`) or `/verify-phase 5` if all plans done |
+| **Next Action** | Execute `.planning/phases/5/2-2-pipeline-portability-PLAN.md` |
 
 ---
 
@@ -85,6 +85,7 @@ All 23 v1 requirements implemented, verified, and PR branch pushed.
 | Wave | Plan | Status |
 |---|---|---|
 | Wave 1 | `1-1-backend-integration-core-PLAN.md` | ✅ Complete |
+| Wave 2 | `2-1-webhook-ui-PLAN.md` | ✅ Complete |
 
 ---
 
