@@ -154,8 +154,8 @@
 
   <!-- Editor Modal -->
   @if (showEditor()) {
-    <div class="modal-overlay" (click)="closeEditor()">
-      <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" role="button" tabindex="0" (click)="closeEditor()" (keydown.enter)="closeEditor()" (keydown.space)="closeEditor()">
+      <div class="modal" role="button" tabindex="-1" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
         <div class="modal-header">
           <h2>{{ editingSkill() ? 'Edit Skill' : 'New Skill' }}</h2>
           <button class="close-btn" (click)="closeEditor()">&times;</button>

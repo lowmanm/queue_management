@@ -462,7 +462,7 @@ export class VolumeLoaderComponent implements OnInit {
       case 4: // Data Format
         return true;
 
-      case 5: // Sample File
+      case 5: { // Sample File
         // Check if sample was uploaded and parsed successfully
         const parseResult = this.sampleParseResult();
         if (!parseResult || !parseResult.success) {
@@ -474,8 +474,9 @@ export class VolumeLoaderComponent implements OnInit {
           return false;
         }
         return true;
+      }
 
-      case 6: // Field Mappings
+      case 6: { // Field Mappings
         if (!data.fieldMappings || data.fieldMappings.length === 0) {
           this.errorMessage.set('At least one field mapping is required');
           return false;
@@ -487,6 +488,7 @@ export class VolumeLoaderComponent implements OnInit {
           return false;
         }
         return true;
+      }
 
       case 7: // Options
         return true;
@@ -518,9 +520,10 @@ export class VolumeLoaderComponent implements OnInit {
         return true;
       case 4:
         return true;
-      case 5: // Sample File
+      case 5: { // Sample File
         const parseResult = this.sampleParseResult();
         return !!parseResult?.success && this.detectedFields().length > 0;
+      }
       case 6: // Field Mappings
         return (data.fieldMappings?.length || 0) > 0 && data.fieldMappings?.some((m) => m.isPrimaryId) === true;
       case 7:

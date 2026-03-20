@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import {
   User,
   Team,
@@ -114,81 +115,101 @@ export class RbacService implements OnModuleInit {
 
   private async seedDefaultUsers(): Promise<void> {
     const now = new Date().toISOString();
-    const defaultUsers: User[] = [
+    const seedData: Array<{ user: User; password: string }> = [
       {
-        id: 'user-admin',
-        username: 'admin',
-        displayName: 'System Administrator',
-        email: 'admin@nexusqueue.com',
-        role: 'ADMIN',
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        user: {
+          id: 'user-admin',
+          username: 'admin',
+          displayName: 'System Administrator',
+          email: 'admin@nexusqueue.com',
+          role: 'ADMIN',
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        password: 'adminpass',
       },
       {
-        id: 'user-designer',
-        username: 'designer',
-        displayName: 'Queue Designer',
-        email: 'designer@nexusqueue.com',
-        role: 'DESIGNER',
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        user: {
+          id: 'user-designer',
+          username: 'designer',
+          displayName: 'Queue Designer',
+          email: 'designer@nexusqueue.com',
+          role: 'DESIGNER',
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        password: 'designerpass',
       },
       {
-        id: 'user-manager',
-        username: 'manager',
-        displayName: 'Team Manager',
-        email: 'manager@nexusqueue.com',
-        role: 'MANAGER',
-        teamId: 'team-orders',
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        user: {
+          id: 'user-manager',
+          username: 'manager',
+          displayName: 'Team Manager',
+          email: 'manager@nexusqueue.com',
+          role: 'MANAGER',
+          teamId: 'team-orders',
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        password: 'managerpass',
       },
       {
-        id: 'user-agent1',
-        username: 'agent1',
-        displayName: 'Agent One',
-        email: 'agent1@nexusqueue.com',
-        role: 'AGENT',
-        teamId: 'team-orders',
-        skills: ['orders', 'general'],
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        user: {
+          id: 'user-agent1',
+          username: 'agent1',
+          displayName: 'Agent One',
+          email: 'agent1@nexusqueue.com',
+          role: 'AGENT',
+          teamId: 'team-orders',
+          skills: ['orders', 'general'],
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        password: 'agent1pass',
       },
       {
-        id: 'user-agent2',
-        username: 'agent2',
-        displayName: 'Agent Two',
-        email: 'agent2@nexusqueue.com',
-        role: 'AGENT',
-        teamId: 'team-returns',
-        skills: ['returns', 'refunds'],
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        user: {
+          id: 'user-agent2',
+          username: 'agent2',
+          displayName: 'Agent Two',
+          email: 'agent2@nexusqueue.com',
+          role: 'AGENT',
+          teamId: 'team-returns',
+          skills: ['returns', 'refunds'],
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        password: 'agent2pass',
       },
       {
-        id: 'user-agent3',
-        username: 'agent3',
-        displayName: 'Agent Three',
-        email: 'agent3@nexusqueue.com',
-        role: 'AGENT',
-        teamId: 'team-claims',
-        skills: ['claims', 'disputes'],
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        user: {
+          id: 'user-agent3',
+          username: 'agent3',
+          displayName: 'Agent Three',
+          email: 'agent3@nexusqueue.com',
+          role: 'AGENT',
+          teamId: 'team-claims',
+          skills: ['claims', 'disputes'],
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        password: 'agent3pass',
       },
     ];
 
-    for (const user of defaultUsers) {
-      await this.userRepo.save(this.toUserEntity(user));
+    for (const { user, password } of seedData) {
+      const entity = this.toUserEntity(user);
+      entity.passwordHash = await bcrypt.hash(password, 10);
+      await this.userRepo.save(entity);
       this.users.set(user.id, user);
     }
-    this.logger.log(`Seeded ${defaultUsers.length} default users`);
+    this.logger.log(`Seeded ${seedData.length} default users with bcrypt password hashes`);
   }
 
   // ===== User Management =====
@@ -255,10 +276,26 @@ export class RbacService implements OnModuleInit {
       updatedAt: now,
     };
 
-    await this.userRepo.save(this.toUserEntity(user));
+    const entity = this.toUserEntity(user);
+    if (request.password) {
+      entity.passwordHash = await bcrypt.hash(request.password, 10);
+    }
+    await this.userRepo.save(entity);
     this.users.set(user.id, user);
     this.logger.log(`Created user: ${user.username} (${user.role})`);
     return user;
+  }
+
+  /**
+   * Get the bcrypt password hash for a user (for authentication only).
+   * Returns null if the user has no password set.
+   */
+  async getUserPasswordHash(userId: string): Promise<string | null> {
+    const entity = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'passwordHash'],
+    });
+    return entity?.passwordHash ?? null;
   }
 
   /**

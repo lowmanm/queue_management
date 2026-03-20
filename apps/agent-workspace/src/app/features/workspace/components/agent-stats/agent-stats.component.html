@@ -1,5 +1,5 @@
 <div class="agent-stats-panel" [class.collapsed]="!expanded">
-  <div class="panel-header" (click)="toggleExpanded()">
+  <div class="panel-header" role="button" tabindex="0" (click)="toggleExpanded()" (keydown.enter)="toggleExpanded()" (keydown.space)="toggleExpanded()">
     <h3>Session Stats</h3>
     <button class="toggle-btn" [attr.aria-label]="expanded ? 'Collapse' : 'Expand'">
       {{ expanded ? '−' : '+' }}

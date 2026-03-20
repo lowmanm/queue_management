@@ -206,8 +206,8 @@
 
 <!-- Runs Panel (Slide-in) -->
 @if (showRunsPanel() && selectedLoader()) {
-  <div class="runs-panel-overlay" (click)="closeRunsPanel()">
-    <div class="runs-panel" (click)="$event.stopPropagation()">
+  <div class="runs-panel-overlay" role="button" tabindex="0" (click)="closeRunsPanel()" (keydown.enter)="closeRunsPanel()" (keydown.space)="closeRunsPanel()">
+    <div class="runs-panel" role="presentation" (click)="$event.stopPropagation()">
       <div class="panel-header">
         <h2>{{ selectedLoader()?.name }} - Run History</h2>
         <button class="btn-icon" (click)="closeRunsPanel()">
@@ -259,8 +259,8 @@
 
 <!-- Editor Modal with Wizard -->
 @if (showEditor()) {
-  <div class="modal-overlay" (click)="closeEditor()">
-    <div class="modal wizard-modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="closeEditor()" (keydown.enter)="closeEditor()" (keydown.space)="closeEditor()">
+    <div class="modal wizard-modal" role="presentation" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>{{ isEditMode() ? 'Edit' : 'New' }} Volume Loader</h2>
         <button class="btn-icon" (click)="closeEditor()">
@@ -276,10 +276,14 @@
         @for (step of wizardSteps; track step.step) {
           <div
             class="step"
+            role="button"
+            tabindex="0"
             [class.active]="currentStep() === step.step"
             [class.completed]="isStepComplete(step.step) && currentStep() > step.step"
             [class.clickable]="isEditMode() || step.step <= currentStep()"
             (click)="(isEditMode() || step.step <= currentStep()) && goToStep(step.step)"
+            (keydown.enter)="(isEditMode() || step.step <= currentStep()) && goToStep(step.step)"
+            (keydown.space)="(isEditMode() || step.step <= currentStep()) && goToStep(step.step)"
           >
             <div class="step-number">
               @if (isStepComplete(step.step) && currentStep() > step.step) {
@@ -385,8 +389,9 @@
               <div class="inline-pipeline-form">
                 <h4>Quick Pipeline Setup</h4>
                 <div class="form-group">
-                  <label>Pipeline Name *</label>
+                  <label for="vl-pipeline-name">Pipeline Name *</label>
                   <input
+                    id="vl-pipeline-name"
                     type="text"
                     [ngModel]="newPipelineName()"
                     (ngModelChange)="newPipelineName.set($event)"
@@ -394,8 +399,9 @@
                   />
                 </div>
                 <div class="form-group">
-                  <label>Description</label>
+                  <label for="vl-pipeline-desc">Description</label>
                   <textarea
+                    id="vl-pipeline-desc"
                     [ngModel]="newPipelineDescription()"
                     (ngModelChange)="newPipelineDescription.set($event)"
                     rows="2"
@@ -422,8 +428,9 @@
               @case ('GCS') {
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Bucket Name *</label>
+                    <label for="vl-gcs-bucket">Bucket Name *</label>
                     <input
+                      id="vl-gcs-bucket"
                       type="text"
                       [ngModel]="getConfigValue('bucket')"
                       (ngModelChange)="updateConfigField('bucket', $event)"
@@ -431,8 +438,9 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label>Path Prefix</label>
+                    <label for="vl-gcs-path">Path Prefix</label>
                     <input
+                      id="vl-gcs-path"
                       type="text"
                       [ngModel]="getConfigValue('pathPrefix')"
                       (ngModelChange)="updateConfigField('pathPrefix', $event)"
@@ -442,8 +450,9 @@
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>File Pattern *</label>
+                    <label for="vl-gcs-pattern">File Pattern *</label>
                     <input
+                      id="vl-gcs-pattern"
                       type="text"
                       [ngModel]="getConfigValue('filePattern')"
                       (ngModelChange)="updateConfigField('filePattern', $event)"
@@ -451,8 +460,9 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label>Project ID</label>
+                    <label for="vl-gcs-project">Project ID</label>
                     <input
+                      id="vl-gcs-project"
                       type="text"
                       [ngModel]="getConfigValue('projectId')"
                       (ngModelChange)="updateConfigField('projectId', $event)"
@@ -464,8 +474,9 @@
               @case ('S3') {
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Bucket Name *</label>
+                    <label for="vl-s3-bucket">Bucket Name *</label>
                     <input
+                      id="vl-s3-bucket"
                       type="text"
                       [ngModel]="getConfigValue('bucket')"
                       (ngModelChange)="updateConfigField('bucket', $event)"
@@ -473,8 +484,9 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label>Region</label>
+                    <label for="vl-s3-region">Region</label>
                     <input
+                      id="vl-s3-region"
                       type="text"
                       [ngModel]="getConfigValue('region')"
                       (ngModelChange)="updateConfigField('region', $event)"
@@ -484,8 +496,9 @@
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Path Prefix</label>
+                    <label for="vl-s3-path">Path Prefix</label>
                     <input
+                      id="vl-s3-path"
                       type="text"
                       [ngModel]="getConfigValue('pathPrefix')"
                       (ngModelChange)="updateConfigField('pathPrefix', $event)"
@@ -493,8 +506,9 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label>File Pattern *</label>
+                    <label for="vl-s3-pattern">File Pattern *</label>
                     <input
+                      id="vl-s3-pattern"
                       type="text"
                       [ngModel]="getConfigValue('filePattern')"
                       (ngModelChange)="updateConfigField('filePattern', $event)"
@@ -505,8 +519,9 @@
               }
               @case ('HTTP') {
                 <div class="form-group">
-                  <label>Base URL *</label>
+                  <label for="vl-http-url">Base URL *</label>
                   <input
+                    id="vl-http-url"
                     type="text"
                     [ngModel]="getConfigValue('url')"
                     (ngModelChange)="updateConfigField('url', $event)"
@@ -515,8 +530,9 @@
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Method</label>
+                    <label for="vl-http-method">Method</label>
                     <select
+                      id="vl-http-method"
                       [ngModel]="getConfigValue('method')"
                       (ngModelChange)="updateConfigField('method', $event)"
                     >
@@ -525,8 +541,9 @@
                     </select>
                   </div>
                   <div class="form-group">
-                    <label>Auth Type</label>
+                    <label for="vl-http-auth">Auth Type</label>
                     <select
+                      id="vl-http-auth"
                       [ngModel]="getConfigValue('authType')"
                       (ngModelChange)="updateConfigField('authType', $event)"
                     >
@@ -546,8 +563,9 @@
                     insert field values into the URL when tasks are created.
                   </p>
                   <div class="form-group">
-                    <label>URL Template</label>
+                    <label for="vl-http-url-template">URL Template</label>
                     <input
+                      id="vl-http-url-template"
                       type="text"
                       [ngModel]="getConfigValue('urlTemplate')"
                       (ngModelChange)="updateConfigField('urlTemplate', $event)"
@@ -558,8 +576,9 @@
                     </span>
                   </div>
                   <div class="form-group">
-                    <label>Primary URL Field</label>
+                    <label for="vl-http-url-field">Primary URL Field</label>
                     <input
+                      id="vl-http-url-field"
                       type="text"
                       [ngModel]="getConfigValue('urlField')"
                       (ngModelChange)="updateConfigField('urlField', $event)"
@@ -579,8 +598,9 @@
               @case ('LOCAL') {
                 <div class="form-row">
                   <div class="form-group">
-                    <label>Directory Path *</label>
+                    <label for="vl-local-dir">Directory Path *</label>
                     <input
+                      id="vl-local-dir"
                       type="text"
                       [ngModel]="getConfigValue('directory')"
                       (ngModelChange)="updateConfigField('directory', $event)"
@@ -588,8 +608,9 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label>File Pattern *</label>
+                    <label for="vl-local-pattern">File Pattern *</label>
                     <input
+                      id="vl-local-pattern"
                       type="text"
                       [ngModel]="getConfigValue('filePattern')"
                       (ngModelChange)="updateConfigField('filePattern', $event)"
@@ -623,8 +644,9 @@
             <p class="section-help">Configure how to parse the data files.</p>
             <div class="form-row">
               <div class="form-group">
-                <label>Format *</label>
+                <label for="vl-data-format">Format *</label>
                 <select
+                  id="vl-data-format"
                   [ngModel]="formData().dataFormat?.format"
                   (ngModelChange)="updateDataFormatField('format', $event)"
                 >
@@ -634,8 +656,9 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>Encoding</label>
+                <label for="vl-data-encoding">Encoding</label>
                 <input
+                  id="vl-data-encoding"
                   type="text"
                   [ngModel]="formData().dataFormat?.encoding"
                   (ngModelChange)="updateDataFormatField('encoding', $event)"
@@ -646,8 +669,9 @@
             @if (formData().dataFormat?.format === 'CSV') {
               <div class="form-row">
                 <div class="form-group">
-                  <label>Delimiter</label>
+                  <label for="vl-csv-delimiter">Delimiter</label>
                   <select
+                    id="vl-csv-delimiter"
                     [ngModel]="getCsvOptionValue('delimiter')"
                     (ngModelChange)="updateCsvOption('delimiter', $event)"
                   >
@@ -657,8 +681,9 @@
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>Quote Character</label>
+                  <label for="vl-csv-quote">Quote Character</label>
                   <select
+                    id="vl-csv-quote"
                     [ngModel]="getCsvOptionValue('quoteChar')"
                     (ngModelChange)="updateCsvOption('quoteChar', $event)"
                   >
@@ -801,7 +826,7 @@
               </div>
             } @else {
               <div class="primary-id-section">
-                <label>Primary ID Field (Unique Identifier) *</label>
+                <span class="form-label">Primary ID Field (Unique Identifier) *</span>
                 <div class="id-field-options">
                   @for (field of detectedFields(); track field.name) {
                     <label
@@ -898,8 +923,9 @@
               Use field placeholders from your schema to construct dynamic URLs.
             </p>
             <div class="form-group">
-              <label>URL Template *</label>
+              <label for="vl-url-template">URL Template *</label>
               <input
+                id="vl-url-template"
                 type="text"
                 [ngModel]="formData().defaults?.payloadUrlTemplate"
                 (ngModelChange)="updateDefault('payloadUrlTemplate', $event)"
@@ -911,7 +937,7 @@
             </div>
             @if (detectedFields().length > 0) {
               <div class="available-placeholders">
-                <label>Available fields from your schema:</label>
+                <span class="form-label">Available fields from your schema:</span>
                 <div class="placeholder-chips">
                   @for (field of detectedFields(); track field.name) {
                     <button
@@ -928,14 +954,15 @@
             }
             @if (formData().defaults?.payloadUrlTemplate) {
               <div class="url-preview">
-                <label>Preview:</label>
+                <span class="form-label">Preview:</span>
                 <code class="url-preview-text">{{ formData().defaults?.payloadUrlTemplate }}</code>
               </div>
             }
 
             <div class="form-group">
-              <label>Display Mode</label>
+              <label for="vl-display-mode">Display Mode</label>
               <select
+                id="vl-display-mode"
                 [ngModel]="formData().defaults?.displayMode || 'auto'"
                 (ngModelChange)="updateDefault('displayMode', $event)"
               >
@@ -956,8 +983,9 @@
             <p class="section-help">Configure how records are processed and errors are handled.</p>
             <div class="form-row">
               <div class="form-group">
-                <label>Batch Size</label>
+                <label for="vl-batch-size">Batch Size</label>
                 <input
+                  id="vl-batch-size"
                   type="number"
                   [ngModel]="formData().processingOptions?.batchSize"
                   (ngModelChange)="updateProcessingOption('batchSize', $event)"
@@ -965,8 +993,9 @@
                 />
               </div>
               <div class="form-group">
-                <label>Max Records (0=unlimited)</label>
+                <label for="vl-max-records">Max Records (0=unlimited)</label>
                 <input
+                  id="vl-max-records"
                   type="number"
                   [ngModel]="formData().processingOptions?.maxRecords"
                   (ngModelChange)="updateProcessingOption('maxRecords', $event)"
@@ -993,8 +1022,9 @@
               </label>
             </div>
             <div class="form-group">
-              <label>Error Threshold (%)</label>
+              <label for="vl-error-threshold">Error Threshold (%)</label>
               <input
+                id="vl-error-threshold"
                 type="number"
                 [ngModel]="formData().processingOptions?.errorThreshold"
                 (ngModelChange)="updateProcessingOption('errorThreshold', $event)"
@@ -1065,8 +1095,9 @@
                     <h4>Add Queue</h4>
                     <div class="form-row">
                       <div class="form-group">
-                        <label>Queue Name *</label>
+                        <label for="vl-queue-name">Queue Name *</label>
                         <input
+                          id="vl-queue-name"
                           type="text"
                           [ngModel]="newQueueName()"
                           (ngModelChange)="newQueueName.set($event)"
@@ -1074,8 +1105,9 @@
                         />
                       </div>
                       <div class="form-group">
-                        <label>Priority (1=highest)</label>
+                        <label for="vl-queue-priority">Priority (1=highest)</label>
                         <input
+                          id="vl-queue-priority"
                           type="number"
                           [ngModel]="newQueuePriority()"
                           (ngModelChange)="newQueuePriority.set($event)"
@@ -1085,8 +1117,9 @@
                       </div>
                     </div>
                     <div class="form-group">
-                      <label>Description</label>
+                      <label for="vl-queue-desc">Description</label>
                       <input
+                        id="vl-queue-desc"
                         type="text"
                         [ngModel]="newQueueDescription()"
                         (ngModelChange)="newQueueDescription.set($event)"
@@ -1094,7 +1127,7 @@
                       />
                     </div>
                     <div class="form-group">
-                      <label>Required Skills</label>
+                      <span class="form-label">Required Skills</span>
                       <!-- Skill chips for selected skills -->
                       @if (selectedQueueSkills().length > 0) {
                         <div class="skill-chips">
@@ -1237,8 +1270,9 @@
                   <div class="add-rule-form">
                     <h4>Add Routing Rule</h4>
                     <div class="form-group">
-                      <label>Rule Name *</label>
+                      <label for="vl-rule-name">Rule Name *</label>
                       <input
+                        id="vl-rule-name"
                         type="text"
                         [ngModel]="newRuleName()"
                         (ngModelChange)="newRuleName.set($event)"
@@ -1249,7 +1283,7 @@
                     <!-- Conditions -->
                     <div class="conditions-section">
                       <div class="conditions-header">
-                        <label>Conditions *</label>
+                        <span class="form-label">Conditions *</span>
                         @if (newRuleConditions().length > 1) {
                           <div class="logic-toggle">
                             <button
@@ -1321,16 +1355,17 @@
 
                     <!-- Target Queue -->
                     <div class="form-group">
-                      <label>Target Queue *</label>
-                      <select
-                        [ngModel]="newRuleTargetQueue()"
-                        (ngModelChange)="newRuleTargetQueue.set($event)"
-                      >
-                        <option value="">-- Select Queue --</option>
-                        @for (queue of pipelineQueues(); track queue.id) {
-                          <option [value]="queue.id">{{ queue.name }}</option>
-                        }
-                      </select>
+                      <label>Target Queue *
+                        <select
+                          [ngModel]="newRuleTargetQueue()"
+                          (ngModelChange)="newRuleTargetQueue.set($event)"
+                        >
+                          <option value="">-- Select Queue --</option>
+                          @for (queue of pipelineQueues(); track queue.id) {
+                            <option [value]="queue.id">{{ queue.name }}</option>
+                          }
+                        </select>
+                      </label>
                     </div>
 
                     <div class="add-rule-actions">
@@ -1401,8 +1436,8 @@
 
 <!-- CSV Upload Panel -->
 @if (showUploadPanel() && uploadLoader()) {
-  <div class="modal-overlay" (click)="closeUploadPanel()">
-    <div class="modal upload-modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="closeUploadPanel()" (keydown.enter)="closeUploadPanel()" (keydown.space)="closeUploadPanel()">
+    <div class="modal upload-modal" role="presentation" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Upload CSV - {{ uploadLoader()?.name }}</h2>
         <button class="btn-icon" (click)="closeUploadPanel()">
@@ -1601,8 +1636,8 @@ ORD-002,Jane Smith,3,RETURNS"
 
 <!-- Delete Confirmation Modal -->
 @if (showDeleteConfirmation()) {
-  <div class="modal-overlay" (click)="cancelDelete()">
-    <div class="modal-content delete-confirm-modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="cancelDelete()" (keydown.enter)="cancelDelete()" (keydown.space)="cancelDelete()">
+    <div class="modal-content delete-confirm-modal" role="presentation" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>Delete Data Source</h3>
         <button class="close-btn" (click)="cancelDelete()">&times;</button>

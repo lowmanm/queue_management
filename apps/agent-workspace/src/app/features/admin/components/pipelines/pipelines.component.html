@@ -332,8 +332,8 @@
 
 <!-- PIPELINE EDIT MODAL (edit only — new pipelines use wizard) -->
 @if (editorMode() === 'pipeline') {
-  <div class="modal-overlay" (click)="closeEditor()">
-    <div class="modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="closeEditor()" (keydown.enter)="closeEditor()" (keydown.space)="closeEditor()">
+    <div class="modal" role="button" tabindex="-1" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Edit Pipeline</h2>
         <button class="btn-icon" (click)="closeEditor()">
@@ -368,7 +368,7 @@
         </div>
 
         <div class="form-group">
-          <label>Allowed Work Types</label>
+          <span class="form-label">Allowed Work Types</span>
           <div class="tag-input">
             <div class="tags">
               @for (workType of pipelineForm().allowedWorkTypes; track workType) {
@@ -404,8 +404,8 @@
 
 <!-- ROUTING RULE EDITOR MODAL -->
 @if (editorMode() === 'rule') {
-  <div class="modal-overlay" (click)="closeEditor()">
-    <div class="modal large" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="closeEditor()" (keydown.enter)="closeEditor()" (keydown.space)="closeEditor()">
+    <div class="modal large" role="button" tabindex="-1" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>{{ isEditMode() ? 'Edit' : 'New' }} Routing Rule</h2>
         <button class="btn-icon" (click)="closeEditor()">

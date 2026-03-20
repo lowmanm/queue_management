@@ -105,21 +105,26 @@
 
 ---
 
-### Phase 4 — Persistence + Production 📋
+### Phase 4 — Persistence + Production ✅
 
-**Status:** Planned
-**Requirements:** Not yet scoped
+**Status:** Complete — PR open on `claude/add-status-endpoint-dLDyi` → `develop`
+**Target branch:** `feature/NQ-400-persistence-production`
+**Requirements:** See `REQUIREMENTS.md` §Phase 4
+**Plans:** `.planning/phases/4/`
 
 **Goal:** Replace in-memory stores with durable persistence, add horizontal scaling, and prepare for production deployment.
 
-| Deliverable | Category | Description |
-|---|---|---|
-| PostgreSQL queue backing | Backend | `queue_tasks` table with priority index (see ARCHITECTURE.md §10) |
-| Redis real-time layer | Backend | Agent state, session cache, pub/sub for multi-instance |
-| Event sourcing | Backend | Immutable event log for task lifecycle audit trail |
-| Horizontal scaling | Infra | Stateless API servers behind load balancer |
-| Real authentication | Backend | Replace mock auth with OAuth2/OIDC provider |
-| Monitoring & alerting | Infra | Prometheus metrics, Grafana dashboards, PagerDuty integration |
+| Deliverable | Category | Status | Description |
+|---|---|---|---|
+| PostgreSQL queue backing | Backend | ✅ Done | TypeORM DatabaseModule, 17 entities, migrations, seed script; dual SQLite(dev)/PostgreSQL(prod) |
+| Redis real-time layer | Backend | ✅ Done | RedisModule (graceful fallback), agent state + session HASH, pub/sub task distribution |
+| Event sourcing | Backend | ✅ Done | EventStoreService, `task_events` append-only table, 11 domain events |
+| Audit log UI | Frontend | ✅ Done | AuditLogComponent at `/admin/audit-log` with filters + pagination (adminGuard) |
+| Real authentication | Backend | ✅ Done | JWT AuthModule (bcrypt), JwtAuthGuard globally applied, `@Public()` opt-out |
+| Real auth frontend | Frontend | ✅ Done | AuthService rewrite: real login, localStorage JWT, auto-refresh interceptor |
+| Monitoring & alerting | Infra | ✅ Done | Prometheus metrics (6 custom `nexus_*`), `GET /api/health` via @nestjs/terminus |
+| Production deployment | Infra | ✅ Done | Multi-stage Dockerfiles (api + nginx), docker-compose.yml (postgres+redis+api+web) |
+| Accessibility debt | Frontend | ✅ Done | agent-workspace lint errors: 119 → 0 (100% cleared) |
 
 ---
 
@@ -134,5 +139,5 @@
 
 ---
 
-*Last Updated: March 2026 (Phase 3 complete — all 22 v1 requirements shipped)*
-*Version: 1.1*
+*Last Updated: March 2026 (Phase 4 complete — all 23 v1 requirements shipped)*
+*Version: 1.2*

@@ -99,8 +99,8 @@
 
 <!-- Note Modal -->
 @if (showNoteModal && selectedDisposition) {
-  <div class="modal-overlay" (click)="closeNoteModal()">
-    <div class="note-modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" role="button" tabindex="0" (click)="closeNoteModal()" (keydown.enter)="closeNoteModal()" (keydown.space)="closeNoteModal()">
+    <div class="note-modal" role="presentation" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>Add Note</h3>
         <button class="close-btn" (click)="closeNoteModal()">×</button>

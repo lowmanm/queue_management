@@ -11,19 +11,19 @@
         <span class="card-value">{{ summary.totalAgents }}</span>
         <span class="card-label">Total Agents</span>
       </div>
-      <div class="summary-card online" (click)="setFilter('online')">
+      <div class="summary-card online" role="button" tabindex="0" (click)="setFilter('online')" (keydown.enter)="setFilter('online')" (keydown.space)="setFilter('online')">
         <span class="card-value">{{ summary.onlineAgents }}</span>
         <span class="card-label">Online</span>
       </div>
-      <div class="summary-card active" (click)="setFilter('active')">
+      <div class="summary-card active" role="button" tabindex="0" (click)="setFilter('active')" (keydown.enter)="setFilter('active')" (keydown.space)="setFilter('active')">
         <span class="card-value">{{ summary.activeAgents }}</span>
         <span class="card-label">Active</span>
       </div>
-      <div class="summary-card idle" (click)="setFilter('idle')">
+      <div class="summary-card idle" role="button" tabindex="0" (click)="setFilter('idle')" (keydown.enter)="setFilter('idle')" (keydown.space)="setFilter('idle')">
         <span class="card-value">{{ summary.idleAgents }}</span>
         <span class="card-label">Idle</span>
       </div>
-      <div class="summary-card paused" (click)="setFilter('paused')">
+      <div class="summary-card paused" role="button" tabindex="0" (click)="setFilter('paused')" (keydown.enter)="setFilter('paused')" (keydown.space)="setFilter('paused')">
         <span class="card-value">{{ summary.pausedAgents }}</span>
         <span class="card-label">Paused</span>
       </div>

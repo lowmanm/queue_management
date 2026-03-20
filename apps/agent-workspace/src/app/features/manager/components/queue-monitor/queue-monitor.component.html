@@ -23,15 +23,15 @@
         <span class="card-value">{{ summary.avgServiceLevel }}%</span>
         <span class="card-label">Avg Service Level</span>
       </div>
-      <div class="summary-card healthy" (click)="setFilter('healthy')">
+      <div class="summary-card healthy" role="button" tabindex="0" (click)="setFilter('healthy')" (keydown.enter)="setFilter('healthy')" (keydown.space)="setFilter('healthy')">
         <span class="card-value">{{ summary.healthyQueues }}</span>
         <span class="card-label">Healthy</span>
       </div>
-      <div class="summary-card warning" (click)="setFilter('warning')">
+      <div class="summary-card warning" role="button" tabindex="0" (click)="setFilter('warning')" (keydown.enter)="setFilter('warning')" (keydown.space)="setFilter('warning')">
         <span class="card-value">{{ summary.warningQueues }}</span>
         <span class="card-label">Warning</span>
       </div>
-      <div class="summary-card critical" (click)="setFilter('critical')">
+      <div class="summary-card critical" role="button" tabindex="0" (click)="setFilter('critical')" (keydown.enter)="setFilter('critical')" (keydown.space)="setFilter('critical')">
         <span class="card-value">{{ summary.criticalQueues }}</span>
         <span class="card-label">Critical</span>
       </div>

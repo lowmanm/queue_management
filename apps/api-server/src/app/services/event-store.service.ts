@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditEvent, AuditEventType, AggregateType } from '@nexus-queue/shared-models';
 import { TaskEventEntity } from '../entities/task-event.entity';
+import { MetricsService } from '../monitoring/metrics.service';
 
 /** Fields emitted by callers — id, occurredAt, and sequenceNum are set by the store */
 export type EmitEventInput = Omit<AuditEvent, 'id' | 'occurredAt' | 'sequenceNum'>;
@@ -20,6 +21,8 @@ export class EventStoreService {
   constructor(
     @InjectRepository(TaskEventEntity)
     private readonly eventRepo: Repository<TaskEventEntity>,
+    @Optional()
+    private readonly metricsService?: MetricsService,
   ) {}
 
   /**
@@ -37,6 +40,14 @@ export class EventStoreService {
         agentId: event.agentId,
       });
       await this.eventRepo.save(entity);
+
+      // Record handle time metric when a task.completed event is emitted
+      if (event.eventType === 'task.completed' && this.metricsService) {
+        const handleTime = event.payload['handleTimeSeconds'];
+        if (typeof handleTime === 'number') {
+          this.metricsService.observeHandleTime(handleTime);
+        }
+      }
     } catch (err) {
       this.logger.error(
         `Failed to persist domain event [${event.eventType}] for ${event.aggregateType}:${event.aggregateId}: ${err}`
