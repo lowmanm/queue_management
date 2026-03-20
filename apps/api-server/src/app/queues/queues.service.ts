@@ -257,6 +257,35 @@ export class QueuesService {
   }
 
   /**
+   * Apply a bulk action to a single queue by ID.
+   * Returns the updated queue on success, or throws an Error if not found.
+   */
+  applyBulkAction(id: string, action: 'activate' | 'deactivate' | 'pause'): QueueConfig {
+    const queue = this.queues.get(id);
+    if (!queue) {
+      throw new Error(`Queue not found: ${id}`);
+    }
+
+    switch (action) {
+      case 'activate':
+        queue.active = true;
+        queue.status = 'active';
+        break;
+      case 'deactivate':
+        queue.active = false;
+        queue.status = 'active'; // not paused, just inactive
+        break;
+      case 'pause':
+        queue.status = 'paused';
+        break;
+    }
+
+    queue.updatedAt = new Date();
+    this.queues.set(id, queue);
+    return queue;
+  }
+
+  /**
    * Simulate task age updates (for demo purposes)
    */
   simulateTaskAging(): void {

@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { EventStoreService } from '../services/event-store.service';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { EventStoreService, ReplayResult } from '../services/event-store.service';
 import {
   AuditLogResponse,
   AuditEventType,
@@ -28,6 +28,16 @@ interface AuditLogQueryParams {
 @Controller('audit-log')
 export class AuditLogController {
   constructor(private readonly eventStore: EventStoreService) {}
+
+  /**
+   * GET /api/audit-log/replay/:aggregateId
+   * Replay all events for a task or agent aggregate and reconstruct state.
+   * Protected by JwtAuthGuard (global); admin-only enforced at frontend.
+   */
+  @Get('replay/:aggregateId')
+  async replay(@Param('aggregateId') aggregateId: string): Promise<ReplayResult> {
+    return this.eventStore.replayAggregate(aggregateId);
+  }
 
   /**
    * GET /api/audit-log

@@ -6,6 +6,13 @@ import { TaskEventEntity } from '../entities/task-event.entity';
 import { MetricsService } from '../monitoring/metrics.service';
 import { OutboundWebhookService } from './outbound-webhook.service';
 
+/** Result of a replayAggregate call */
+export interface ReplayResult {
+  events: AuditEvent[];
+  /** Task state reconstructed from events — may include non-standard status values (e.g. QUEUED, DLQ) */
+  reconstructedState: Record<string, unknown>;
+}
+
 /** Fields emitted by callers — id, occurredAt, and sequenceNum are set by the store */
 export type EmitEventInput = Omit<AuditEvent, 'id' | 'occurredAt' | 'sequenceNum'>;
 
@@ -75,6 +82,102 @@ export class EventStoreService {
         `Failed to persist domain event [${event.eventType}] for ${event.aggregateType}:${event.aggregateId}: ${err}`
       );
     }
+  }
+
+  /**
+   * Replay all events for an aggregate and reconstruct the task state.
+   *
+   * Queries events ordered by sequenceNum ASC and applies a state reducer
+   * to rebuild the task state step by step.
+   *
+   * @param aggregateId - The task ID (or agent ID) to replay
+   * @returns An object containing the ordered event list and the final reconstructed state
+   */
+  async replayAggregate(aggregateId: string): Promise<ReplayResult> {
+    const entities = await this.eventRepo.find({
+      where: { aggregateId },
+      order: { occurredAt: 'ASC' },
+    });
+
+    const events: AuditEvent[] = entities.map((e, idx) => ({
+      id: e.id,
+      eventType: e.eventType,
+      aggregateId: e.aggregateId,
+      aggregateType: e.aggregateType,
+      payload: e.payload ?? {},
+      occurredAt: e.occurredAt,
+      pipelineId: e.pipelineId,
+      agentId: e.agentId,
+      sequenceNum: idx,
+    }));
+
+    const reconstructedState = this.applyEvents(events);
+    return { events, reconstructedState };
+  }
+
+  /**
+   * Apply domain events in sequence to reconstruct task state.
+   */
+  private applyEvents(events: AuditEvent[]): Record<string, unknown> {
+    const state: Record<string, unknown> = {};
+
+    for (const event of events) {
+      const p = event.payload;
+
+      switch (event.eventType) {
+        case 'task.ingested':
+          state['id'] = event.aggregateId;
+          state['status'] = 'PENDING';
+          state['pipelineId'] = event.pipelineId ?? p['pipelineId'];
+          state['workType'] = p['workType'];
+          state['priority'] = p['priority'];
+          state['title'] = p['title'];
+          break;
+
+        case 'task.queued':
+          state['status'] = 'QUEUED';
+          if (p['queueId']) state['queueId'] = p['queueId'];
+          break;
+
+        case 'task.assigned':
+          state['status'] = 'RESERVED';
+          if (p['agentId']) state['assignedAgentId'] = p['agentId'];
+          break;
+
+        case 'task.accepted':
+          state['status'] = 'ACTIVE';
+          break;
+
+        case 'task.rejected':
+          state['status'] = 'QUEUED';
+          state['assignedAgentId'] = undefined;
+          break;
+
+        case 'task.completed':
+          state['status'] = 'COMPLETED';
+          break;
+
+        case 'task.dlq':
+          state['status'] = 'DLQ';
+          if (p['reason']) state['failureReason'] = p['reason'];
+          break;
+
+        case 'task.retried':
+        case 'task.pipeline_transferred':
+          state['retryCount'] = ((state['retryCount'] as number | undefined) ?? 0) + 1;
+          break;
+
+        // Events that don't change task state
+        case 'agent.state_changed':
+        case 'sla.warning':
+        case 'sla.breach':
+        case 'outbound.webhook.sent':
+        case 'outbound.webhook.failed':
+          break;
+      }
+    }
+
+    return state;
   }
 
   /**

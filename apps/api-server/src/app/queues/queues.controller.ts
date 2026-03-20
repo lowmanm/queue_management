@@ -11,11 +11,49 @@ import {
 } from '@nestjs/common';
 import { QueuesService, QueueConfig, QueueStats } from './queues.service';
 
+interface BulkQueueActionBody {
+  ids: string[];
+  action: 'activate' | 'deactivate' | 'pause';
+}
+
+interface BulkQueueActionResult {
+  succeeded: string[];
+  failed: Array<{ id: string; reason: string }>;
+}
+
 @Controller('queues')
 export class QueuesController {
   private readonly logger = new Logger(QueuesController.name);
 
   constructor(private readonly queuesService: QueuesService) {}
+
+  /**
+   * Bulk action on multiple queues.
+   * Partial success is allowed — failures are collected and returned.
+   *
+   * POST /api/queues/bulk
+   * Body: { ids: string[], action: 'activate' | 'deactivate' | 'pause' }
+   */
+  @Post('bulk')
+  bulkAction(@Body() body: BulkQueueActionBody): BulkQueueActionResult {
+    const succeeded: string[] = [];
+    const failed: Array<{ id: string; reason: string }> = [];
+
+    for (const id of body.ids) {
+      try {
+        this.queuesService.applyBulkAction(id, body.action);
+        succeeded.push(id);
+      } catch (err) {
+        failed.push({ id, reason: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    this.logger.log(
+      `Bulk action "${body.action}": ${succeeded.length} succeeded, ${failed.length} failed`,
+    );
+
+    return { succeeded, failed };
+  }
 
   /**
    * Get all queues
