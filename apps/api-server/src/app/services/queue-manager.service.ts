@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Not, IsNull, Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Not, IsNull, Repository, DataSource } from 'typeorm';
 import { Task } from '@nexus-queue/shared-models';
 import { QueuedTaskEntity } from '../entities/queued-task.entity';
 import { DLQEntryEntity } from '../entities/dlq-entry.entity';
@@ -51,6 +51,9 @@ export interface DLQEntry {
  * Each named queue maintains tasks sorted by (priority ASC, enqueuedAt ASC).
  * Dequeue always returns the highest-urgency (lowest priority number), oldest task.
  * Backed by TypeORM repositories for persistence.
+ *
+ * In PostgreSQL mode, dequeue uses SELECT ... FOR UPDATE SKIP LOCKED to prevent
+ * double-distribution across multiple API instances.
  */
 @Injectable()
 export class QueueManagerService {
@@ -63,8 +66,14 @@ export class QueueManagerService {
     @InjectRepository(QueuedTaskEntity)
     private readonly queuedTaskRepo: Repository<QueuedTaskEntity>,
     @InjectRepository(DLQEntryEntity)
-    private readonly dlqRepo: Repository<DLQEntryEntity>
+    private readonly dlqRepo: Repository<DLQEntryEntity>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
+
+  private get isPostgres(): boolean {
+    return this.dataSource.options.type === 'postgres';
+  }
 
   /**
    * Ensure a queue exists (no-op: DB tables handle implicit queue creation).
@@ -103,8 +112,16 @@ export class QueueManagerService {
   /**
    * Remove and return the highest-priority task from a queue.
    * Returns null if queue is empty.
+   *
+   * Uses SELECT FOR UPDATE SKIP LOCKED on PostgreSQL to prevent double-distribution
+   * across multiple API instances. Falls back to find+delete on SQLite.
    */
   async dequeue(queueId: string): Promise<QueuedTask | null> {
+    if (this.isPostgres) {
+      return this.dequeuePostgres(queueId);
+    }
+
+    // SQLite fallback — single-instance safe
     const entity = await this.queuedTaskRepo.findOne({
       where: { queueId },
       order: { priority: 'ASC', enqueuedAt: 'ASC' },
@@ -123,6 +140,71 @@ export class QueueManagerService {
     );
 
     return this.toModel(entity);
+  }
+
+  /**
+   * Dequeue using SELECT ... FOR UPDATE SKIP LOCKED inside a transaction.
+   * Prevents two API instances from claiming the same task.
+   */
+  private async dequeuePostgres(queueId: string): Promise<QueuedTask | null> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const tableName = this.queuedTaskRepo.metadata.tableName;
+      const rows = await queryRunner.query(
+        `SELECT * FROM "${tableName}"
+         WHERE queue_id = $1
+         ORDER BY priority ASC, enqueued_at ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED`,
+        [queueId]
+      ) as Record<string, unknown>[];
+
+      if (rows.length === 0) {
+        await queryRunner.commitTransaction();
+        return null;
+      }
+
+      const row = rows[0];
+      await queryRunner.query(
+        `DELETE FROM "${tableName}" WHERE id = $1`,
+        [row['id']]
+      );
+
+      await queryRunner.commitTransaction();
+
+      const entity = this.queuedTaskRepo.create({
+        id: row['id'] as string,
+        taskId: row['task_id'] as string,
+        pipelineId: row['pipeline_id'] as string,
+        queueId: row['queue_id'] as string,
+        taskPayload: row['task_payload'] as Record<string, unknown>,
+        priority: row['priority'] as number,
+        retryCount: row['retry_count'] as number,
+        maxRetries: row['max_retries'] as number,
+        lastFailureReason: row['last_failure_reason'] as string | undefined,
+        enqueuedAt: new Date(row['enqueued_at'] as string),
+        slaDeadline: row['sla_deadline'] ? new Date(row['sla_deadline'] as string) : undefined,
+      });
+
+      const waitMs = Date.now() - entity.enqueuedAt.getTime();
+      this.recordWaitTime(queueId, waitMs);
+
+      this.logger.debug(
+        `Dequeued task ${entity.taskId} from queue ${queueId} via FOR UPDATE SKIP LOCKED ` +
+          `(waited ${Math.round(waitMs / 1000)}s)`
+      );
+
+      return this.toModel(entity);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Postgres dequeue transaction failed: ${err}`);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   /**
