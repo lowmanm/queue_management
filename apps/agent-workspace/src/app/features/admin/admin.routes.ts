@@ -80,4 +80,13 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [adminGuard],
     data: { permissions: ['admin:users'] },
   },
+  {
+    path: 'audit-log',
+    loadComponent: () =>
+      import('./components/audit-log/audit-log.component').then(
+        (m) => m.AuditLogComponent
+      ),
+    canActivate: [adminGuard],
+    data: { breadcrumb: 'Audit Log', title: 'Audit Log' },
+  },
 ];

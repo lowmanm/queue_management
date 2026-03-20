@@ -1,0 +1,177 @@
+<div class="audit-log">
+  <div class="page-header">
+    <h1>Audit Log</h1>
+    <p class="page-description">Domain event history across the task and agent lifecycle.</p>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="aggregateType">Aggregate Type</label>
+        <select
+          id="aggregateType"
+          [ngModel]="filterAggregateType()"
+          (ngModelChange)="filterAggregateType.set($event)"
+        >
+          <option value="">All</option>
+          <option value="task">Task</option>
+          <option value="agent">Agent</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="eventType">Event Type</label>
+        <select
+          id="eventType"
+          [ngModel]="filterEventType()"
+          (ngModelChange)="filterEventType.set($event)"
+        >
+          <option value="">All</option>
+          @for (type of eventTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group filter-group--wide">
+        <label for="aggregateId">Aggregate ID</label>
+        <input
+          id="aggregateId"
+          type="text"
+          placeholder="Task or Agent ID"
+          [ngModel]="filterAggregateId()"
+          (ngModelChange)="filterAggregateId.set($event)"
+        />
+      </div>
+
+      <div class="filter-group">
+        <label for="startDate">From</label>
+        <input
+          id="startDate"
+          type="datetime-local"
+          [ngModel]="filterStartDate()"
+          (ngModelChange)="filterStartDate.set($event)"
+        />
+      </div>
+
+      <div class="filter-group">
+        <label for="endDate">To</label>
+        <input
+          id="endDate"
+          type="datetime-local"
+          [ngModel]="filterEndDate()"
+          (ngModelChange)="filterEndDate.set($event)"
+        />
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn-primary" (click)="applyFilters()">Apply</button>
+        <button class="btn-secondary" (click)="clearFilters()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="loading-spinner"></span>
+      Loading events…
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="error-state">{{ error() }}</div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && !error() && events().length === 0) {
+    <div class="empty-state">
+      <p>No events found matching your filters.</p>
+    </div>
+  }
+
+  <!-- Events Table -->
+  @if (!loading() && events().length > 0) {
+    <div class="events-table-wrapper">
+      <table class="events-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Event Type</th>
+            <th>Aggregate</th>
+            <th>Pipeline</th>
+            <th>Agent</th>
+            <th>Payload</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (event of events(); track event.id) {
+            <tr class="event-row">
+              <td class="col-timestamp">
+                {{ event.occurredAt | date:'yyyy-MM-dd HH:mm:ss' }}
+              </td>
+              <td class="col-event-type">
+                <span class="event-badge">{{ event.eventType }}</span>
+              </td>
+              <td class="col-aggregate">
+                <span class="aggregate-type-chip">{{ event.aggregateType }}</span>
+                <span class="aggregate-id" [title]="event.aggregateId">
+                  {{ event.aggregateId | slice:0:8 }}&hellip;
+                </span>
+              </td>
+              <td class="col-pipeline">
+                @if (event.pipelineId) {
+                  <span [title]="event.pipelineId">
+                    {{ event.pipelineId | slice:0:8 }}&hellip;
+                  </span>
+                } @else {
+                  <span class="empty-cell">&mdash;</span>
+                }
+              </td>
+              <td class="col-agent">
+                {{ event.agentId ?? '—' }}
+              </td>
+              <td class="col-payload">
+                <button
+                  class="payload-toggle"
+                  (click)="togglePayload(event.id)"
+                >
+                  {{ isExpanded(event.id) ? 'Hide' : 'Show' }}
+                </button>
+                @if (isExpanded(event.id)) {
+                  <pre class="payload-json">{{ formatPayload(event.payload) }}</pre>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <span class="pagination-info">
+        Showing {{ startIndex }}–{{ endIndex }} of {{ totalEvents() }} events
+      </span>
+      <div class="pagination-controls">
+        <button
+          class="btn-secondary"
+          [disabled]="!hasPrevPage"
+          (click)="prevPage()"
+        >
+          Previous
+        </button>
+        <span class="page-num">Page {{ currentPage() }}</span>
+        <button
+          class="btn-secondary"
+          [disabled]="!hasNextPage"
+          (click)="nextPage()"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  }
+</div>

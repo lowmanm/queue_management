@@ -1,0 +1,308 @@
+.audit-log {
+  padding: 2rem;
+  max-width: 1400px;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+  }
+
+  .page-description {
+    margin: 0;
+    color: var(--color-text-secondary, #6b7280);
+    font-size: 0.875rem;
+  }
+}
+
+/* ── Filter Bar ─────────────────────────────────── */
+
+.filter-bar {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 140px;
+
+  &--wide {
+    min-width: 220px;
+    flex: 1;
+  }
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-secondary, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  select,
+  input[type='text'],
+  input[type='datetime-local'] {
+    height: 36px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--color-border, #d1d5db);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: var(--color-bg, #f9fafb);
+    color: var(--color-text, #111827);
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+
+    &:focus {
+      border-color: var(--color-primary, #6366f1);
+      background: #fff;
+    }
+  }
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+/* ── Buttons ─────────────────────────────────────── */
+
+.btn-primary,
+.btn-secondary {
+  height: 36px;
+  padding: 0 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, opacity 0.15s;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-color: var(--color-primary, #6366f1);
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-dark, #4f46e5);
+  }
+}
+
+.btn-secondary {
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #374151);
+  border-color: var(--color-border, #d1d5db);
+
+  &:hover:not(:disabled) {
+    background: var(--color-bg, #f3f4f6);
+  }
+}
+
+/* ── States ──────────────────────────────────────── */
+
+.loading-state,
+.error-state,
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.error-state {
+  color: var(--color-error, #dc2626);
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border, #d1d5db);
+  border-top-color: var(--color-primary, #6366f1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Events Table ────────────────────────────────── */
+
+.events-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  thead th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary, #6b7280);
+    background: var(--color-bg, #f9fafb);
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--color-border, #f3f4f6);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: var(--color-bg, #f9fafb);
+    }
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    vertical-align: top;
+  }
+}
+
+.col-timestamp {
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.event-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--color-bg, #f3f4f6);
+  color: var(--color-text, #374151);
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.col-aggregate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.aggregate-type-chip {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--color-primary-light, #ede9fe);
+  color: var(--color-primary, #6366f1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.aggregate-id {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--color-text, #374151);
+  cursor: help;
+}
+
+.col-pipeline,
+.col-agent {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.empty-cell {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.payload-toggle {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 4px;
+  background: var(--color-surface, #fff);
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--color-text, #374151);
+
+  &:hover {
+    background: var(--color-bg, #f3f4f6);
+  }
+}
+
+.payload-json {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  background: var(--color-bg, #f3f4f6);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  color: var(--color-text, #374151);
+}
+
+/* ── Pagination ──────────────────────────────────── */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  margin-top: 0.5rem;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-num {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text, #374151);
+}

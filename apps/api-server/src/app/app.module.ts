@@ -18,6 +18,7 @@ import { SessionsModule } from './sessions';
 import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
 import { PipelineModule } from './pipelines/pipeline.module';
 import { ProxyModule } from './proxy/proxy.module';
+import { AuditLogModule } from './audit-log';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ProxyModule } from './proxy/proxy.module';
     VolumeLoaderModule,
     PipelineModule,
     ProxyModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

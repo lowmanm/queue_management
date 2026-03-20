@@ -105,12 +105,13 @@ export class AppShellComponent implements OnInit, OnDestroy {
       });
     }
 
-    // System — User Management
+    // System — User Management, Audit Log
     if (this.canAccessAdmin()) {
       sections.push({
         title: 'System',
         items: [
           { label: 'User Management', path: '/admin/users', icon: 'users' },
+          { label: 'Audit Log', path: '/admin/audit-log', icon: 'audit' },
         ],
       });
     }
@@ -177,6 +178,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
         'volume-loaders': 'Data Sources',
         'rule-sets': 'Rule Sets',
         users: 'User Management',
+        'audit-log': 'Audit Log',
         dlq: 'DLQ Monitor',
         'pipeline-status': 'Pipeline Status',
       };
