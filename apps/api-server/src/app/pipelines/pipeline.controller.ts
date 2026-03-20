@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  HttpCode,
   HttpException,
   HttpStatus,
   Optional,
@@ -25,6 +26,7 @@ import {
   CreateRoutingRuleRequest,
   UpdateRoutingRuleRequest,
   PipelineValidationRequest,
+  PipelineBundle,
 } from '@nexus-queue/shared-models';
 
 @Controller('pipelines')
@@ -181,6 +183,56 @@ export class PipelineController {
     const result = await this.pipelineService.rollbackPipeline(id, versionId);
     if (!result.success) {
       throw new HttpException(result.error || 'Rollback failed', HttpStatus.BAD_REQUEST);
+    }
+    return result.pipeline;
+  }
+
+  // ===========================================================================
+  // PORTABILITY ENDPOINTS — export / import / clone
+  // NOTE: @Post('import') must be declared before @Post(':id/clone') so NestJS
+  //       does not match "import" as an :id segment.
+  // ===========================================================================
+
+  /**
+   * POST /api/pipelines/import
+   * Create a new pipeline from a portable JSON bundle.
+   */
+  @Post('import')
+  @HttpCode(HttpStatus.CREATED)
+  async importPipeline(@Body() bundle: PipelineBundle) {
+    const result = await this.pipelineService.importPipeline(bundle);
+    if (!result.success) {
+      throw new HttpException(
+        { message: 'Import failed', errors: result.errors },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+    return result;
+  }
+
+  /**
+   * GET /api/pipelines/:id/export
+   * Export a pipeline and its configuration as a portable JSON bundle.
+   */
+  @Get(':id/export')
+  exportPipeline(@Param('id') id: string) {
+    const bundle = this.pipelineService.exportPipeline(id);
+    if (!bundle) {
+      throw new HttpException('Pipeline not found', HttpStatus.NOT_FOUND);
+    }
+    return bundle;
+  }
+
+  /**
+   * POST /api/pipelines/:id/clone
+   * Duplicate a pipeline as a new inactive draft with "(Copy)" suffix.
+   */
+  @Post(':id/clone')
+  @HttpCode(HttpStatus.CREATED)
+  async clonePipeline(@Param('id') id: string) {
+    const result = await this.pipelineService.clonePipeline(id);
+    if (!result.success) {
+      throw new HttpException(result.error || 'Clone failed', HttpStatus.BAD_REQUEST);
     }
     return result.pipeline;
   }

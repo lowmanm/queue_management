@@ -89,4 +89,13 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [adminGuard],
     data: { breadcrumb: 'Audit Log', title: 'Audit Log' },
   },
+  {
+    path: 'webhooks',
+    loadComponent: () =>
+      import('./components/webhooks/webhooks.component').then(
+        (m) => m.WebhooksComponent
+      ),
+    canActivate: [designerGuard],
+    data: { breadcrumb: 'Webhook Endpoints', title: 'Webhook Endpoints', permissions: ['design:pipelines'] },
+  },
 ];

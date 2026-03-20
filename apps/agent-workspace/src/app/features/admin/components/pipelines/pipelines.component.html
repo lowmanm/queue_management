@@ -3,6 +3,9 @@
   [subtitle]="viewMode() === 'list' ? 'Manage workflow pipelines, queues, and routing rules' : 'Configure queues and routing for this pipeline'"
 >
   @if (viewMode() === 'list') {
+    <button slot="actions" class="btn-secondary" (click)="openPortabilityPanel()">
+      Import Pipeline
+    </button>
     <button slot="actions" class="btn-primary" (click)="navigateToWizard()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -110,6 +113,19 @@
                     }
                   </svg>
                 </button>
+                <button class="btn-icon" (click)="exportPipeline(pipeline)" title="Export JSON">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </button>
+                <button class="btn-icon" (click)="clonePipeline(pipeline)" title="Clone">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
                 <button class="btn-icon danger" (click)="deletePipeline(pipeline)" title="Delete">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -121,6 +137,19 @@
           }
         </div>
       }
+    }
+
+    <!-- PORTABILITY PANEL -->
+    @if (showPortabilityPanel()) {
+      <div class="portability-overlay">
+        <app-pipeline-portability
+          [pipelineId]="portabilityPipelineId()"
+          [pipelineName]="portabilityPipelineName()"
+          (cloned)="onPortabilityCloned($event)"
+          (imported)="onPortabilityImported($event)"
+          (closed)="closePortabilityPanel()"
+        ></app-pipeline-portability>
+      </div>
     }
 
     <!-- DETAIL VIEW -->

@@ -19,6 +19,7 @@ import {
 import { Router } from '@angular/router';
 import { Subject, takeUntil, forkJoin, of, switchMap } from 'rxjs';
 import {
+  Pipeline,
   PipelineValidationRequest,
   PipelineValidationResult,
   PipelineFieldType,
@@ -37,6 +38,8 @@ export interface WizardQueueEntry {
 }
 
 const FIELD_TYPES: PipelineFieldType[] = ['string', 'number', 'boolean', 'date'];
+const CALLBACK_EVENTS = ['task.completed', 'task.dlq', 'sla.breach'] as const;
+type CallbackEvent = (typeof CALLBACK_EVENTS)[number];
 
 @Component({
   selector: 'app-pipeline-wizard',
@@ -57,7 +60,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   // WIZARD STEP STATE
   // ============================================================
 
-  readonly totalSteps = 6;
+  readonly totalSteps = 7;
   currentStep = signal(1);
 
   readonly stepLabels = [
@@ -66,6 +69,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
     'Routing Rules',
     'Queue Assignment',
     'SLA Config',
+    'Callbacks',
     'Review',
   ];
 
@@ -78,6 +82,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   step3Form!: FormGroup;
   step4Form!: FormGroup;
   step5Form!: FormGroup;
+  step6Form!: FormGroup;
 
   // ============================================================
   // REVIEW / VALIDATION STATE
@@ -94,6 +99,12 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   // ============================================================
 
   availableSkills = signal<{ id: string; name: string }[]>([]);
+
+  // ============================================================
+  // ALL PIPELINES (for cross-pipeline routing dropdown)
+  // ============================================================
+
+  allPipelines = signal<Pick<Pipeline, 'id' | 'name'>[]>([]);
 
   // ============================================================
   // COMPUTED HELPERS
@@ -118,6 +129,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   });
 
   readonly fieldTypes = FIELD_TYPES;
+  readonly callbackEventOptions = CALLBACK_EVENTS;
 
   // ============================================================
   // LIFECYCLE
@@ -126,6 +138,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initForms();
     this.loadSkills();
+    this.loadAllPipelines();
   }
 
   ngOnDestroy(): void {
@@ -160,6 +173,11 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       defaultHandleTimeMs: [300000],
       maxQueueWaitMs: [900000],
     });
+
+    this.step6Form = this.fb.group({
+      callbackUrl: ['', Validators.pattern(/^https?:\/\/.+/)],
+      callbackEvents: [[] as CallbackEvent[]],
+    });
   }
 
   private loadSkills(): void {
@@ -167,6 +185,14 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((skills) => {
         this.availableSkills.set(skills.map((s) => ({ id: s.id, name: s.name })));
+      });
+  }
+
+  private loadAllPipelines(): void {
+    this.pipelineApi.getAllPipelines()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((pipelines) => {
+        this.allPipelines.set(pipelines.map((p) => ({ id: p.id, name: p.name })));
       });
   }
 
@@ -204,8 +230,14 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       conditionField: [''],
       conditionOperator: ['equals'],
       conditionValue: [''],
+      routingActionType: ['queue'],
       targetQueueLabel: [''],
+      targetPipelineId: [null as string | null],
     }));
+  }
+
+  getRoutingActionType(index: number): string {
+    return this.getRuleForm(index).get('routingActionType')?.value as string ?? 'queue';
   }
 
   removeRoutingRule(index: number): void {
@@ -303,11 +335,21 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
         // Schema is optional; no validation required
         break;
       case 3:
-        // Rules are optional; validate each rule name if any exist
+        // Rules are optional; validate each rule that exists
         this.routingRules.controls.forEach((ctrl, i) => {
-          const name = (ctrl as FormGroup).get('name')?.value;
+          const g = ctrl as FormGroup;
+          const name = g.get('name')?.value;
           if (!name?.trim()) {
             errors.push(`Rule ${i + 1}: name is required`);
+          }
+          const actionType: string = g.get('routingActionType')?.value ?? 'queue';
+          const targetQueueLabel: string = g.get('targetQueueLabel')?.value ?? '';
+          const targetPipelineId: string | null = g.get('targetPipelineId')?.value ?? null;
+          if (actionType === 'queue' && !targetQueueLabel) {
+            errors.push(`Rule ${i + 1}: select a target queue (or switch to "Transfer to Pipeline")`);
+          }
+          if (actionType === 'pipeline' && !targetPipelineId) {
+            errors.push(`Rule ${i + 1}: select a target pipeline`);
           }
         });
         break;
@@ -326,6 +368,16 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       case 5:
         if (this.step5Form.invalid) {
           errors.push('SLA thresholds must be valid percentages (0-100)');
+        }
+        break;
+      case 6:
+        if (!this.callbacksStepValid()) {
+          errors.push(
+            'Callbacks: either leave both URL and events empty, or fill in the URL and select at least one event'
+          );
+        }
+        if (this.step6Form.get('callbackUrl')?.invalid) {
+          errors.push('Callback URL must be a valid http or https URL');
         }
         break;
     }
@@ -381,7 +433,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   // ============================================================
 
   submit(active: boolean): void {
-    const allErrors = [1, 2, 3, 4, 5]
+    const allErrors = [1, 2, 3, 4, 5, 6]
       .flatMap((s) => this.validateStep(s));
     if (allErrors.length > 0) {
       this.errorMessage.set(allErrors[0]);
@@ -393,16 +445,22 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
 
     const s1 = this.step1Form.value;
     const sla = this.step5Form.value;
+    const callbacks = this.step6Form.value;
+    const callbackUrl: string = callbacks.callbackUrl?.trim() ?? '';
+    const callbackEvents: CallbackEvent[] = callbacks.callbackEvents ?? [];
 
     const createRequest = {
-      name: s1.name,
-      description: s1.description,
-      allowedWorkTypes: [],
+      name: s1.name as string,
+      description: s1.description as string,
+      allowedWorkTypes: [] as string[],
       sla: {
-        targetHandleTime: Math.round(sla.defaultHandleTimeMs / 1000),
-        maxQueueWaitTime: Math.round(sla.maxQueueWaitMs / 1000),
-        serviceLevelTarget: sla.warningThresholdPercent,
+        targetHandleTime: Math.round((sla.defaultHandleTimeMs as number) / 1000),
+        maxQueueWaitTime: Math.round((sla.maxQueueWaitMs as number) / 1000),
+        serviceLevelTarget: sla.warningThresholdPercent as number,
       },
+      ...(callbackUrl && callbackEvents.length > 0
+        ? { callbackUrl, callbackEvents }
+        : {}),
     };
 
     this.pipelineApi.createPipeline(createRequest)
@@ -433,9 +491,14 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
 
               const ruleCreates = this.routingRules.controls.map((ctrl, i) => {
                 const g = ctrl as FormGroup;
-                const targetLabel: string = g.get('targetQueueLabel')?.value;
-                const targetQueueId = labelToId.get(targetLabel) ?? '';
-                if (!targetQueueId) return of(null);
+                const actionType: string = g.get('routingActionType')?.value ?? 'queue';
+                const targetLabel: string = g.get('targetQueueLabel')?.value ?? '';
+                const targetPipelineId: string | null = g.get('targetPipelineId')?.value ?? null;
+
+                const targetQueueId = actionType === 'queue' ? (labelToId.get(targetLabel) ?? '') : '';
+                const hasCrossPipeline = actionType === 'pipeline' && !!targetPipelineId;
+
+                if (!targetQueueId && !hasCrossPipeline) return of(null);
 
                 const conditionField: string = g.get('conditionField')?.value;
                 const conditions = conditionField
@@ -452,7 +515,9 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
                   priority: i + 1,
                   conditions,
                   conditionLogic: 'AND',
-                  targetQueueId,
+                  ...(hasCrossPipeline
+                    ? { targetPipelineId: targetPipelineId! }
+                    : { targetQueueId }),
                 });
               });
 
@@ -479,6 +544,38 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
           this.isSubmitting.set(false);
         },
       });
+  }
+
+  // ============================================================
+  // STEP 6 — CALLBACKS
+  // ============================================================
+
+  /**
+   * Returns true when Callbacks step is valid:
+   * - Both callbackUrl and callbackEvents are empty (no callbacks configured), OR
+   * - callbackUrl is filled AND at least one event is checked.
+   */
+  callbacksStepValid(): boolean {
+    const url: string = this.step6Form.get('callbackUrl')?.value ?? '';
+    const events: CallbackEvent[] = this.step6Form.get('callbackEvents')?.value ?? [];
+    const hasUrl = url.trim().length > 0;
+    const hasEvents = events.length > 0;
+    if (!hasUrl && !hasEvents) return true;          // both empty — no callbacks
+    if (hasUrl && hasEvents) return true;            // both filled — valid
+    return false;                                    // one side filled, other empty
+  }
+
+  toggleCallbackEvent(event: CallbackEvent): void {
+    const current: CallbackEvent[] = this.step6Form.get('callbackEvents')?.value ?? [];
+    const updated = current.includes(event)
+      ? current.filter((e) => e !== event)
+      : [...current, event];
+    this.step6Form.patchValue({ callbackEvents: updated });
+  }
+
+  isCallbackEventSelected(event: CallbackEvent): boolean {
+    const selected: CallbackEvent[] = this.step6Form.get('callbackEvents')?.value ?? [];
+    return selected.includes(event);
   }
 
   // ============================================================

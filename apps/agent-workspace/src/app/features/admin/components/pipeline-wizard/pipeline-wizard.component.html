@@ -166,14 +166,34 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" [attr.for]="'rule-target-' + $index">Route to Queue</label>
-                  <select [id]="'rule-target-' + $index" class="form-input" formControlName="targetQueueLabel">
-                    <option value="">— select queue (set in step 4) —</option>
-                    @for (label of queueLabels(); track label) {
-                      <option [value]="label">{{ label }}</option>
-                    }
+                  <label class="form-label" [attr.for]="'rule-action-type-' + $index">Routing Action</label>
+                  <select [id]="'rule-action-type-' + $index" class="form-input" formControlName="routingActionType">
+                    <option value="queue">Enqueue in Queue</option>
+                    <option value="pipeline">Transfer to Pipeline</option>
                   </select>
                 </div>
+                @if (getRoutingActionType($index) === 'queue') {
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-target-' + $index">Target Queue</label>
+                    <select [id]="'rule-target-' + $index" class="form-input" formControlName="targetQueueLabel">
+                      <option value="">— select queue (set in step 4) —</option>
+                      @for (label of queueLabels(); track label) {
+                        <option [value]="label">{{ label }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+                @if (getRoutingActionType($index) === 'pipeline') {
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-pipeline-' + $index">Target Pipeline</label>
+                    <select [id]="'rule-pipeline-' + $index" class="form-input" formControlName="targetPipelineId">
+                      <option [value]="null">— select pipeline —</option>
+                      @for (p of allPipelines(); track p.id) {
+                        <option [value]="p.id">{{ p.name }}</option>
+                      }
+                    </select>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -322,11 +342,61 @@
   }
 
   <!-- ============================================================ -->
-  <!-- STEP 6: Review -->
+  <!-- STEP 6: Callbacks -->
   <!-- ============================================================ -->
   @if (currentStep() === 6) {
+    <div class="wizard-step" [formGroup]="step6Form">
+      <h2 class="step-title">Step 6 — Callbacks</h2>
+      <p class="step-description">
+        Optionally configure a URL where Nexus will POST events when tasks
+        in this pipeline complete, fail to DLQ, or breach SLA.
+      </p>
+
+      <div class="step-callbacks">
+        <div class="form-group">
+          <label for="callbackUrl" class="form-label">Callback URL (optional)</label>
+          <input
+            id="callbackUrl"
+            type="url"
+            class="form-input"
+            formControlName="callbackUrl"
+            placeholder="https://your-system.example.com/nexus-events"
+          />
+          @if (step6Form.get('callbackUrl')?.invalid && step6Form.get('callbackUrl')?.touched) {
+            <span class="field-error">Must be a valid http or https URL</span>
+          }
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">Notify on:</span>
+          <div class="checkbox-group">
+            @for (event of callbackEventOptions; track event) {
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [checked]="isCallbackEventSelected(event)"
+                  (change)="toggleCallbackEvent(event)"
+                />
+                {{ event }}
+              </label>
+            }
+          </div>
+        </div>
+
+        <p class="field-hint">
+          Nexus signs all outbound payloads with HMAC-SHA256 (X-Nexus-Signature header).
+          Leave both fields empty to skip callbacks.
+        </p>
+      </div>
+    </div>
+  }
+
+  <!-- ============================================================ -->
+  <!-- STEP 7: Review -->
+  <!-- ============================================================ -->
+  @if (currentStep() === 7) {
     <div class="wizard-step">
-      <h2 class="step-title">Step 6 — Review &amp; Submit</h2>
+      <h2 class="step-title">Step 7 — Review &amp; Submit</h2>
       <p class="step-description">Review your pipeline configuration before saving.</p>
 
       <div class="review-sections">
@@ -393,6 +463,18 @@
             <dt>Breach at</dt><dd>{{ step5Form.get('breachThresholdPercent')?.value }}%</dd>
             <dt>Escalation</dt><dd>{{ step5Form.get('escalationAction')?.value }}</dd>
           </dl>
+        </div>
+
+        <div class="review-section">
+          <h3>Callbacks</h3>
+          @if (step6Form.get('callbackUrl')?.value) {
+            <dl>
+              <dt>URL</dt><dd>{{ step6Form.get('callbackUrl')?.value }}</dd>
+              <dt>Events</dt><dd>{{ step6Form.get('callbackEvents')?.value?.join(', ') || '—' }}</dd>
+            </dl>
+          } @else {
+            <p class="empty-note">No callbacks configured</p>
+          }
         </div>
       </div>
 

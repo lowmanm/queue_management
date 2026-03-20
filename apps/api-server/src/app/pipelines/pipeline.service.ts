@@ -23,6 +23,8 @@ import {
   DEFAULT_PIPELINE_QUEUE_STATS,
   DefaultRoutingConfig,
   TaskFromSource,
+  PipelineBundle,
+  PipelineImportResult,
 } from '@nexus-queue/shared-models';
 import { PipelineEntity } from '../entities/pipeline.entity';
 import { PipelineQueueEntity } from '../entities/pipeline-queue.entity';
@@ -480,13 +482,19 @@ export class PipelineService implements OnModuleInit {
       return { success: false, error: 'Pipeline not found' };
     }
 
-    // Validate target queue exists and belongs to pipeline
-    const targetQueue = this.queues.get(request.targetQueueId);
-    if (!targetQueue) {
-      return { success: false, error: 'Target queue not found' };
+    if (!request.targetQueueId && !request.targetPipelineId) {
+      return { success: false, error: 'Either targetQueueId or targetPipelineId must be provided' };
     }
-    if (targetQueue.pipelineId !== request.pipelineId) {
-      return { success: false, error: 'Target queue must belong to the same pipeline' };
+
+    // Validate target queue only for in-pipeline routing
+    if (request.targetQueueId) {
+      const targetQueue = this.queues.get(request.targetQueueId);
+      if (!targetQueue) {
+        return { success: false, error: 'Target queue not found' };
+      }
+      if (targetQueue.pipelineId !== request.pipelineId) {
+        return { success: false, error: 'Target queue must belong to the same pipeline' };
+      }
     }
 
     const rule: RoutingRule = {
@@ -498,6 +506,7 @@ export class PipelineService implements OnModuleInit {
       conditions: request.conditions,
       conditionLogic: request.conditionLogic ?? 'AND',
       targetQueueId: request.targetQueueId,
+      targetPipelineId: request.targetPipelineId,
       priorityOverride: request.priorityOverride,
       addSkills: request.addSkills,
       matchCount: 0,
@@ -1124,6 +1133,202 @@ export class PipelineService implements OnModuleInit {
 
     const valid = errors.length === 0;
     return { valid, targetQueue, routingRuleMatched, errors, warnings };
+  }
+
+  // ===========================================================================
+  // PORTABILITY — EXPORT / IMPORT / CLONE
+  // ===========================================================================
+
+  /**
+   * Export a pipeline and all its queues/routing rules as a portable bundle.
+   * Queue IDs are replaced by queue names so the bundle is importable into
+   * any environment.
+   */
+  exportPipeline(id: string): PipelineBundle | null {
+    const pipeline = this.pipelines.get(id);
+    if (!pipeline) return null;
+
+    const queues = this.getQueuesByPipeline(id);
+    const queueIdToName = new Map(queues.map((q) => [q.id, q.name]));
+
+    return {
+      exportVersion: '1',
+      exportedAt: new Date().toISOString(),
+      pipeline: {
+        name: pipeline.name,
+        description: pipeline.description,
+        workTypes: pipeline.allowedWorkTypes,
+        dataSchema: pipeline.dataSchema ? [pipeline.dataSchema] : [],
+        sla: pipeline.sla,
+        callbackUrl: pipeline.callbackUrl,
+        callbackEvents: pipeline.callbackEvents,
+      },
+      queues: queues.map((q) => ({
+        name: q.name,
+        priority: q.priority,
+        requiredSkills: q.requiredSkills ?? [],
+        maxCapacity: q.maxCapacity,
+      })),
+      routingRules: pipeline.routingRules.map((r) => ({
+        name: r.name,
+        priority: r.priority,
+        conditions: r.conditions,
+        targetQueueName: r.targetQueueId ? queueIdToName.get(r.targetQueueId) : undefined,
+        targetPipelineId: r.targetPipelineId,
+      })),
+      ruleSets: [],
+    };
+  }
+
+  /**
+   * Import a pipeline bundle, creating a new pipeline with fresh IDs.
+   * Queue names referenced in routing rules are resolved to new IDs via the
+   * name→id map built during queue creation.
+   */
+  async importPipeline(bundle: PipelineBundle): Promise<PipelineImportResult> {
+    const errors: Array<{ field: string; message: string }> = [];
+
+    if (!bundle.pipeline?.name?.trim()) {
+      errors.push({ field: 'pipeline.name', message: 'Pipeline name is required' });
+    }
+    if (bundle.exportVersion !== '1') {
+      errors.push({ field: 'exportVersion', message: 'Unsupported bundle version' });
+    }
+    if (!Array.isArray(bundle.queues)) {
+      errors.push({ field: 'queues', message: 'Queues must be an array' });
+    }
+    if (!Array.isArray(bundle.routingRules)) {
+      errors.push({ field: 'routingRules', message: 'Routing rules must be an array' });
+    }
+
+    if (errors.length > 0) {
+      return { success: false, errors };
+    }
+
+    const now = new Date().toISOString();
+    const newPipelineId = this.generateId('pipeline');
+
+    const pipeline: Pipeline = {
+      id: newPipelineId,
+      name: bundle.pipeline.name,
+      description: bundle.pipeline.description,
+      enabled: false,
+      allowedWorkTypes: bundle.pipeline.workTypes ?? [],
+      defaults: { ...DEFAULT_PIPELINE_DEFAULTS },
+      sla: bundle.pipeline.sla,
+      callbackUrl: bundle.pipeline.callbackUrl,
+      callbackEvents: bundle.pipeline.callbackEvents as Pipeline['callbackEvents'],
+      routingRules: [],
+      defaultRouting: { behavior: 'hold', holdTimeoutSeconds: 300, holdTimeoutAction: 'reject' },
+      stats: { ...DEFAULT_PIPELINE_STATS },
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
+    this.pipelines.set(pipeline.id, pipeline);
+
+    const queueNameToId = new Map<string, string>();
+    for (const qDef of bundle.queues) {
+      const queue: PipelineQueue = {
+        id: this.generateId('queue'),
+        name: qDef.name,
+        pipelineId: newPipelineId,
+        enabled: true,
+        priority: qDef.priority,
+        requiredSkills: qDef.requiredSkills,
+        maxCapacity: qDef.maxCapacity ?? 0,
+        stats: { ...DEFAULT_PIPELINE_QUEUE_STATS },
+        createdAt: now,
+        updatedAt: now,
+      };
+      await this.queueRepo.save(this.toQueueEntity(queue));
+      this.queues.set(queue.id, queue);
+      queueNameToId.set(queue.name, queue.id);
+    }
+
+    const rules: RoutingRule[] = bundle.routingRules.map((rDef, index) => ({
+      id: this.generateId('rule'),
+      name: rDef.name,
+      enabled: true,
+      priority: rDef.priority ?? index + 1,
+      conditions: rDef.conditions ?? [],
+      conditionLogic: 'AND' as const,
+      targetQueueId: rDef.targetQueueName ? queueNameToId.get(rDef.targetQueueName) : undefined,
+      targetPipelineId: rDef.targetPipelineId,
+      matchCount: 0,
+    }));
+
+    pipeline.routingRules = rules;
+    pipeline.updatedAt = new Date().toISOString();
+    await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
+    this.pipelines.set(pipeline.id, pipeline);
+
+    this.logger.log(`Imported pipeline "${pipeline.name}" as ${newPipelineId}`);
+    return { success: true, pipelineId: newPipelineId };
+  }
+
+  /**
+   * Clone an existing pipeline, creating a new inactive copy with "(Copy)" suffix.
+   * All queues and routing rules are duplicated with fresh IDs; routing rule target
+   * queue references are remapped to the new queue IDs.
+   */
+  async clonePipeline(id: string): Promise<{ success: boolean; pipeline?: Pipeline; error?: string }> {
+    const source = this.pipelines.get(id);
+    if (!source) {
+      return { success: false, error: 'Pipeline not found' };
+    }
+
+    const now = new Date().toISOString();
+    const newPipelineId = this.generateId('pipeline');
+
+    const clone: Pipeline = {
+      ...source,
+      id: newPipelineId,
+      name: `${source.name} (Copy)`,
+      enabled: false,
+      routingRules: [],
+      stats: { ...DEFAULT_PIPELINE_STATS },
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await this.pipelineRepo.save(this.toPipelineEntity(clone));
+    this.pipelines.set(clone.id, clone);
+
+    const sourceQueues = this.getQueuesByPipeline(id);
+    const oldIdToNew = new Map<string, string>();
+
+    for (const q of sourceQueues) {
+      const newQueueId = this.generateId('queue');
+      oldIdToNew.set(q.id, newQueueId);
+
+      const clonedQueue: PipelineQueue = {
+        ...q,
+        id: newQueueId,
+        pipelineId: newPipelineId,
+        stats: { ...DEFAULT_PIPELINE_QUEUE_STATS },
+        createdAt: now,
+        updatedAt: now,
+      };
+      await this.queueRepo.save(this.toQueueEntity(clonedQueue));
+      this.queues.set(clonedQueue.id, clonedQueue);
+    }
+
+    clone.routingRules = source.routingRules.map((r) => ({
+      ...r,
+      id: this.generateId('rule'),
+      targetQueueId: r.targetQueueId ? (oldIdToNew.get(r.targetQueueId) ?? r.targetQueueId) : undefined,
+      matchCount: 0,
+      lastMatchedAt: undefined,
+    }));
+
+    clone.updatedAt = new Date().toISOString();
+    await this.pipelineRepo.save(this.toPipelineEntity(clone));
+    this.pipelines.set(clone.id, clone);
+
+    this.logger.log(`Cloned pipeline "${source.name}" → "${clone.name}" (${newPipelineId})`);
+    return { success: true, pipeline: clone };
   }
 
   // ===========================================================================

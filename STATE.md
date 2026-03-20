@@ -10,9 +10,9 @@
 | Field | Value |
 |---|---|
 | **Active Phase** | Phase 5 — External Integrations & Advanced Routing |
-| **Phase Status** | **In Progress** — Wave 1 complete (`1-1-backend-integration-core`) |
+| **Phase Status** | **In Progress** — Wave 1 + Wave 2 complete (`2-1-webhook-ui`, `2-2-pipeline-portability`) |
 | **Last Session** | 2026-03-20 |
-| **Next Action** | Continue with Wave 2 plans (see `.planning/phases/5/`) or `/verify-phase 5` if all plans done |
+| **Next Action** | `/verify-phase 5` — all plans complete, run phase verification |
 
 ---
 
@@ -85,6 +85,8 @@ All 23 v1 requirements implemented, verified, and PR branch pushed.
 | Wave | Plan | Status |
 |---|---|---|
 | Wave 1 | `1-1-backend-integration-core-PLAN.md` | ✅ Complete |
+| Wave 2 | `2-1-webhook-ui-PLAN.md` | ✅ Complete |
+| Wave 2 | `2-2-pipeline-portability-PLAN.md` | ✅ Complete |
 
 ---
 
@@ -110,7 +112,7 @@ None currently.
 |---|---|
 | Build | ✅ Passing |
 | Lint | ✅ 0 errors (agent-workspace cleared 119→0 in Phase 4 Wave 3) |
-| Tests | ✅ 65 tests passing |
+| Tests | ✅ 95 + 31 = 126 tests passing |
 | Tech Debt | agent-workspace **0** ✅; api-server 0 ✅ (both fully cleared) |
 
 ---

@@ -13,6 +13,7 @@ const mockPipelineApi = {
   createRoutingRule: () => of({ id: 'r1', name: 'Rule 1', pipelineId: 'p1' }),
   enablePipeline: () => of({ id: 'p1', name: 'Test', enabled: true }),
   validatePipeline: () => of({ valid: true, errors: [], warnings: [] }),
+  getAllPipelines: () => of([{ id: 'p-other', name: 'Other Pipeline' }]),
 };
 
 const mockSkillApi = {
@@ -100,7 +101,7 @@ describe('PipelineWizardComponent', () => {
     expect(component.wizardQueues.length).toBe(0);
   });
 
-  it('should show step 6 content after navigating through all steps', () => {
+  it('should show step 7 (Review) content after navigating through all steps', () => {
     // Step 1
     component.step1Form.get('name')?.setValue('Pipeline X');
     component.next();
@@ -114,10 +115,50 @@ describe('PipelineWizardComponent', () => {
     component.next();
     // Step 5
     component.next();
-    // Should be on step 6
-    expect(component.currentStep()).toBe(6);
+    // Step 6 (Callbacks) - skip (both empty = valid)
+    component.next();
+    // Should be on step 7 (Review)
+    expect(component.currentStep()).toBe(7);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Review');
+  });
+
+  it('Callbacks step: valid when both URL and events are empty', () => {
+    component.step6Form.get('callbackUrl')?.setValue('');
+    component.step6Form.patchValue({ callbackEvents: [] });
+    expect(component.callbacksStepValid()).toBe(true);
+  });
+
+  it('Callbacks step: invalid when URL is set but no events are selected', () => {
+    component.step6Form.get('callbackUrl')?.setValue('https://example.com/hook');
+    component.step6Form.patchValue({ callbackEvents: [] });
+    expect(component.callbacksStepValid()).toBe(false);
+  });
+
+  it('Callbacks step: valid when both URL and at least one event are set', () => {
+    component.step6Form.get('callbackUrl')?.setValue('https://example.com/hook');
+    component.toggleCallbackEvent('task.completed');
+    expect(component.callbacksStepValid()).toBe(true);
+  });
+
+  it('Routing step: routingActionType defaults to "queue" on new rule', () => {
+    component.addRoutingRule();
+    expect(component.getRuleForm(0).get('routingActionType')?.value).toBe('queue');
+    expect(component.getRoutingActionType(0)).toBe('queue');
+  });
+
+  it('Routing step: switching to "pipeline" action type exposes targetPipelineId field', () => {
+    component.addRoutingRule();
+    component.getRuleForm(0).patchValue({ routingActionType: 'pipeline', targetPipelineId: 'p-other' });
+    expect(component.getRoutingActionType(0)).toBe('pipeline');
+    expect(component.getRuleForm(0).get('targetPipelineId')?.value).toBe('p-other');
+  });
+
+  it('Routing step: validation fails when action is "pipeline" but targetPipelineId not set', () => {
+    component.addRoutingRule();
+    component.getRuleForm(0).patchValue({ name: 'My Rule', routingActionType: 'pipeline', targetPipelineId: null });
+    const errors = component.validateStep(3);
+    expect(errors.some((e) => e.includes('target pipeline'))).toBe(true);
   });
 });

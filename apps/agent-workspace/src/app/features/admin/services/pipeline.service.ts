@@ -20,6 +20,8 @@ import {
   PipelineMetricsSummary,
   PipelineVersion,
   PipelineQueueRuntimeStats,
+  PipelineBundle,
+  PipelineImportResult,
 } from '@nexus-queue/shared-models';
 import { environment } from '../../../../environments/environment';
 
@@ -281,6 +283,45 @@ export class PipelineApiService {
     return this.http.get<PipelineQueueRuntimeStats[]>(`${QUEUES_API}/stats`).pipe(
       catchError(() => of([]))
     );
+  }
+
+  // ===========================================================================
+  // PORTABILITY — EXPORT / IMPORT / CLONE
+  // ===========================================================================
+
+  /**
+   * Export a pipeline as a portable JSON bundle.
+   */
+  exportPipeline(id: string): Observable<PipelineBundle> {
+    return this.http.get<PipelineBundle>(`${API_BASE}/${id}/export`);
+  }
+
+  /**
+   * Import a pipeline from a portable JSON bundle.
+   */
+  importPipeline(bundle: PipelineBundle): Observable<PipelineImportResult> {
+    return this.http.post<PipelineImportResult>(`${API_BASE}/import`, bundle);
+  }
+
+  /**
+   * Clone an existing pipeline as a new inactive draft with "(Copy)" suffix.
+   */
+  clonePipeline(id: string): Observable<Pipeline> {
+    return this.http.post<Pipeline>(`${API_BASE}/${id}/clone`, {});
+  }
+
+  /**
+   * Trigger a browser file download for a pipeline bundle JSON.
+   */
+  downloadBundle(bundle: PipelineBundle, pipelineName: string): void {
+    const json = JSON.stringify(bundle, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${pipelineName.replace(/\s+/g, '-').toLowerCase()}-pipeline.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ===========================================================================
