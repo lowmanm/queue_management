@@ -6,11 +6,10 @@ export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.isAuthenticated) {
+  if (authService.getToken() && authService.isAuthenticated) {
     return true;
   }
 
-  // Redirect to login page if not authenticated
   router.navigate(['/login']);
   return false;
 };
