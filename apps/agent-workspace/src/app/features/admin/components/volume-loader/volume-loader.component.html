@@ -1259,7 +1259,7 @@
                         <div class="rule-detail">
                           <span>{{ rule.conditions.length }} condition{{ rule.conditions.length !== 1 ? 's' : '' }}</span>
                           <span class="rule-arrow">&rarr;</span>
-                          <span class="rule-target">{{ getQueueName(rule.targetQueueId) }}</span>
+                          <span class="rule-target">{{ rule.targetPipelineId ? 'Pipeline: ' + rule.targetPipelineId : getQueueName(rule.targetQueueId ?? '') }}</span>
                         </div>
                       </div>
                     }
