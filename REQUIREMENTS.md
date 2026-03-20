@@ -172,5 +172,73 @@
 
 ---
 
+## Phase 5 — External Integrations & Advanced Routing
+
+> Scoped 2026-03-20. Goal: Connect Nexus to real source systems via webhook ingestion and outbound callbacks, enable cross-pipeline task routing for complex workflows, and add pipeline portability (export/import/clone) for Designer productivity.
+
+### v1 Requirements (Must Have)
+
+#### Webhook Ingestion Gateway
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P5-001 | Designer can create a webhook endpoint scoped to a pipeline; system generates a URL (`POST /api/webhooks/{token}`) and a secret for HMAC verification | Webhook Ingestion Gateway |
+| P5-002 | `POST /api/webhooks/{token}` accepts a JSON payload, validates the HMAC-SHA256 signature (`X-Nexus-Signature` header), checks endpoint is active, and routes the payload through `PipelineOrchestratorService.ingestTask()` | Webhook Ingestion Gateway |
+| P5-003 | Webhook ingestion returns HTTP 202 (accepted) on success, 400 on schema/signature error, 403 on invalid token, 429 when pipeline queue is at capacity | Webhook Ingestion Gateway |
+| P5-004 | Webhook delivery attempts are logged with timestamp, source IP, payload size, status code, and processing result (QUEUED/DLQ/REJECTED) | Webhook Ingestion Gateway |
+| P5-005 | Designer UI at `/admin/webhooks` lists all webhook endpoints (name, pipeline, URL, status, last-delivery timestamp) with create/delete/regenerate-token actions | Webhook Config UI |
+| P5-006 | Webhook delivery log viewable per endpoint (paginated, filterable by status and date range) | Webhook Config UI |
+
+#### Outbound Webhooks / Event Callbacks
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P5-010 | Pipeline config includes optional `callbackUrl` (string) and `callbackEvents` (array of event types: `task.completed`, `task.dlq`, `sla.breach`) | Outbound Webhooks |
+| P5-011 | `OutboundWebhookService` sends HTTP POST to `callbackUrl` when a subscribed event fires for a task belonging to that pipeline | Outbound Webhooks |
+| P5-012 | Outbound payload: `{ taskId, pipelineId, eventType, timestamp, taskMetadata }` signed with HMAC-SHA256 (`X-Nexus-Signature` header) | Outbound Webhooks |
+| P5-013 | Retry logic: up to 3 delivery attempts with exponential backoff (5 s, 25 s, 125 s); failure after 3 attempts logs `outbound.webhook.failed` to EventStoreService | Outbound Webhooks |
+| P5-014 | Pipeline wizard includes a "Callbacks" step to configure `callbackUrl` and `callbackEvents` checkboxes | Outbound Webhooks |
+
+#### Cross-Pipeline Task Routing
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P5-020 | `RoutingRule` model adds optional `targetPipelineId` field; when set, the routing action is "transfer to pipeline" instead of "enqueue in queue" | Cross-Pipeline Routing |
+| P5-021 | `PipelineOrchestratorService` detects cross-pipeline routing rules; re-ingests the task into the target pipeline's full validate→transform→route flow | Cross-Pipeline Routing |
+| P5-022 | Cross-pipeline transfers are loop-safe: task carries a `pipelineHops` counter; when `pipelineHops >= 3` the task is sent to DLQ with reason `hop_limit_exceeded` | Cross-Pipeline Routing |
+| P5-023 | Each cross-pipeline transfer emits a `task.pipeline_transferred` event to `EventStoreService` with source and target pipeline IDs | Cross-Pipeline Routing |
+| P5-024 | Pipeline routing rule editor allows selecting "Transfer to Pipeline" as the routing action, with a dropdown of all active pipelines (excluding current) | Cross-Pipeline Routing UI |
+
+#### Pipeline Portability
+
+| ID | Requirement | Deliverable |
+|---|---|---|
+| P5-030 | Designer can export a pipeline as a JSON bundle containing pipeline metadata, queues, routing rules, rule sets, SLA config, and callback config | Pipeline Export |
+| P5-031 | Designer can import a pipeline JSON bundle — creates a new pipeline with new system-generated IDs (import never overwrites existing pipelines) | Pipeline Import |
+| P5-032 | Import validates the JSON bundle structure and returns field-level validation errors before creating anything | Pipeline Import |
+| P5-033 | Designer can clone an existing pipeline — duplicates all queues, routing rules, and rule sets with new IDs; new pipeline name gets "(Copy)" suffix | Pipeline Clone |
+| P5-034 | Export→import is round-trip faithful: a pipeline exported and re-imported produces logically identical routing behaviour | Pipeline Export/Import |
+
+### v2 Requirements (Nice to Have)
+
+| ID | Requirement | Notes |
+|---|---|---|
+| P5-100 | OAuth2/OIDC external provider (Okta, Azure AD, Google) via `@nestjs/passport` | Large auth infrastructure change; internal JWT sufficient for near-term |
+| P5-101 | Visual drag-and-drop pipeline flow builder | Form-based UI is functional; evaluate after user feedback |
+| P5-102 | Rule set import/export as standalone JSON (not bundled with pipeline) | P3-101 deferred; useful for cross-pipeline rule sharing |
+| P5-103 | Webhook endpoint rate limiting (per-token request throttle) | Useful for production hardening; requires @nestjs/throttler setup |
+| P5-104 | Event sourcing replay — rebuild service state from `task_events` table | Advanced; safe to capture events first as done in Phase 4 |
+
+### Out of Scope for Phase 5
+
+| Item | Reason | Target |
+|---|---|---|
+| Multi-tenancy | Single organization deployment; architectural overhaul required | Out of scope |
+| Real GCS/S3/SFTP connectors | Volume Loader stubs sufficient; cloud connectors require credentials management | Phase 6+ |
+| Grafana dashboard JSON | P4-102 deferred; observability stack not fully deployed | Phase 6+ |
+| PagerDuty SLA breach integration | P4-103 deferred; requires PagerDuty account and alerting policy design | Phase 6+ |
+
+---
+
 *Last Updated: March 2026*
-*Version: 1.0*
+*Version: 1.1*
