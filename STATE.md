@@ -9,10 +9,10 @@
 
 | Field | Value |
 |---|---|
-| **Active Phase** | Phase 5 — (not yet scoped) |
-| **Phase Status** | **Shipped** — Phase 4 PR open on `claude/add-status-endpoint-dLDyi` → `develop` |
+| **Active Phase** | Phase 5 — External Integrations & Advanced Routing |
+| **Phase Status** | **In Progress** — Wave 1 complete (`1-1-backend-integration-core`) |
 | **Last Session** | 2026-03-20 |
-| **Next Action** | Merge Phase 4 PR, then `/plan-phase 5` to scope next phase |
+| **Next Action** | Continue with Wave 2 plans (see `.planning/phases/5/`) or `/verify-phase 5` if all plans done |
 
 ---
 
@@ -77,6 +77,14 @@ All 23 v1 requirements implemented, verified, and PR branch pushed.
 | Wave 2a | `2-1-postgresql-persistence-PLAN.md` | ✅ Complete |
 | Wave 2b | `2-2-redis-event-sourcing-PLAN.md` | ✅ Complete |
 | Wave 3 | `3-1-auth-monitoring-deploy-PLAN.md` | ✅ Complete |
+
+---
+
+## Phase 5 — In Progress
+
+| Wave | Plan | Status |
+|---|---|---|
+| Wave 1 | `1-1-backend-integration-core-PLAN.md` | ✅ Complete |
 
 ---
 
