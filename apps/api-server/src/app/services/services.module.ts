@@ -24,6 +24,9 @@ import {
   RuleSetEntity,
   UserEntity,
   TeamEntity,
+  TaskSourceEntity,
+  SkillEntity,
+  AgentSkillEntity,
 } from '../entities';
 
 @Module({
@@ -38,6 +41,9 @@ import {
       RuleSetEntity,
       UserEntity,
       TeamEntity,
+      TaskSourceEntity,
+      SkillEntity,
+      AgentSkillEntity,
     ]),
   ],
   providers: [

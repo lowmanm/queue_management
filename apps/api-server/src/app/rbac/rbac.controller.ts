@@ -90,9 +90,9 @@ export class RbacController {
    * Create a new user
    */
   @Post('users')
-  createUser(@Body() request: CreateUserRequest): User {
+  async createUser(@Body() request: CreateUserRequest): Promise<User> {
     try {
-      return this.rbacService.createUser(request);
+      return await this.rbacService.createUser(request);
     } catch (error) {
       throw new HttpException(
         error instanceof Error ? error.message : 'Failed to create user',
@@ -105,12 +105,12 @@ export class RbacController {
    * Update an existing user
    */
   @Put('users/:id')
-  updateUser(
+  async updateUser(
     @Param('id') id: string,
     @Body() request: UpdateUserRequest
-  ): User {
+  ): Promise<User> {
     try {
-      return this.rbacService.updateUser(id, request);
+      return await this.rbacService.updateUser(id, request);
     } catch (error) {
       throw new HttpException(
         error instanceof Error ? error.message : 'Failed to update user',
@@ -123,9 +123,9 @@ export class RbacController {
    * Deactivate a user
    */
   @Delete('users/:id')
-  deactivateUser(@Param('id') id: string): User {
+  async deactivateUser(@Param('id') id: string): Promise<User> {
     try {
-      return this.rbacService.deactivateUser(id);
+      return await this.rbacService.deactivateUser(id);
     } catch (error) {
       throw new HttpException(
         error instanceof Error ? error.message : 'Failed to deactivate user',
@@ -138,9 +138,9 @@ export class RbacController {
    * Activate a user
    */
   @Post('users/:id/activate')
-  activateUser(@Param('id') id: string): User {
+  async activateUser(@Param('id') id: string): Promise<User> {
     try {
-      return this.rbacService.activateUser(id);
+      return await this.rbacService.activateUser(id);
     } catch (error) {
       throw new HttpException(
         error instanceof Error ? error.message : 'Failed to activate user',
@@ -262,7 +262,7 @@ export class RbacController {
    * Create a new team
    */
   @Post('teams')
-  createTeam(
+  async createTeam(
     @Body()
     request: {
       name: string;
@@ -270,7 +270,7 @@ export class RbacController {
       managerId?: string;
       queueIds?: string[];
     }
-  ): Team {
+  ): Promise<Team> {
     return this.rbacService.createTeam(
       request.name,
       request.description,
@@ -283,13 +283,13 @@ export class RbacController {
    * Update a team
    */
   @Put('teams/:id')
-  updateTeam(
+  async updateTeam(
     @Param('id') id: string,
     @Body()
     request: Partial<Omit<Team, 'id' | 'createdAt' | 'updatedAt'>>
-  ): Team {
+  ): Promise<Team> {
     try {
-      return this.rbacService.updateTeam(id, request);
+      return await this.rbacService.updateTeam(id, request);
     } catch (error) {
       throw new HttpException(
         error instanceof Error ? error.message : 'Failed to update team',

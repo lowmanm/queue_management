@@ -58,7 +58,7 @@ export class RulesController {
    * Create a new rule set
    */
   @Post('sets')
-  createRuleSet(@Body() ruleSet: RuleSet): RuleSet {
+  async createRuleSet(@Body() ruleSet: RuleSet): Promise<RuleSet> {
     this.logger.log(`Creating rule set: ${ruleSet.name}`);
     return this.ruleEngine.saveRuleSet(ruleSet);
   }
@@ -68,10 +68,10 @@ export class RulesController {
    * Update an existing rule set
    */
   @Put('sets/:id')
-  updateRuleSet(
+  async updateRuleSet(
     @Param('id') id: string,
     @Body() ruleSet: RuleSet
-  ): RuleSet {
+  ): Promise<RuleSet> {
     this.logger.log(`Updating rule set: ${id}`);
     return this.ruleEngine.saveRuleSet({ ...ruleSet, id });
   }
@@ -82,9 +82,9 @@ export class RulesController {
    */
   @Delete('sets/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteRuleSet(@Param('id') id: string): void {
+  async deleteRuleSet(@Param('id') id: string): Promise<void> {
     this.logger.log(`Deleting rule set: ${id}`);
-    this.ruleEngine.deleteRuleSet(id);
+    await this.ruleEngine.deleteRuleSet(id);
   }
 
   /**

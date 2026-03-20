@@ -80,8 +80,8 @@ export class PipelineController {
   }
 
   @Post()
-  createPipeline(@Body() request: CreatePipelineRequest) {
-    const result = this.pipelineService.createPipeline(request);
+  async createPipeline(@Body() request: CreatePipelineRequest) {
+    const result = await this.pipelineService.createPipeline(request);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to create pipeline', HttpStatus.BAD_REQUEST);
     }
@@ -89,8 +89,8 @@ export class PipelineController {
   }
 
   @Put(':id')
-  updatePipeline(@Param('id') id: string, @Body() request: UpdatePipelineRequest) {
-    const result = this.pipelineService.updatePipeline(id, request);
+  async updatePipeline(@Param('id') id: string, @Body() request: UpdatePipelineRequest) {
+    const result = await this.pipelineService.updatePipeline(id, request);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to update pipeline', HttpStatus.BAD_REQUEST);
     }
@@ -107,8 +107,8 @@ export class PipelineController {
   }
 
   @Delete(':id')
-  deletePipeline(@Param('id') id: string, @Query('cascade') cascade?: string) {
-    const result = this.pipelineService.deletePipeline(id, cascade === 'true');
+  async deletePipeline(@Param('id') id: string, @Query('cascade') cascade?: string) {
+    const result = await this.pipelineService.deletePipeline(id, cascade === 'true');
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete pipeline', HttpStatus.BAD_REQUEST);
     }
@@ -116,12 +116,12 @@ export class PipelineController {
   }
 
   @Put(':id/enable')
-  enablePipeline(@Param('id') id: string) {
+  async enablePipeline(@Param('id') id: string) {
     return this.pipelineService.updatePipeline(id, { enabled: true });
   }
 
   @Put(':id/disable')
-  disablePipeline(@Param('id') id: string) {
+  async disablePipeline(@Param('id') id: string) {
     return this.pipelineService.updatePipeline(id, { enabled: false });
   }
 
@@ -174,11 +174,11 @@ export class PipelineController {
    * Restore a pipeline to a previous configuration snapshot.
    */
   @Post(':id/versions/:versionId/rollback')
-  rollbackPipelineVersion(
+  async rollbackPipelineVersion(
     @Param('id') id: string,
     @Param('versionId') versionId: string,
   ) {
-    const result = this.pipelineService.rollbackPipeline(id, versionId);
+    const result = await this.pipelineService.rollbackPipeline(id, versionId);
     if (!result.success) {
       throw new HttpException(result.error || 'Rollback failed', HttpStatus.BAD_REQUEST);
     }
@@ -199,8 +199,8 @@ export class PipelineController {
   }
 
   @Post(':id/queues')
-  createQueue(@Param('id') pipelineId: string, @Body() request: Omit<CreateQueueRequest, 'pipelineId'>) {
-    const result = this.pipelineService.createQueue({
+  async createQueue(@Param('id') pipelineId: string, @Body() request: Omit<CreateQueueRequest, 'pipelineId'>) {
+    const result = await this.pipelineService.createQueue({
       ...request,
       pipelineId,
     });
@@ -211,7 +211,7 @@ export class PipelineController {
   }
 
   @Put(':pipelineId/queues/:queueId')
-  updateQueue(
+  async updateQueue(
     @Param('pipelineId') pipelineId: string,
     @Param('queueId') queueId: string,
     @Body() request: UpdateQueueRequest
@@ -222,7 +222,7 @@ export class PipelineController {
       throw new HttpException('Queue not found in this pipeline', HttpStatus.NOT_FOUND);
     }
 
-    const result = this.pipelineService.updateQueue(queueId, request);
+    const result = await this.pipelineService.updateQueue(queueId, request);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to update queue', HttpStatus.BAD_REQUEST);
     }
@@ -230,7 +230,7 @@ export class PipelineController {
   }
 
   @Delete(':pipelineId/queues/:queueId')
-  deleteQueue(
+  async deleteQueue(
     @Param('pipelineId') pipelineId: string,
     @Param('queueId') queueId: string,
     @Query('cascade') cascade?: string,
@@ -241,7 +241,7 @@ export class PipelineController {
       throw new HttpException('Queue not found in this pipeline', HttpStatus.NOT_FOUND);
     }
 
-    const result = this.pipelineService.deleteQueue(queueId, cascade === 'true');
+    const result = await this.pipelineService.deleteQueue(queueId, cascade === 'true');
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete queue', HttpStatus.BAD_REQUEST);
     }
@@ -262,11 +262,11 @@ export class PipelineController {
   }
 
   @Post(':id/routing-rules')
-  createRoutingRule(
+  async createRoutingRule(
     @Param('id') pipelineId: string,
     @Body() request: Omit<CreateRoutingRuleRequest, 'pipelineId'>
   ) {
-    const result = this.pipelineService.createRoutingRule({
+    const result = await this.pipelineService.createRoutingRule({
       ...request,
       pipelineId,
     });
@@ -277,12 +277,12 @@ export class PipelineController {
   }
 
   @Put(':pipelineId/routing-rules/:ruleId')
-  updateRoutingRule(
+  async updateRoutingRule(
     @Param('pipelineId') pipelineId: string,
     @Param('ruleId') ruleId: string,
     @Body() request: UpdateRoutingRuleRequest
   ) {
-    const result = this.pipelineService.updateRoutingRule(pipelineId, ruleId, request);
+    const result = await this.pipelineService.updateRoutingRule(pipelineId, ruleId, request);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to update routing rule', HttpStatus.BAD_REQUEST);
     }
@@ -290,11 +290,11 @@ export class PipelineController {
   }
 
   @Delete(':pipelineId/routing-rules/:ruleId')
-  deleteRoutingRule(
+  async deleteRoutingRule(
     @Param('pipelineId') pipelineId: string,
     @Param('ruleId') ruleId: string
   ) {
-    const result = this.pipelineService.deleteRoutingRule(pipelineId, ruleId);
+    const result = await this.pipelineService.deleteRoutingRule(pipelineId, ruleId);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete routing rule', HttpStatus.BAD_REQUEST);
     }

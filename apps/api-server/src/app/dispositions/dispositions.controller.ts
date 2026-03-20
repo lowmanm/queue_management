@@ -78,7 +78,7 @@ export class DispositionsController {
    * Create a new disposition
    */
   @Post()
-  createDisposition(@Body() request: CreateDispositionRequest): Disposition {
+  async createDisposition(@Body() request: CreateDispositionRequest): Promise<Disposition> {
     if (!request.code || !request.name || !request.category) {
       throw new HttpException(
         'Code, name, and category are required',
@@ -102,11 +102,11 @@ export class DispositionsController {
    * Update an existing disposition
    */
   @Put(':id')
-  updateDisposition(
+  async updateDisposition(
     @Param('id') id: string,
     @Body() request: UpdateDispositionRequest
-  ): Disposition {
-    const updated = this.dispositionService.updateDisposition(id, request);
+  ): Promise<Disposition> {
+    const updated = await this.dispositionService.updateDisposition(id, request);
     if (!updated) {
       throw new HttpException('Disposition not found', HttpStatus.NOT_FOUND);
     }
@@ -117,8 +117,8 @@ export class DispositionsController {
    * Delete (deactivate) a disposition
    */
   @Delete(':id')
-  deleteDisposition(@Param('id') id: string): { success: boolean } {
-    const success = this.dispositionService.deleteDisposition(id);
+  async deleteDisposition(@Param('id') id: string): Promise<{ success: boolean }> {
+    const success = await this.dispositionService.deleteDisposition(id);
     if (!success) {
       throw new HttpException('Disposition not found', HttpStatus.NOT_FOUND);
     }
@@ -129,7 +129,7 @@ export class DispositionsController {
    * Reorder dispositions
    */
   @Post('reorder')
-  reorderDispositions(@Body() body: { orderedIds: string[] }): Disposition[] {
+  async reorderDispositions(@Body() body: { orderedIds: string[] }): Promise<Disposition[]> {
     if (!body.orderedIds || !Array.isArray(body.orderedIds)) {
       throw new HttpException('orderedIds array is required', HttpStatus.BAD_REQUEST);
     }
@@ -168,7 +168,7 @@ export class DispositionsController {
    * Complete a task with disposition
    */
   @Post('complete')
-  completeTask(
+  async completeTask(
     @Body()
     body: CompleteTaskRequest & {
       agentId: string;
@@ -177,7 +177,7 @@ export class DispositionsController {
       queue?: string;
       assignedAt: string;
     }
-  ): TaskCompletion {
+  ): Promise<TaskCompletion> {
     if (!body.taskId || !body.dispositionId || !body.agentId) {
       throw new HttpException(
         'taskId, dispositionId, and agentId are required',
@@ -185,7 +185,7 @@ export class DispositionsController {
       );
     }
 
-    const completion = this.dispositionService.completeTask(
+    const completion = await this.dispositionService.completeTask(
       {
         taskId: body.taskId,
         dispositionId: body.dispositionId,
