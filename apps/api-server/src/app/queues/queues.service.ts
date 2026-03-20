@@ -7,12 +7,19 @@ export interface QueueConfig {
   name: string;
   description: string;
   active: boolean;
+  status?: 'active' | 'paused';
   priority: number;
   slaTarget: number; // seconds
   maxWaitTime: number; // seconds
   requiredSkills: string[];
   workTypes: string[];
   routingMode: 'round-robin' | 'least-busy' | 'skill-based' | 'priority';
+  dlqAutoRetry?: {
+    enabled: boolean;
+    intervalMinutes: number;
+    maxRetries: number;
+    backoffMultiplier: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

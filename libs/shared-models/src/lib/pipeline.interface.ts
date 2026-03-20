@@ -271,6 +271,25 @@ export interface PipelineQueue {
   /** Queue statistics */
   stats: PipelineQueueStats;
 
+  /**
+   * Automatic DLQ retry configuration.
+   * When enabled, DLQ tasks are automatically re-ingested on a schedule
+   * with exponential backoff until maxRetries is reached.
+   */
+  dlqAutoRetry?: {
+    /** Whether automatic DLQ retry is enabled */
+    enabled: boolean;
+    /** Base interval in minutes between retry attempts */
+    intervalMinutes: number;
+    /** Maximum number of automatic retry attempts */
+    maxRetries: number;
+    /** Backoff multiplier — delay = intervalMinutes × multiplier^retryCount minutes */
+    backoffMultiplier: number;
+  };
+
+  /** Queue status (active / paused) */
+  status?: 'active' | 'paused';
+
   /** Created timestamp */
   createdAt: string;
 
