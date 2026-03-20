@@ -54,6 +54,7 @@
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
+    "unplugin-swc": "^1.5.9",
     "vitest": "^4.0.8",
     "webpack-cli": "^5.1.4"
   },
