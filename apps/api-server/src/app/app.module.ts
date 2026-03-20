@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database';
+import { RedisModule } from './redis';
 import { TasksModule } from './tasks';
 import { GatewayModule } from './gateway';
 import { ServicesModule } from './services';
@@ -17,10 +18,12 @@ import { SessionsModule } from './sessions';
 import { VolumeLoaderModule } from './volume-loader/volume-loader.module';
 import { PipelineModule } from './pipelines/pipeline.module';
 import { ProxyModule } from './proxy/proxy.module';
+import { AuditLogModule } from './audit-log';
 
 @Module({
   imports: [
     DatabaseModule,
+    RedisModule,
     ServicesModule,
     TasksModule,
     GatewayModule,
@@ -36,6 +39,7 @@ import { ProxyModule } from './proxy/proxy.module';
     VolumeLoaderModule,
     PipelineModule,
     ProxyModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

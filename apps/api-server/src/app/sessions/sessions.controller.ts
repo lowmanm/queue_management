@@ -15,7 +15,6 @@ import { AgentSessionService } from '../services/agent-session.service';
 import {
   AgentWorkState,
   StateChangeTrigger,
-  WorkStateConfig,
   CreateWorkStateRequest,
   UpdateWorkStateRequest,
 } from '@nexus-queue/shared-models';
@@ -30,29 +29,18 @@ export class SessionsController {
   // SESSION MANAGEMENT
   // ==========================================================================
 
-  /**
-   * Get all active sessions
-   */
   @Get()
-  getAllActiveSessions() {
+  async getAllActiveSessions() {
     return this.sessionService.getAllActiveSessions();
   }
 
-  /**
-   * Get session for a specific agent.
-   * Returns null (200) instead of 404 when no session exists,
-   * to prevent noisy console errors from frontend polling.
-   */
   @Get('agent/:agentId')
-  getAgentSession(@Param('agentId') agentId: string) {
-    return this.sessionService.getSession(agentId) || null;
+  async getAgentSession(@Param('agentId') agentId: string) {
+    return (await this.sessionService.getSession(agentId)) || null;
   }
 
-  /**
-   * Create a new session (login)
-   */
   @Post('login')
-  login(
+  async login(
     @Body()
     body: {
       agentId: string;
@@ -69,24 +57,18 @@ export class SessionsController {
     });
   }
 
-  /**
-   * End a session (logout)
-   */
   @Post('logout')
-  logout(@Body() body: { agentId: string }) {
-    const session = this.sessionService.endSession(body.agentId);
+  async logout(@Body() body: { agentId: string }) {
+    const session = await this.sessionService.endSession(body.agentId);
     if (!session) {
       throw new HttpException('No active session', HttpStatus.NOT_FOUND);
     }
     return session;
   }
 
-  /**
-   * Get session summary for an agent
-   */
   @Get('agent/:agentId/summary')
-  getAgentSessionSummary(@Param('agentId') agentId: string) {
-    const summary = this.sessionService.getAgentSessionSummary(agentId);
+  async getAgentSessionSummary(@Param('agentId') agentId: string) {
+    const summary = await this.sessionService.getAgentSessionSummary(agentId);
     if (!summary) {
       throw new HttpException('Agent not found', HttpStatus.NOT_FOUND);
     }
@@ -97,23 +79,17 @@ export class SessionsController {
   // STATE MANAGEMENT
   // ==========================================================================
 
-  /**
-   * Get current state for an agent
-   */
   @Get('agent/:agentId/state')
-  getAgentState(@Param('agentId') agentId: string) {
-    const state = this.sessionService.getCurrentState(agentId);
+  async getAgentState(@Param('agentId') agentId: string) {
+    const state = await this.sessionService.getCurrentState(agentId);
     if (!state) {
       return { state: 'LOGGED_OUT' };
     }
     return { state };
   }
 
-  /**
-   * Change agent state
-   */
   @Post('agent/:agentId/state')
-  changeState(
+  async changeState(
     @Param('agentId') agentId: string,
     @Body()
     body: {
@@ -126,7 +102,7 @@ export class SessionsController {
       approvedBy?: string;
     }
   ) {
-    const result = this.sessionService.changeState(
+    const result = await this.sessionService.changeState(
       agentId,
       {
         requestedState: body.requestedState,
@@ -148,12 +124,9 @@ export class SessionsController {
     return result.session;
   }
 
-  /**
-   * Set agent to ready
-   */
   @Post('agent/:agentId/ready')
-  setReady(@Param('agentId') agentId: string) {
-    const result = this.sessionService.setReady(agentId);
+  async setReady(@Param('agentId') agentId: string) {
+    const result = await this.sessionService.setReady(agentId);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to set ready', HttpStatus.BAD_REQUEST);
     }
@@ -164,9 +137,6 @@ export class SessionsController {
   // STATE HISTORY
   // ==========================================================================
 
-  /**
-   * Get state history for an agent
-   */
   @Get('agent/:agentId/history')
   getAgentHistory(
     @Param('agentId') agentId: string,
@@ -175,9 +145,6 @@ export class SessionsController {
     return this.sessionService.getStateHistory(agentId, limit ? parseInt(limit, 10) : 100);
   }
 
-  /**
-   * Get today's state history
-   */
   @Get('history/today')
   getTodayHistory() {
     return this.sessionService.getTodayHistory();
@@ -187,19 +154,13 @@ export class SessionsController {
   // TEAM SUMMARIES
   // ==========================================================================
 
-  /**
-   * Get team session summary
-   */
   @Get('team/:teamId/summary')
-  getTeamSummary(@Param('teamId') teamId: string) {
+  async getTeamSummary(@Param('teamId') teamId: string) {
     return this.sessionService.getTeamSessionSummary(teamId);
   }
 
-  /**
-   * Get all team summaries
-   */
   @Get('teams/summary')
-  getAllTeamSummaries() {
+  async getAllTeamSummaries() {
     return this.sessionService.getAllTeamSummaries();
   }
 
@@ -207,41 +168,26 @@ export class SessionsController {
   // WORK STATE CONFIG
   // ==========================================================================
 
-  /**
-   * Get all work state configurations
-   */
   @Get('work-states')
   getAllWorkStates() {
     return this.sessionService.getAllWorkStates();
   }
 
-  /**
-   * Get system work states (immutable)
-   */
   @Get('work-states/system')
   getSystemStates() {
     return this.sessionService.getSystemStates();
   }
 
-  /**
-   * Get custom work states (configurable)
-   */
   @Get('work-states/custom')
   getCustomStates() {
     return this.sessionService.getCustomStates();
   }
 
-  /**
-   * Get agent-selectable states
-   */
   @Get('work-states/selectable')
   getSelectableStates() {
     return this.sessionService.getAgentSelectableStates();
   }
 
-  /**
-   * Get work state by ID
-   */
   @Get('work-states/:stateId')
   getWorkState(@Param('stateId') stateId: string) {
     const config = this.sessionService.getWorkStateById(stateId);
@@ -251,9 +197,6 @@ export class SessionsController {
     return config;
   }
 
-  /**
-   * Create a new custom work state
-   */
   @Post('work-states')
   createWorkState(@Body() request: CreateWorkStateRequest) {
     const result = this.sessionService.createWorkState(request);
@@ -263,9 +206,6 @@ export class SessionsController {
     return result.state;
   }
 
-  /**
-   * Update a custom work state
-   */
   @Put('work-states/:stateId')
   updateWorkState(
     @Param('stateId') stateId: string,
@@ -278,33 +218,24 @@ export class SessionsController {
     return result.state;
   }
 
-  /**
-   * Delete a custom work state
-   */
   @Delete('work-states/:stateId')
-  deleteWorkState(@Param('stateId') stateId: string) {
-    const result = this.sessionService.deleteWorkState(stateId);
+  async deleteWorkState(@Param('stateId') stateId: string) {
+    const result = await this.sessionService.deleteWorkState(stateId);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete work state', HttpStatus.BAD_REQUEST);
     }
     return { success: true, message: 'Work state deleted' };
   }
 
-  /**
-   * Toggle work state active status
-   */
   @Post('work-states/:stateId/toggle')
-  toggleWorkState(@Param('stateId') stateId: string) {
-    const result = this.sessionService.toggleWorkState(stateId);
+  async toggleWorkState(@Param('stateId') stateId: string) {
+    const result = await this.sessionService.toggleWorkState(stateId);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to toggle work state', HttpStatus.BAD_REQUEST);
     }
     return result.state;
   }
 
-  /**
-   * Reorder custom work states
-   */
   @Post('work-states/reorder')
   reorderWorkStates(@Body() body: { stateIds: string[] }) {
     const result = this.sessionService.reorderWorkStates(body.stateIds);

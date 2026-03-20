@@ -11,13 +11,14 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { AgentState, Task, TaskStatus } from '@nexus-queue/shared-models';
-import { AgentManagerService } from '../services/agent-manager.service';
+import { AgentManagerService, ConnectedAgent } from '../services/agent-manager.service';
 import { TaskDistributorService } from '../services/task-distributor.service';
 import { QueueManagerService, QueuedTask } from '../services/queue-manager.service';
 import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
 import { TaskStoreService } from '../services/task-store.service';
 import { SLAMonitorService, SLABreachEvent } from '../services/sla-monitor.service';
 import { PipelineMetricsService } from '../services/pipeline-metrics.service';
+import { EventStoreService } from '../services/event-store.service';
 
 interface AgentConnectPayload {
   agentId: string;
@@ -66,15 +67,13 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     private readonly slaMonitor?: SLAMonitorService,
     @Optional()
     @Inject(forwardRef(() => PipelineMetricsService))
-    private readonly pipelineMetrics?: PipelineMetricsService
+    private readonly pipelineMetrics?: PipelineMetricsService,
+    @Optional()
+    @Inject(forwardRef(() => EventStoreService))
+    private readonly eventStore?: EventStoreService,
   ) {}
 
-  /**
-   * After server init, register callbacks so the orchestrator and SLA monitor
-   * can push events through the gateway.
-   */
   afterInit(): void {
-    // Register distribution callback: when a task is enqueued, try to assign it
     if (this.orchestrator) {
       this.orchestrator.onTaskEnqueued((queueId: string) => {
         void this.tryDistributeFromQueue(queueId);
@@ -82,7 +81,6 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       this.logger.log('Registered distribution callback with PipelineOrchestrator');
     }
 
-    // Register SLA breach callback: push breach events to manager dashboards
     if (this.slaMonitor) {
       this.slaMonitor.onBreach((event: SLABreachEvent) => {
         this.server?.emit('sla:breach', event);
@@ -91,17 +89,12 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       this.logger.log('SLA Monitor started via gateway init');
     }
 
-    // Broadcast pipeline metrics every 10 seconds for real-time dashboard updates
     if (this.pipelineMetrics) {
       setInterval(() => this.broadcastPipelineMetrics(), 10_000);
       this.logger.log('Pipeline metrics broadcast scheduled (10s interval)');
     }
   }
 
-  /**
-   * Broadcast aggregate pipeline metrics to all connected clients.
-   * Emits `pipeline:metrics` event with a PipelineMetricsSummary payload.
-   */
   private broadcastPipelineMetrics(): void {
     if (!this.pipelineMetrics || !this.server) return;
     this.pipelineMetrics
@@ -123,7 +116,6 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     const agentInfo = agent ? ` (Agent: ${agent.agentId})` : '';
     this.logger.log(`Client disconnected: ${client.id}${agentInfo} | Reason: socket closed`);
 
-    // If agent had an active/reserved task, requeue it so it's not lost
     if (agent && agent.currentTaskId) {
       const activeStates: AgentState[] = ['ACTIVE', 'RESERVED', 'WRAP_UP'];
       if (activeStates.includes(agent.state)) {
@@ -134,88 +126,65 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       }
     }
 
-    this.agentManager.removeAgentBySocketId(client.id);
+    void this.agentManager.removeAgentBySocketId(client.id);
   }
 
-  /**
-   * Agent connects and registers with the system
-   */
   @SubscribeMessage('agent:connect')
-  handleAgentConnect(
+  async handleAgentConnect(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: AgentConnectPayload
-  ): void {
+  ): Promise<void> {
     this.logger.log(`Agent connecting: ${payload.agentId} (${payload.name})`);
 
-    this.agentManager.registerAgent({
+    await this.agentManager.registerAgent({
       socketId: client.id,
       agentId: payload.agentId,
       name: payload.name,
       state: 'IDLE',
     });
 
-    // Acknowledge connection
     client.emit('connection:ack', {
       agentId: payload.agentId,
       status: 'connected',
     });
 
-    // Immediately try to assign a task (Force Mode)
     void this.tryAssignTask(payload.agentId);
   }
 
-  /**
-   * Graceful disconnect signal from client (browser closing).
-   * Triggers the same cleanup as a WebSocket disconnect.
-   */
   @SubscribeMessage('agent:disconnect')
   handleAgentDisconnect(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { agentId: string }
+    @MessageBody() _payload: { agentId: string }
   ): void {
-    this.logger.log(`Agent graceful disconnect: ${payload.agentId}`);
-    // handleDisconnect will fire automatically when the socket closes,
-    // but we trigger cleanup early to ensure task requeue happens
+    this.logger.log(`Agent graceful disconnect: ${_payload.agentId}`);
     this.handleDisconnect(client);
   }
 
-  /**
-   * Agent signals they are ready for work (IDLE state)
-   */
   @SubscribeMessage('agent:ready')
-  handleAgentReady(
-    @ConnectedSocket() client: Socket,
+  async handleAgentReady(
+    @ConnectedSocket() _client: Socket,
     @MessageBody() payload: { agentId: string }
-  ): void {
+  ): Promise<void> {
     this.logger.log(`Agent ready: ${payload.agentId}`);
 
-    this.agentManager.updateAgentState(payload.agentId, 'IDLE');
-
-    // Try to assign a task immediately (Force Mode)
+    await this.agentManager.updateAgentState(payload.agentId, 'IDLE');
     void this.tryAssignTask(payload.agentId);
   }
 
-  /**
-   * Agent state change notification
-   */
   @SubscribeMessage('agent:state-change')
-  handleAgentStateChange(
-    @ConnectedSocket() client: Socket,
+  async handleAgentStateChange(
+    @ConnectedSocket() _client: Socket,
     @MessageBody() payload: AgentStateChangePayload
-  ): void {
+  ): Promise<void> {
     this.logger.log(`Agent ${payload.agentId} state changed to: ${payload.state}`);
 
-    this.agentManager.updateAgentState(payload.agentId, payload.state);
+    await this.agentManager.updateAgentState(payload.agentId, payload.state);
 
-    // If agent becomes IDLE, try to assign a task
     if (payload.state === 'IDLE') {
       void this.tryAssignTask(payload.agentId);
     }
   }
 
-  /**
-   * Agent performs an action on a task
-   */
   @SubscribeMessage('agent:task-action')
   async handleTaskAction(
     @ConnectedSocket() _client: Socket,
@@ -227,36 +196,44 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
 
     switch (payload.action) {
       case 'accept':
-        this.agentManager.updateAgentState(payload.agentId, 'ACTIVE');
+        await this.agentManager.updateAgentState(payload.agentId, 'ACTIVE');
         await this.taskStore?.updateStatus(payload.taskId, 'ACTIVE' as TaskStatus, {
           assignedAgentId: payload.agentId,
         });
+        void this.eventStore?.emit({
+          eventType: 'task.accepted',
+          aggregateId: payload.taskId,
+          aggregateType: 'task',
+          payload: { agentId: payload.agentId },
+          agentId: payload.agentId,
+        });
         break;
       case 'reject':
-        this.agentManager.clearAgentTask(payload.agentId);
-        this.agentManager.updateAgentState(payload.agentId, 'IDLE');
-        // Requeue the task if using V2 queue
+        await this.agentManager.clearAgentTask(payload.agentId);
+        await this.agentManager.updateAgentState(payload.agentId, 'IDLE');
         await this.requeueTask(payload.taskId, 'agent_rejected');
-        // Try to assign a new task
         await this.tryAssignTask(payload.agentId);
+        void this.eventStore?.emit({
+          eventType: 'task.rejected',
+          aggregateId: payload.taskId,
+          aggregateType: 'task',
+          payload: { agentId: payload.agentId, reason: 'agent_rejected' },
+          agentId: payload.agentId,
+        });
         break;
       case 'complete':
-        this.agentManager.updateAgentState(payload.agentId, 'WRAP_UP');
+        await this.agentManager.updateAgentState(payload.agentId, 'WRAP_UP');
         await this.taskStore?.updateStatus(payload.taskId, 'WRAP_UP' as TaskStatus);
         break;
       case 'transfer':
-        this.agentManager.clearAgentTask(payload.agentId);
-        this.agentManager.updateAgentState(payload.agentId, 'IDLE');
+        await this.agentManager.clearAgentTask(payload.agentId);
+        await this.agentManager.updateAgentState(payload.agentId, 'IDLE');
         await this.taskStore?.updateStatus(payload.taskId, 'TRANSFERRED' as TaskStatus);
-        // Try to assign a new task
         await this.tryAssignTask(payload.agentId);
         break;
     }
   }
 
-  /**
-   * Agent completes disposition (wrap-up done)
-   */
   @SubscribeMessage('agent:disposition-complete')
   async handleDispositionComplete(
     @ConnectedSocket() _client: Socket,
@@ -264,21 +241,27 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
   ): Promise<void> {
     this.logger.log(`Agent ${payload.agentId} completed disposition for task ${payload.taskId}`);
 
-    this.agentManager.clearAgentTask(payload.agentId);
-    this.agentManager.updateAgentState(payload.agentId, 'IDLE');
+    await this.agentManager.clearAgentTask(payload.agentId);
+    await this.agentManager.updateAgentState(payload.agentId, 'IDLE');
     await this.taskStore?.updateStatus(payload.taskId, 'COMPLETED' as TaskStatus, {
       completedAt: new Date().toISOString(),
     });
 
-    // Try to assign a new task (Force Mode)
+    void this.eventStore?.emit({
+      eventType: 'task.completed',
+      aggregateId: payload.taskId,
+      aggregateType: 'task',
+      payload: { agentId: payload.agentId, dispositionCode: payload.dispositionCode },
+      agentId: payload.agentId,
+    });
+
     await this.tryAssignTask(payload.agentId);
   }
 
   /**
    * Push a task to a specific agent (Force-Push Mode).
-   * Sets agent directly to RESERVED; the client auto-accepts immediately.
    */
-  pushTaskToAgent(agentId: string, task: Task): boolean {
+  async pushTaskToAgent(agentId: string, task: Task): Promise<boolean> {
     const agent = this.agentManager.getAgent(agentId);
     if (!agent) {
       this.logger.warn(`Cannot push task: Agent ${agentId} not found`);
@@ -287,57 +270,50 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
 
     this.logger.log(`Force-pushing task ${task.id} to agent ${agentId}`);
     this.server.to(agent.socketId).emit('task:assigned', task);
-    // Set to RESERVED and track the task; client will auto-accept and send 'accept' action → ACTIVE
-    this.agentManager.assignTaskToAgent(agentId, task.id);
+    await this.agentManager.assignTaskToAgent(agentId, task.id);
+
+    void this.eventStore?.emit({
+      eventType: 'task.assigned',
+      aggregateId: task.id,
+      aggregateType: 'task',
+      payload: { agentId, taskId: task.id, workType: task.workType },
+      agentId,
+    });
 
     return true;
   }
 
-  /**
-   * Notify agent of task timeout
-   */
   notifyTaskTimeout(agentId: string, taskId: string): void {
     const agent = this.agentManager.getAgent(agentId);
     if (agent) {
       this.server.to(agent.socketId).emit('task:timeout', { taskId });
-      this.agentManager.updateAgentState(agentId, 'IDLE');
+      void this.agentManager.updateAgentState(agentId, 'IDLE');
     }
   }
 
-  /**
-   * Try to assign a task to an agent (Force Mode).
-   * Uses V2 QueueManager if available, falls back to legacy TaskDistributor.
-   */
   private async tryAssignTask(agentId: string): Promise<void> {
     const agent = this.agentManager.getAgent(agentId);
     if (!agent || agent.state !== 'IDLE') {
       return;
     }
 
-    // V2 path: pull from priority queues
     if (this.queueManager) {
       const assigned = await this.tryAssignFromQueues(agentId);
       if (assigned) return;
     }
 
-    // Legacy fallback: use TaskDistributor
     const task = this.taskDistributor.getNextTaskForAgent(agentId);
     if (task) {
-      this.pushTaskToAgent(agentId, task);
+      await this.pushTaskToAgent(agentId, task);
     }
   }
 
-  /**
-   * Try to assign a task from the priority queues to a specific agent.
-   * Iterates all queues and dequeues the highest-priority task.
-   */
   private async tryAssignFromQueues(agentId: string): Promise<boolean> {
     if (!this.queueManager) return false;
 
     const queueIds = await this.queueManager.getQueueIds();
     if (queueIds.length === 0) return false;
 
-    // Collect the top task from each queue and pick the overall best
     let bestTask: QueuedTask | null = null;
     let bestQueueId: string | null = null;
 
@@ -358,13 +334,11 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
 
     if (!bestTask || !bestQueueId) return false;
 
-    // Dequeue and push to agent
     const dequeued = await this.queueManager.dequeue(bestQueueId);
     if (!dequeued) return false;
 
     const task = dequeued.task;
 
-    // Update task status in store
     const now = new Date().toISOString();
     await this.taskStore?.updateStatus(task.id, 'RESERVED' as TaskStatus, {
       assignedAgentId: agentId,
@@ -375,27 +349,20 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
       ],
     });
 
-    this.pushTaskToAgent(agentId, task);
+    await this.pushTaskToAgent(agentId, task);
     return true;
   }
 
-  /**
-   * When a new task is enqueued, try to distribute it to any idle agent.
-   * Called by the PipelineOrchestrator via the registered callback.
-   */
   private async tryDistributeFromQueue(_queueId: string): Promise<void> {
     const idleAgents = this.agentManager.getIdleAgents();
 
     for (const agent of idleAgents) {
       if (await this.tryAssignFromQueues(agent.agentId)) {
-        return; // Assigned to first available idle agent
+        return;
       }
     }
   }
 
-  /**
-   * Requeue a task back into its queue after rejection or timeout.
-   */
   private async requeueTask(taskId: string, reason: string): Promise<void> {
     if (!this.queueManager || !this.taskStore) return;
 
@@ -405,7 +372,6 @@ export class AgentGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     const queueId = task.metadata?.['_queueId'] || task.queueId || task.queue;
     if (!queueId) return;
 
-    // Build a QueuedTask wrapper for requeue
     const queuedTask: QueuedTask = {
       id: task.id,
       pipelineId: task.metadata?.['_pipelineId'] || '',

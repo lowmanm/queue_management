@@ -14,6 +14,7 @@ import { QueueManagerService } from './queue-manager.service';
 import { PipelineOrchestratorService } from './pipeline-orchestrator.service';
 import { SLAMonitorService } from './sla-monitor.service';
 import { PipelineMetricsService } from './pipeline-metrics.service';
+import { EventStoreService } from './event-store.service';
 import { PipelineModule } from '../pipelines/pipeline.module';
 import {
   TaskEntity,
@@ -27,6 +28,7 @@ import {
   TaskSourceEntity,
   SkillEntity,
   AgentSkillEntity,
+  TaskEventEntity,
 } from '../entities';
 
 @Module({
@@ -44,6 +46,7 @@ import {
       TaskSourceEntity,
       SkillEntity,
       AgentSkillEntity,
+      TaskEventEntity,
     ]),
   ],
   providers: [
@@ -63,6 +66,8 @@ import {
     SLAMonitorService,
     // Phase 3 services
     PipelineMetricsService,
+    // Phase 4 services
+    EventStoreService,
   ],
   exports: [
     AgentManagerService,
@@ -81,6 +86,8 @@ import {
     SLAMonitorService,
     // Phase 3 services
     PipelineMetricsService,
+    // Phase 4 services
+    EventStoreService,
   ],
 })
 export class ServicesModule {}
