@@ -1,0 +1,196 @@
+<div class="webhooks">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-row">
+      <div>
+        <h1>Webhook Endpoints</h1>
+        <p class="page-description">
+          Manage inbound webhook endpoints that push task data into Nexus pipelines.
+        </p>
+      </div>
+      <button class="btn-primary" (click)="showCreateForm()">
+        + Create Webhook
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  @if (errorMessage()) {
+    <div class="message error">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="message success">{{ successMessage() }}</div>
+  }
+
+  <!-- Secret Reveal Banner -->
+  @if (revealedSecret()) {
+    <div class="secret-banner">
+      <div class="secret-banner-header">
+        <strong>⚠ Save this secret — it will not be shown again.</strong>
+        <button class="btn-ghost" (click)="dismissSecret()">Dismiss</button>
+      </div>
+      <div class="secret-value">
+        <code>{{ revealedSecret() }}</code>
+        <button class="btn-ghost btn-sm" (click)="copySecret()">Copy</button>
+      </div>
+    </div>
+  }
+
+  <!-- Create Form -->
+  @if (creating()) {
+    <div class="create-form card">
+      <h3>New Webhook Endpoint</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="webhook-name" class="form-label">Name <span class="required">*</span></label>
+          <input
+            id="webhook-name"
+            type="text"
+            class="form-input"
+            [ngModel]="newName()"
+            (ngModelChange)="newName.set($event)"
+            placeholder="e.g. Salesforce CRM"
+          />
+        </div>
+        <div class="form-group">
+          <label for="webhook-pipeline" class="form-label">Pipeline <span class="required">*</span></label>
+          <select
+            id="webhook-pipeline"
+            class="form-input"
+            [ngModel]="selectedPipelineId()"
+            (ngModelChange)="selectedPipelineId.set($event)"
+          >
+            <option value="">— Select Pipeline —</option>
+            @for (p of pipelines(); track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" (click)="createEndpoint()">Create</button>
+        <button class="btn-secondary" (click)="cancelCreate()">Cancel</button>
+      </div>
+    </div>
+  }
+
+  <!-- Main Layout: Endpoint List + Delivery Log -->
+  <div class="webhooks-layout">
+    <!-- Left: Endpoint List -->
+    <div class="endpoint-list card">
+      @if (loading()) {
+        <div class="loading-state">Loading endpoints...</div>
+      } @else if (endpoints().length === 0) {
+        <div class="empty-state">
+          <p>No webhook endpoints yet.</p>
+          <p>Create one to start receiving task data from external systems.</p>
+        </div>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Pipeline</th>
+              <th>Status</th>
+              <th>Last Delivery</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ep of endpoints(); track ep.id) {
+              <tr
+                class="endpoint-row"
+                [class.selected]="selectedEndpointId() === ep.id"
+                (click)="selectEndpoint(ep.id)"
+              >
+                <td class="ep-name">{{ ep.name }}</td>
+                <td>{{ getPipelineName(ep.pipelineId) }}</td>
+                <td>
+                  <span class="status-badge" [class.active]="ep.status === 'active'" [class.inactive]="ep.status === 'inactive'">
+                    {{ ep.status }}
+                  </span>
+                </td>
+                <td>{{ ep.lastDeliveryAt ? (ep.lastDeliveryAt | date: 'short') : '—' }}</td>
+                <td class="actions-cell" (click)="$event.stopPropagation()">
+                  <button class="btn-ghost btn-sm" title="Copy URL" (click)="copyUrl(ep)">
+                    Copy URL
+                  </button>
+                  <button
+                    class="btn-ghost btn-sm"
+                    (click)="toggleStatus(ep)"
+                    [title]="ep.status === 'active' ? 'Deactivate' : 'Activate'"
+                  >
+                    {{ ep.status === 'active' ? 'Disable' : 'Enable' }}
+                  </button>
+                  <button class="btn-ghost btn-sm" title="Regenerate Token" (click)="regenerateToken(ep)">
+                    Regen Token
+                  </button>
+                  <button class="btn-danger btn-sm" title="Delete" (click)="deleteEndpoint(ep)">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <!-- Right: Delivery Log -->
+    @if (selectedEndpointId()) {
+      <div class="delivery-log card">
+        <div class="delivery-log-header">
+          <h3>Delivery Log — {{ selectedEndpoint?.name }}</h3>
+          <div class="endpoint-url">
+            <code>POST {{ apiUrl }}/webhooks/{{ selectedEndpoint?.token }}</code>
+            @if (selectedEndpoint) {
+              <button class="btn-ghost btn-sm" (click)="copyUrl(selectedEndpoint)">Copy</button>
+            }
+          </div>
+        </div>
+
+        @if (deliveries().length === 0) {
+          <div class="empty-state">No deliveries recorded yet.</div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Status</th>
+                <th>Task ID</th>
+                <th>Processing (ms)</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of deliveries(); track d.id) {
+                <tr>
+                  <td>{{ d.receivedAt | date: 'short' }}</td>
+                  <td>
+                    <span class="status-badge" [class.active]="d.status === 'QUEUED'" [class.inactive]="d.status !== 'QUEUED'">
+                      {{ d.status }}
+                    </span>
+                  </td>
+                  <td>{{ d.taskId ?? '—' }}</td>
+                  <td>{{ d.processingMs }}</td>
+                  <td class="error-cell">{{ d.errorMessage ?? '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <!-- Pagination -->
+          <div class="pagination">
+            <button class="btn-ghost btn-sm" [disabled]="!hasPrevDeliveryPage" (click)="loadDeliveries(deliveryPage() - 1)">
+              ← Prev
+            </button>
+            <span>Page {{ deliveryPage() }}</span>
+            <button class="btn-ghost btn-sm" [disabled]="!hasNextDeliveryPage" (click)="loadDeliveries(deliveryPage() + 1)">
+              Next →
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
