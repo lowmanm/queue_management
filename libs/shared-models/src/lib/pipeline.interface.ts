@@ -11,6 +11,7 @@
  *   ├── Data Sources (Volume Loaders feed into pipelines)
  *   └── Access Control (Agent permissions at pipeline/queue level)
  */
+import { RuleCondition, RuleAction } from './rule.interface';
 
 // =============================================================================
 // PIPELINE CORE
@@ -644,6 +645,60 @@ export const ROUTING_OPERATOR_LABELS: Record<RoutingOperator, string> = {
   exists: 'Has a value',
   not_exists: 'Is empty',
 };
+
+// =============================================================================
+// PIPELINE PORTABILITY — EXPORT / IMPORT
+// =============================================================================
+
+/**
+ * JSON export/import envelope for a complete pipeline configuration.
+ * Designed for portability: queue and skill references use names, not IDs.
+ */
+export interface PipelineBundle {
+  /** Schema version — always '1' in this release. */
+  exportVersion: '1';
+  /** ISO timestamp of when the bundle was exported. */
+  exportedAt: string;
+  pipeline: {
+    name: string;
+    description?: string;
+    workTypes: string[];
+    dataSchema: PipelineDataSchema[];
+    sla?: PipelineSLA;
+    callbackUrl?: string;
+    callbackEvents?: string[];
+  };
+  queues: Array<{
+    name: string;
+    priority: number;
+    /** Skill names (not IDs) for cross-environment portability. */
+    requiredSkills: string[];
+    maxCapacity?: number;
+  }>;
+  routingRules: Array<{
+    name: string;
+    priority: number;
+    conditions: RoutingCondition[];
+    /** Resolved from name to ID on import via the name→id map. */
+    targetQueueName?: string;
+    /** Cross-pipeline routing: preserved as-is during import. */
+    targetPipelineId?: string;
+    isDefault?: boolean;
+  }>;
+  ruleSets: Array<{
+    name: string;
+    rules: Array<{ conditions: RuleCondition[]; actions: RuleAction[] }>;
+  }>;
+}
+
+/**
+ * Result returned by the pipeline import endpoint.
+ */
+export interface PipelineImportResult {
+  success: boolean;
+  pipelineId?: string;
+  errors?: Array<{ field: string; message: string }>;
+}
 
 // =============================================================================
 // QUEUE RUNTIME STATS (returned by /api/queues/:id/stats)
