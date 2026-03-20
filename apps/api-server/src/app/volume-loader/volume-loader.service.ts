@@ -1,4 +1,6 @@
-import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -35,6 +37,8 @@ import {
 import { TaskSourceService } from '../services/task-source.service';
 import { PipelineService } from '../pipelines/pipeline.service';
 import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
+import { VolumeLoaderEntity } from '../entities/volume-loader.entity';
+import { VolumeLoaderRunEntity } from '../entities/volume-loader-run.entity';
 
 /**
  * Represents a parsed record from a data source before task creation
@@ -47,7 +51,7 @@ interface ParsedRecord {
 }
 
 @Injectable()
-export class VolumeLoaderService {
+export class VolumeLoaderService implements OnModuleInit {
   private readonly logger = new Logger(VolumeLoaderService.name);
 
   // In-memory storage
@@ -70,6 +74,10 @@ export class VolumeLoaderService {
   private taskCounter = 5000;
 
   constructor(
+    @InjectRepository(VolumeLoaderEntity)
+    private readonly loaderRepo: Repository<VolumeLoaderEntity>,
+    @InjectRepository(VolumeLoaderRunEntity)
+    private readonly runRepo: Repository<VolumeLoaderRunEntity>,
     @Optional()
     @Inject(forwardRef(() => TaskSourceService))
     private readonly taskSourceService?: TaskSourceService,
@@ -81,6 +89,24 @@ export class VolumeLoaderService {
     private readonly orchestrator?: PipelineOrchestratorService
   ) {
     this.logDependencyStatus();
+  }
+
+  async onModuleInit(): Promise<void> {
+    const loaderEntities = await this.loaderRepo.find();
+    for (const entity of loaderEntities) {
+      this.loaders.set(entity.id, this.toLoaderModel(entity));
+    }
+
+    // Load recent runs (last 200 across all loaders for in-memory cache)
+    const runEntities = await this.runRepo.find({
+      order: { startedAt: 'DESC' },
+      take: 200,
+    });
+    this.runs = runEntities.map((e) => this.toRunModel(e)).reverse();
+
+    this.logger.log(
+      `Loaded ${loaderEntities.length} volume loaders and ${runEntities.length} runs from DB`
+    );
   }
 
   private logDependencyStatus(): void {
@@ -161,11 +187,11 @@ export class VolumeLoaderService {
     return this.getAllLoaders().filter((l) => l.enabled);
   }
 
-  createLoader(request: CreateVolumeLoaderRequest): {
+  async createLoader(request: CreateVolumeLoaderRequest): Promise<{
     success: boolean;
     loader?: VolumeLoader;
     error?: string;
-  } {
+  }> {
     // Validate name uniqueness
     const existing = this.getAllLoaders().find(
       (l) => l.name.toLowerCase() === request.name.toLowerCase()
@@ -199,16 +225,17 @@ export class VolumeLoaderService {
       updatedAt: now,
     };
 
+    await this.loaderRepo.save(this.toLoaderEntity(loader));
     this.loaders.set(loader.id, loader);
     this.logger.log(`Created volume loader: ${loader.id} (${loader.name})`);
 
     return { success: true, loader };
   }
 
-  updateLoader(
+  async updateLoader(
     id: string,
     updates: UpdateVolumeLoaderRequest
-  ): { success: boolean; loader?: VolumeLoader; error?: string } {
+  ): Promise<{ success: boolean; loader?: VolumeLoader; error?: string }> {
     const loader = this.loaders.get(id);
     if (!loader) {
       return { success: false, error: 'Loader not found' };
@@ -257,13 +284,14 @@ export class VolumeLoaderService {
       }
     }
 
+    await this.loaderRepo.save(this.toLoaderEntity(updated));
     this.loaders.set(id, updated);
     this.logger.log(`Updated volume loader: ${id}`);
 
     return { success: true, loader: updated };
   }
 
-  deleteLoader(id: string, cascade = false): { success: boolean; error?: string; cascadeResults?: string[] } {
+  async deleteLoader(id: string, cascade = false): Promise<{ success: boolean; error?: string; cascadeResults?: string[] }> {
     const loader = this.loaders.get(id);
     if (!loader) {
       return { success: false, error: 'Loader not found' };
@@ -279,7 +307,7 @@ export class VolumeLoaderService {
     if (cascade && loader.pipelineId && this.pipelineService) {
       const impact = this.pipelineService.getPipelineDeleteImpact(loader.pipelineId);
       if (impact.found) {
-        const pipelineResult = this.pipelineService.deletePipeline(loader.pipelineId, true);
+        const pipelineResult = await this.pipelineService.deletePipeline(loader.pipelineId, true);
         if (pipelineResult.success) {
           cascadeResults.push(
             `Deleted pipeline "${impact.pipelineName}" with ${impact.queueCount} queue(s) and ${impact.routingRuleCount} routing rule(s)`
@@ -290,8 +318,9 @@ export class VolumeLoaderService {
       }
     }
 
-    // Remove associated run history
+    // Remove associated run history from DB and cache
     const runsBefore = this.runs.length;
+    await this.runRepo.delete({ loaderId: id });
     this.runs = this.runs.filter((r) => r.loaderId !== id);
     const runsRemoved = runsBefore - this.runs.length;
     if (runsRemoved > 0) {
@@ -299,6 +328,7 @@ export class VolumeLoaderService {
     }
 
     this.unscheduleLoader(id);
+    await this.loaderRepo.delete(id);
     this.loaders.delete(id);
     this.logger.log(`Deleted volume loader: ${id}${cascade ? ' (cascade)' : ''}`);
 
@@ -350,11 +380,11 @@ export class VolumeLoaderService {
   // LOADER CONTROL
   // ==========================================================================
 
-  enableLoader(id: string): { success: boolean; loader?: VolumeLoader; error?: string } {
+  async enableLoader(id: string): Promise<{ success: boolean; loader?: VolumeLoader; error?: string }> {
     return this.updateLoader(id, { enabled: true });
   }
 
-  disableLoader(id: string): { success: boolean; loader?: VolumeLoader; error?: string } {
+  async disableLoader(id: string): Promise<{ success: boolean; loader?: VolumeLoader; error?: string }> {
     return this.updateLoader(id, { enabled: false });
   }
 
@@ -436,10 +466,17 @@ export class VolumeLoaderService {
     };
 
     this.runs.push(run);
+    // Persist run to DB (fire-and-forget; errors logged in processLoader)
+    this.runRepo.save(this.toRunEntity(run)).catch((err) => {
+      this.logger.error(`Failed to persist run ${runId}: ${err}`);
+    });
 
     // Update loader status
     loader.status = 'RUNNING';
     loader.lastRunAt = startedAt;
+    this.loaderRepo.save(this.toLoaderEntity(loader)).catch((err) => {
+      this.logger.error(`Failed to persist loader status for ${id}: ${err}`);
+    });
     this.loaders.set(id, loader);
 
     // Simulate processing (in real implementation, this would be async)
@@ -469,7 +506,7 @@ export class VolumeLoaderService {
         this.logger.log(
           `Found ${staged.records.length} staged records for loader "${loader.name}"`
         );
-        this.processStagedRecords(loader, run, staged.records, isDryRun);
+        await this.processStagedRecords(loader, run, staged.records, isDryRun);
         // Clear staging table after processing
         if (!isDryRun) {
           this.stagedRecords.delete(loader.id);
@@ -529,6 +566,10 @@ export class VolumeLoaderService {
       loader.status = loader.enabled ? (loader.schedule?.enabled ? 'SCHEDULED' : 'IDLE') : 'DISABLED';
     }
     this.loaders.set(loader.id, loader);
+
+    // Persist completed run and updated loader
+    await this.runRepo.save(this.toRunEntity(run));
+    await this.loaderRepo.save(this.toLoaderEntity(loader));
 
     this.logger.log(
       `Loader ${loader.id} completed: ${run.recordsProcessed}/${run.recordsFound} records processed, ` +
@@ -609,7 +650,7 @@ export class VolumeLoaderService {
 
           if (!isDryRun) {
             // Create task in the task pipeline
-            this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+            await this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
 
             // Track processed ID
             if (record.mappedData.externalId) {
@@ -652,11 +693,11 @@ export class VolumeLoaderService {
    * Generates mock records from the loader's field mappings and routes them
    * through the pipeline so tasks actually reach queues.
    */
-  private processSimulated(
+  private async processSimulated(
     loader: VolumeLoader,
     run: VolumeLoaderRun,
     isDryRun: boolean
-  ): void {
+  ): Promise<void> {
     const recordCount = Math.floor(Math.random() * 20) + 10;
     run.recordsFound = recordCount;
     run.filesProcessed = ['simulated_data.csv'];
@@ -687,7 +728,7 @@ export class VolumeLoaderService {
         const mappedData = this.applyFieldMappings(rawData, loader);
 
         if (!isDryRun) {
-          this.createTaskFromRecord(loader, mappedData, i + 1);
+          await this.createTaskFromRecord(loader, mappedData, i + 1);
           if (mappedData.externalId) {
             this.processedExternalIds.add(mappedData.externalId);
           }
@@ -759,12 +800,12 @@ export class VolumeLoaderService {
    * Process previously staged records through the pipeline.
    * This is the core path: CSV Upload stages → Run Now routes → tasks reach queues → agents.
    */
-  private processStagedRecords(
+  private async processStagedRecords(
     loader: VolumeLoader,
     run: VolumeLoaderRun,
     records: TaskFromSource[],
     isDryRun: boolean
-  ): void {
+  ): Promise<void> {
     run.recordsFound = records.length;
     run.filesProcessed = ['staged_upload'];
 
@@ -865,7 +906,7 @@ export class VolumeLoaderService {
         }
 
         // Route through pipeline orchestrator
-        const taskResult = this.createTaskFromRecord(loader, taskData, i + 1);
+        const taskResult = await this.createTaskFromRecord(loader, taskData, i + 1);
 
         if (taskResult?.routed) {
           recordsRouted++;
@@ -1379,11 +1420,11 @@ export class VolumeLoaderService {
    *
    * If V2 is not available, logs a clear error so we know what's missing.
    */
-  private createTaskFromRecord(
+  private async createTaskFromRecord(
     loader: VolumeLoader,
     taskData: TaskFromSource,
     rowIndex: number
-  ): { routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: any; error?: string; status?: string } | null {
+  ): Promise<{ routed: boolean; ruleId?: string; ruleName?: string; queueId?: string; diagnostics?: unknown; error?: string; status?: string } | null> {
     // Guard: pipeline must be configured
     if (!loader.pipelineId) {
       return { routed: false, error: 'No pipeline assigned', status: 'NO_PIPELINE' };
@@ -1395,7 +1436,7 @@ export class VolumeLoaderService {
     }
 
     // V2 path: use PipelineOrchestrator (validate → transform → route → enqueue → notify)
-    const result = this.orchestrator.ingestTask({
+    const result = await this.orchestrator.ingestTask({
       pipelineId: loader.pipelineId,
       taskData,
       source: 'volume_loader',
@@ -1873,6 +1914,89 @@ export class VolumeLoaderService {
       errorLoaders: loaders.filter((l) => l.status === 'ERROR').length,
       recordsLoadedToday: recordsToday,
       runsToday: runsToday.length,
+    };
+  }
+
+  // ==========================================================================
+  // ENTITY MAPPING
+  // ==========================================================================
+
+  private toLoaderEntity(loader: VolumeLoader): VolumeLoaderEntity {
+    const entity = new VolumeLoaderEntity();
+    entity.id = loader.id;
+    entity.name = loader.name;
+    entity.description = loader.description;
+    entity.type = loader.type;
+    entity.enabled = loader.enabled;
+    entity.pipelineId = loader.pipelineId;
+    entity.config = loader.config as unknown as Record<string, unknown>;
+    entity.schedule = loader.schedule as unknown as Record<string, unknown> | undefined;
+    entity.dataFormat = loader.dataFormat as unknown as Record<string, unknown> | undefined;
+    entity.fieldMappings = loader.fieldMappings as unknown as Record<string, unknown>[] | undefined;
+    entity.defaults = loader.defaults as unknown as Record<string, unknown> | undefined;
+    entity.processingOptions = loader.processingOptions as unknown as Record<string, unknown> | undefined;
+    entity.status = loader.status;
+    entity.stats = loader.stats as unknown as Record<string, unknown>;
+    entity.lastRunAt = loader.lastRunAt ? new Date(loader.lastRunAt) : undefined;
+    entity.nextRunAt = loader.nextRunAt ? new Date(loader.nextRunAt) : undefined;
+    return entity;
+  }
+
+  private toLoaderModel(entity: VolumeLoaderEntity): VolumeLoader {
+    return {
+      id: entity.id,
+      name: entity.name,
+      description: entity.description,
+      type: entity.type as VolumeLoaderType,
+      enabled: entity.enabled,
+      pipelineId: entity.pipelineId,
+      config: entity.config as unknown as VolumeLoaderConfig,
+      schedule: entity.schedule as unknown as VolumeLoaderSchedule | undefined,
+      dataFormat: entity.dataFormat as unknown as DataFormatConfig,
+      fieldMappings: (entity.fieldMappings ?? []) as unknown as VolumeFieldMapping[],
+      defaults: entity.defaults as unknown as VolumeTaskDefaults | undefined,
+      processingOptions: (entity.processingOptions ?? {}) as unknown as ProcessingOptions,
+      status: entity.status as VolumeLoaderStatus,
+      stats: (entity.stats ?? this.createEmptyStats()) as unknown as VolumeLoaderStats,
+      lastRunAt: entity.lastRunAt ? entity.lastRunAt.toISOString() : undefined,
+      nextRunAt: entity.nextRunAt ? entity.nextRunAt.toISOString() : undefined,
+      createdAt: entity.createdAt instanceof Date ? entity.createdAt.toISOString() : entity.createdAt,
+      updatedAt: entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : entity.updatedAt,
+    };
+  }
+
+  private toRunEntity(run: VolumeLoaderRun): VolumeLoaderRunEntity {
+    const entity = new VolumeLoaderRunEntity();
+    entity.id = run.id;
+    entity.loaderId = run.loaderId;
+    entity.status = run.status;
+    entity.trigger = run.trigger;
+    entity.recordsFound = run.recordsFound;
+    entity.recordsProcessed = run.recordsProcessed;
+    entity.recordsFailed = run.recordsFailed;
+    entity.recordsSkipped = run.recordsSkipped;
+    entity.filesProcessed = run.filesProcessed;
+    entity.errorLog = run.errorLog as unknown as Record<string, unknown>[] | undefined;
+    entity.durationMs = run.durationMs;
+    entity.completedAt = run.completedAt ? new Date(run.completedAt) : undefined;
+    return entity;
+  }
+
+  private toRunModel(entity: VolumeLoaderRunEntity): VolumeLoaderRun {
+    return {
+      id: entity.id,
+      loaderId: entity.loaderId,
+      status: entity.status as VolumeLoaderRunStatus,
+      trigger: entity.trigger as VolumeLoaderRun['trigger'],
+      recordsFound: entity.recordsFound,
+      recordsProcessed: entity.recordsProcessed,
+      recordsFailed: entity.recordsFailed,
+      recordsSkipped: entity.recordsSkipped,
+      filesProcessed: entity.filesProcessed ?? [],
+      errorLog: (entity.errorLog ?? []) as unknown as VolumeLoaderError[],
+      durationMs: entity.durationMs,
+      completedAt: entity.completedAt ? entity.completedAt.toISOString() : undefined,
+      startedAt: entity.startedAt instanceof Date ? entity.startedAt.toISOString() : entity.startedAt,
     };
   }
 }

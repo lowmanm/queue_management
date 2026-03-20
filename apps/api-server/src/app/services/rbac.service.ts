@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   User,
   Team,
@@ -12,32 +14,67 @@ import {
   getPermissionsForRole,
   getUserPermissions,
 } from '@nexus-queue/shared-models';
+import { UserEntity } from '../entities/user.entity';
+import { TeamEntity } from '../entities/team.entity';
 
 /**
  * Service for managing Role-Based Access Control.
  * Handles users, roles, permissions, and sessions.
  */
 @Injectable()
-export class RbacService {
+export class RbacService implements OnModuleInit {
   private readonly logger = new Logger(RbacService.name);
 
-  // In-memory storage (would be database in production)
+  /** In-memory caches; loaded from DB on init */
   private users: Map<string, User> = new Map();
   private teams: Map<string, Team> = new Map();
+
+  /** Keep in-memory — replaced by JWT in Plan 3-1 */
   private sessions: Map<string, UserSession> = new Map();
+
+  /** Fixed enum values — no entity needed */
   private roles: Role[] = [...DEFAULT_ROLES];
 
-  constructor() {
-    this.initializeDefaultData();
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(TeamEntity)
+    private readonly teamRepo: Repository<TeamEntity>
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.loadTeamsFromDb();
+    await this.loadUsersFromDb();
   }
 
-  /**
-   * Initialize with default users and teams
-   */
-  private initializeDefaultData(): void {
-    const now = new Date().toISOString();
+  private async loadTeamsFromDb(): Promise<void> {
+    const entities = await this.teamRepo.find();
+    if (entities.length > 0) {
+      this.teams.clear();
+      for (const entity of entities) {
+        this.teams.set(entity.id, this.toTeamModel(entity));
+      }
+      this.logger.log(`Loaded ${entities.length} teams from DB`);
+    } else {
+      await this.seedDefaultTeams();
+    }
+  }
 
-    // Create default teams
+  private async loadUsersFromDb(): Promise<void> {
+    const entities = await this.userRepo.find();
+    if (entities.length > 0) {
+      this.users.clear();
+      for (const entity of entities) {
+        this.users.set(entity.id, this.toUserModel(entity));
+      }
+      this.logger.log(`Loaded ${entities.length} users from DB`);
+    } else {
+      await this.seedDefaultUsers();
+    }
+  }
+
+  private async seedDefaultTeams(): Promise<void> {
+    const now = new Date().toISOString();
     const defaultTeams: Team[] = [
       {
         id: 'team-orders',
@@ -68,9 +105,15 @@ export class RbacService {
       },
     ];
 
-    defaultTeams.forEach((team) => this.teams.set(team.id, team));
+    for (const team of defaultTeams) {
+      await this.teamRepo.save(this.toTeamEntity(team));
+      this.teams.set(team.id, team);
+    }
+    this.logger.log(`Seeded ${defaultTeams.length} default teams`);
+  }
 
-    // Create default users
+  private async seedDefaultUsers(): Promise<void> {
+    const now = new Date().toISOString();
     const defaultUsers: User[] = [
       {
         id: 'user-admin',
@@ -141,8 +184,11 @@ export class RbacService {
       },
     ];
 
-    defaultUsers.forEach((user) => this.users.set(user.id, user));
-    this.logger.log(`Initialized ${defaultUsers.length} users and ${defaultTeams.length} teams`);
+    for (const user of defaultUsers) {
+      await this.userRepo.save(this.toUserEntity(user));
+      this.users.set(user.id, user);
+    }
+    this.logger.log(`Seeded ${defaultUsers.length} default users`);
   }
 
   // ===== User Management =====
@@ -189,7 +235,7 @@ export class RbacService {
   /**
    * Create a new user
    */
-  createUser(request: CreateUserRequest): User {
+  async createUser(request: CreateUserRequest): Promise<User> {
     // Check for duplicate username
     if (this.getUserByUsername(request.username)) {
       throw new Error(`Username '${request.username}' already exists`);
@@ -209,6 +255,7 @@ export class RbacService {
       updatedAt: now,
     };
 
+    await this.userRepo.save(this.toUserEntity(user));
     this.users.set(user.id, user);
     this.logger.log(`Created user: ${user.username} (${user.role})`);
     return user;
@@ -217,7 +264,7 @@ export class RbacService {
   /**
    * Update an existing user
    */
-  updateUser(id: string, request: UpdateUserRequest): User {
+  async updateUser(id: string, request: UpdateUserRequest): Promise<User> {
     const user = this.users.get(id);
     if (!user) {
       throw new Error(`User not found: ${id}`);
@@ -229,6 +276,7 @@ export class RbacService {
       updatedAt: new Date().toISOString(),
     };
 
+    await this.userRepo.save(this.toUserEntity(updatedUser));
     this.users.set(id, updatedUser);
     this.logger.log(`Updated user: ${updatedUser.username}`);
     return updatedUser;
@@ -237,7 +285,7 @@ export class RbacService {
   /**
    * Deactivate a user (soft delete)
    */
-  deactivateUser(id: string): User {
+  async deactivateUser(id: string): Promise<User> {
     const user = this.users.get(id);
     if (!user) {
       throw new Error(`User not found: ${id}`);
@@ -249,6 +297,7 @@ export class RbacService {
       updatedAt: new Date().toISOString(),
     };
 
+    await this.userRepo.save(this.toUserEntity(updatedUser));
     this.users.set(id, updatedUser);
     this.logger.log(`Deactivated user: ${updatedUser.username}`);
     return updatedUser;
@@ -257,7 +306,7 @@ export class RbacService {
   /**
    * Activate a user
    */
-  activateUser(id: string): User {
+  async activateUser(id: string): Promise<User> {
     const user = this.users.get(id);
     if (!user) {
       throw new Error(`User not found: ${id}`);
@@ -269,6 +318,7 @@ export class RbacService {
       updatedAt: new Date().toISOString(),
     };
 
+    await this.userRepo.save(this.toUserEntity(updatedUser));
     this.users.set(id, updatedUser);
     this.logger.log(`Activated user: ${updatedUser.username}`);
     return updatedUser;
@@ -353,12 +403,12 @@ export class RbacService {
   /**
    * Create a team
    */
-  createTeam(
+  async createTeam(
     name: string,
     description?: string,
     managerId?: string,
     queueIds: string[] = []
-  ): Team {
+  ): Promise<Team> {
     const now = new Date().toISOString();
     const team: Team = {
       id: `team-${Date.now()}`,
@@ -371,6 +421,7 @@ export class RbacService {
       updatedAt: now,
     };
 
+    await this.teamRepo.save(this.toTeamEntity(team));
     this.teams.set(team.id, team);
     this.logger.log(`Created team: ${team.name}`);
     return team;
@@ -379,10 +430,10 @@ export class RbacService {
   /**
    * Update a team
    */
-  updateTeam(
+  async updateTeam(
     id: string,
     updates: Partial<Omit<Team, 'id' | 'createdAt' | 'updatedAt'>>
-  ): Team {
+  ): Promise<Team> {
     const team = this.teams.get(id);
     if (!team) {
       throw new Error(`Team not found: ${id}`);
@@ -394,6 +445,7 @@ export class RbacService {
       updatedAt: new Date().toISOString(),
     };
 
+    await this.teamRepo.save(this.toTeamEntity(updatedTeam));
     this.teams.set(id, updatedTeam);
     this.logger.log(`Updated team: ${updatedTeam.name}`);
     return updatedTeam;
@@ -509,6 +561,60 @@ export class RbacService {
         (u) => u.role === 'AGENT' && onlineUserIds.has(u.id)
       ).length,
       managerId: team?.managerId,
+    };
+  }
+
+  // ===== Entity mapping =====
+
+  private toUserEntity(user: User): UserEntity {
+    const entity = new UserEntity();
+    entity.id = user.id;
+    entity.username = user.username;
+    entity.displayName = user.displayName;
+    entity.role = user.role;
+    entity.email = user.email;
+    entity.teamId = user.teamId;
+    entity.skills = user.skills;
+    entity.active = user.active;
+    return entity;
+  }
+
+  private toUserModel(entity: UserEntity): User {
+    return {
+      id: entity.id,
+      username: entity.username,
+      displayName: entity.displayName,
+      role: entity.role as UserRole,
+      email: entity.email,
+      teamId: entity.teamId,
+      skills: entity.skills,
+      active: entity.active,
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+    };
+  }
+
+  private toTeamEntity(team: Team): TeamEntity {
+    const entity = new TeamEntity();
+    entity.id = team.id;
+    entity.name = team.name;
+    entity.description = team.description;
+    entity.managerId = team.managerId;
+    entity.queueIds = team.queueIds;
+    entity.active = team.active;
+    return entity;
+  }
+
+  private toTeamModel(entity: TeamEntity): Team {
+    return {
+      id: entity.id,
+      name: entity.name,
+      description: entity.description,
+      managerId: entity.managerId,
+      queueIds: entity.queueIds ?? [],
+      active: entity.active,
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
     };
   }
 }

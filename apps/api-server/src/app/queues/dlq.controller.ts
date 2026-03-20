@@ -50,19 +50,10 @@ export class DlqController {
   /**
    * GET /api/queues/dlq
    * List DLQ entries with optional filtering.
-   *
-   * Query params:
-   *   - pipelineId: filter by pipeline
-   *   - queueId: filter by queue
-   *   - reason: filter by failure reason substring
-   *   - fromDate: ISO date string — only entries moved after this date
-   *   - toDate: ISO date string — only entries moved before this date
-   *   - limit: max results (default 50)
-   *   - offset: pagination offset (default 0)
    */
   @Get()
-  getDlqTasks(@Query() query: DlqQueryParams): DLQEntry[] {
-    let entries = this.queueManager.getDLQTasks(query.queueId);
+  async getDlqTasks(@Query() query: DlqQueryParams): Promise<DLQEntry[]> {
+    let entries = await this.queueManager.getDLQTasks(query.queueId);
 
     if (query.pipelineId) {
       entries = entries.filter(
@@ -98,12 +89,12 @@ export class DlqController {
    * Aggregate DLQ statistics broken down by reason, queue, and pipeline.
    */
   @Get('stats')
-  getDlqStats(): {
+  async getDlqStats(): Promise<{
     total: number;
     byReason: Record<string, number>;
     byQueue: Record<string, number>;
     byPipeline: Record<string, number>;
-  } {
+  }> {
     return this.queueManager.getDlqStats();
   }
 
@@ -112,8 +103,10 @@ export class DlqController {
    * Re-ingest the task through the full pipeline from scratch.
    */
   @Post(':taskId/retry')
-  retryTask(@Param('taskId') taskId: string): { success: boolean; message: string } {
-    const result = this.orchestrator.retryFromDLQ(taskId);
+  async retryTask(
+    @Param('taskId') taskId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const result = await this.orchestrator.retryFromDLQ(taskId);
     if (!result.success) {
       throw new NotFoundException(result.error ?? `Task not found in DLQ: ${taskId}`);
     }
@@ -126,15 +119,15 @@ export class DlqController {
    * Body: { targetQueueId: string }
    */
   @Post(':taskId/reroute')
-  rerouteTask(
+  async rerouteTask(
     @Param('taskId') taskId: string,
     @Body() body: RerouteBody,
-  ): { success: boolean; message: string } {
+  ): Promise<{ success: boolean; message: string }> {
     if (!body?.targetQueueId) {
       throw new BadRequestException('targetQueueId is required');
     }
 
-    const entry = this.queueManager.removeFromDLQ(taskId);
+    const entry = await this.queueManager.removeFromDLQ(taskId);
     if (!entry) {
       throw new NotFoundException(`Task not found in DLQ: ${taskId}`);
     }
@@ -146,7 +139,7 @@ export class DlqController {
       lastFailureReason: undefined,
     };
 
-    this.queueManager.enqueue(body.targetQueueId, updatedTask);
+    await this.queueManager.enqueue(body.targetQueueId, updatedTask);
 
     return {
       success: true,
@@ -159,8 +152,10 @@ export class DlqController {
    * Permanently discard the task from the DLQ.
    */
   @Delete(':taskId')
-  discardTask(@Param('taskId') taskId: string): { success: boolean; message: string } {
-    const entry = this.queueManager.removeFromDLQ(taskId);
+  async discardTask(
+    @Param('taskId') taskId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const entry = await this.queueManager.removeFromDLQ(taskId);
     if (!entry) {
       throw new NotFoundException(`Task not found in DLQ: ${taskId}`);
     }

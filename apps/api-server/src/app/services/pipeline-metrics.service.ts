@@ -23,7 +23,7 @@ export class PipelineMetricsService {
    * Compute real-time metrics for a single pipeline.
    * Aggregates across all queues belonging to the pipeline.
    */
-  getPipelineMetrics(pipelineId: string): PipelineMetrics | null {
+  async getPipelineMetrics(pipelineId: string): Promise<PipelineMetrics | null> {
     const pipeline = this.pipelineService.getPipelineById(pipelineId);
     if (!pipeline) return null;
 
@@ -38,7 +38,7 @@ export class PipelineMetricsService {
     let tasksWithSla = 0;
 
     for (const queue of queues) {
-      const stats = this.queueManager.getQueueStats(queue.id);
+      const stats = await this.queueManager.getQueueStats(queue.id);
       tasksInQueue += stats.depth;
       tasksFailed += stats.dlqCount;
 
@@ -48,7 +48,7 @@ export class PipelineMetricsService {
       }
 
       // Estimate SLA compliance from task ages vs SLA deadline
-      const queuedTasks = this.queueManager.getQueueTasks(queue.id);
+      const queuedTasks = await this.queueManager.getQueueTasks(queue.id);
       for (const queuedTask of queuedTasks) {
         if (queuedTask.slaDeadline) {
           tasksWithSla++;
@@ -93,7 +93,7 @@ export class PipelineMetricsService {
   /**
    * Compute metrics for all pipelines and return as a summary.
    */
-  getAllPipelineMetrics(): PipelineMetricsSummary {
+  async getAllPipelineMetrics(): Promise<PipelineMetricsSummary> {
     const pipelines = this.pipelineService.getAllPipelines();
     const metrics: PipelineMetrics[] = [];
 
@@ -103,7 +103,7 @@ export class PipelineMetricsService {
     let totalFailed = 0;
 
     for (const pipeline of pipelines) {
-      const m = this.getPipelineMetrics(pipeline.id);
+      const m = await this.getPipelineMetrics(pipeline.id);
       if (m) {
         metrics.push(m);
         totalIngested += m.tasksIngested;

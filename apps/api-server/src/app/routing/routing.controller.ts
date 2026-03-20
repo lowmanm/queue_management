@@ -48,9 +48,9 @@ export class RoutingController {
   }
 
   @Post('skills')
-  createSkill(
+  async createSkill(
     @Body() data: { name: string; description?: string; category: SkillCategory }
-  ): Skill {
+  ): Promise<Skill> {
     return this.routingService.createSkill({
       name: data.name,
       description: data.description,
@@ -60,8 +60,8 @@ export class RoutingController {
   }
 
   @Put('skills/:id')
-  updateSkill(@Param('id') id: string, @Body() data: Partial<Skill>): Skill {
-    const skill = this.routingService.updateSkill(id, data);
+  async updateSkill(@Param('id') id: string, @Body() data: Partial<Skill>): Promise<Skill> {
+    const skill = await this.routingService.updateSkill(id, data);
     if (!skill) {
       throw new HttpException('Skill not found', HttpStatus.NOT_FOUND);
     }
@@ -69,18 +69,18 @@ export class RoutingController {
   }
 
   @Delete('skills/:id')
-  deleteSkill(@Param('id') id: string): { success: boolean } {
-    const deleted = this.routingService.deleteSkill(id);
+  async deleteSkill(@Param('id') id: string): Promise<{ success: boolean }> {
+    const deleted = await this.routingService.deleteSkill(id);
     return { success: deleted };
   }
 
   @Post('skills/:id/toggle')
-  toggleSkill(@Param('id') id: string): Skill {
+  async toggleSkill(@Param('id') id: string): Promise<Skill> {
     const skill = this.routingService.getSkillById(id);
     if (!skill) {
       throw new HttpException('Skill not found', HttpStatus.NOT_FOUND);
     }
-    const updated = this.routingService.updateSkill(id, { active: !skill.active });
+    const updated = await this.routingService.updateSkill(id, { active: !skill.active });
     return updated!;
   }
 
@@ -94,28 +94,28 @@ export class RoutingController {
   }
 
   @Put('agents/:agentId/skills')
-  setAgentSkills(
+  async setAgentSkills(
     @Param('agentId') agentId: string,
     @Body() data: { skills: AgentSkill[] }
-  ): { success: boolean; count: number } {
-    this.routingService.setAgentSkills(agentId, data.skills);
+  ): Promise<{ success: boolean; count: number }> {
+    await this.routingService.setAgentSkills(agentId, data.skills);
     return { success: true, count: data.skills.length };
   }
 
   @Post('agents/:agentId/skills')
-  addAgentSkill(
+  async addAgentSkill(
     @Param('agentId') agentId: string,
     @Body() data: { skillId: string; proficiency: SkillProficiency }
-  ): AgentSkill {
+  ): Promise<AgentSkill> {
     return this.routingService.addAgentSkill(agentId, data.skillId, data.proficiency);
   }
 
   @Delete('agents/:agentId/skills/:skillId')
-  removeAgentSkill(
+  async removeAgentSkill(
     @Param('agentId') agentId: string,
     @Param('skillId') skillId: string
-  ): { success: boolean } {
-    const removed = this.routingService.removeAgentSkill(agentId, skillId);
+  ): Promise<{ success: boolean }> {
+    const removed = await this.routingService.removeAgentSkill(agentId, skillId);
     return { success: removed };
   }
 

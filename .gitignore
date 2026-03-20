@@ -56,3 +56,4 @@ Thumbs.db
 .angular
 
 __screenshots__/
+*.sqlite

@@ -117,8 +117,8 @@ export class VolumeLoaderController {
    * Create a new volume loader
    */
   @Post()
-  createLoader(@Body() request: CreateVolumeLoaderRequest) {
-    const result = this.volumeLoaderService.createLoader(request);
+  async createLoader(@Body() request: CreateVolumeLoaderRequest) {
+    const result = await this.volumeLoaderService.createLoader(request);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to create loader', HttpStatus.BAD_REQUEST);
     }
@@ -129,8 +129,8 @@ export class VolumeLoaderController {
    * Update a volume loader
    */
   @Put(':id')
-  updateLoader(@Param('id') id: string, @Body() updates: UpdateVolumeLoaderRequest) {
-    const result = this.volumeLoaderService.updateLoader(id, updates);
+  async updateLoader(@Param('id') id: string, @Body() updates: UpdateVolumeLoaderRequest) {
+    const result = await this.volumeLoaderService.updateLoader(id, updates);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to update loader', HttpStatus.BAD_REQUEST);
     }
@@ -153,8 +153,8 @@ export class VolumeLoaderController {
    * Delete a volume loader. Use ?cascade=true to also delete the associated pipeline.
    */
   @Delete(':id')
-  deleteLoader(@Param('id') id: string, @Query('cascade') cascade?: string) {
-    const result = this.volumeLoaderService.deleteLoader(id, cascade === 'true');
+  async deleteLoader(@Param('id') id: string, @Query('cascade') cascade?: string) {
+    const result = await this.volumeLoaderService.deleteLoader(id, cascade === 'true');
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to delete loader', HttpStatus.BAD_REQUEST);
     }
@@ -169,8 +169,8 @@ export class VolumeLoaderController {
    * Enable a volume loader
    */
   @Post(':id/enable')
-  enableLoader(@Param('id') id: string) {
-    const result = this.volumeLoaderService.enableLoader(id);
+  async enableLoader(@Param('id') id: string) {
+    const result = await this.volumeLoaderService.enableLoader(id);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to enable loader', HttpStatus.BAD_REQUEST);
     }
@@ -181,8 +181,8 @@ export class VolumeLoaderController {
    * Disable a volume loader
    */
   @Post(':id/disable')
-  disableLoader(@Param('id') id: string) {
-    const result = this.volumeLoaderService.disableLoader(id);
+  async disableLoader(@Param('id') id: string) {
+    const result = await this.volumeLoaderService.disableLoader(id);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to disable loader', HttpStatus.BAD_REQUEST);
     }

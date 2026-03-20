@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   Skill,
   SkillCategory,
@@ -17,50 +19,63 @@ import {
 import { AgentManagerService, ConnectedAgent } from '../services/agent-manager.service';
 import { DispositionService } from '../services/disposition.service';
 import { RbacService } from '../services/rbac.service';
+import { SkillEntity } from '../entities/skill.entity';
+import { AgentSkillEntity } from '../entities/agent-skill.entity';
 
 @Injectable()
-export class RoutingService {
+export class RoutingService implements OnModuleInit {
   private readonly logger = new Logger(RoutingService.name);
 
-  // In-memory storage
+  /** In-memory caches; loaded from DB on init */
   private skills = new Map<string, Skill>();
   private agentSkills = new Map<string, AgentSkill[]>(); // agentId -> skills
-  private strategies = new Map<string, RoutingStrategy>();
 
-  // Round-robin state
+  /** Keep in-memory — runtime routing state, not persisted */
+  private strategies = new Map<string, RoutingStrategy>();
   private roundRobinIndex = 0;
 
   constructor(
+    @InjectRepository(SkillEntity)
+    private readonly skillRepo: Repository<SkillEntity>,
+    @InjectRepository(AgentSkillEntity)
+    private readonly agentSkillRepo: Repository<AgentSkillEntity>,
     private readonly agentManager: AgentManagerService,
     private readonly dispositionService: DispositionService,
     private readonly rbacService: RbacService
-  ) {
-    this.initializeDefaults();
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.loadSkillsFromDb();
+    await this.loadAgentSkillsFromDb();
+    this.initializeDefaultStrategy();
   }
 
-  private initializeDefaults(): void {
+  private async loadSkillsFromDb(): Promise<void> {
+    const entities = await this.skillRepo.find();
+    if (entities.length > 0) {
+      this.skills.clear();
+      for (const entity of entities) {
+        this.skills.set(entity.id, this.toSkillModel(entity));
+      }
+      this.logger.log(`Loaded ${entities.length} skills from DB`);
+    } else {
+      await this.seedDefaultSkills();
+    }
+  }
+
+  private async loadAgentSkillsFromDb(): Promise<void> {
+    const entities = await this.agentSkillRepo.find();
+    this.agentSkills.clear();
+    for (const entity of entities) {
+      const existing = this.agentSkills.get(entity.agentId) || [];
+      existing.push(this.toAgentSkillModel(entity));
+      this.agentSkills.set(entity.agentId, existing);
+    }
+    this.logger.log(`Loaded ${entities.length} agent skills from DB`);
+  }
+
+  private initializeDefaultStrategy(): void {
     const now = new Date().toISOString();
-
-    // Initialize default skills
-    const defaultSkills: Omit<Skill, 'createdAt' | 'updatedAt'>[] = [
-      { id: 'orders', name: 'Order Processing', category: 'process', active: true },
-      { id: 'returns', name: 'Returns & Refunds', category: 'process', active: true },
-      { id: 'claims', name: 'Claims Handling', category: 'process', active: true },
-      { id: 'escalation', name: 'Escalation Handling', category: 'process', active: true },
-      { id: 'billing', name: 'Billing Support', category: 'process', active: true },
-      { id: 'technical', name: 'Technical Support', category: 'technical', active: true },
-      { id: 'spanish', name: 'Spanish Language', category: 'language', active: true },
-      { id: 'french', name: 'French Language', category: 'language', active: true },
-      { id: 'german', name: 'German Language', category: 'language', active: true },
-      { id: 'priority', name: 'Priority Customers', category: 'certification', active: true },
-      { id: 'vip', name: 'VIP Customers', category: 'certification', active: true },
-    ];
-
-    defaultSkills.forEach((s) => {
-      this.skills.set(s.id, { ...s, createdAt: now, updatedAt: now });
-    });
-
-    // Initialize default routing strategy
     const defaultStrategy: RoutingStrategy = {
       id: 'default',
       name: 'Default Routing',
@@ -97,18 +112,32 @@ export class RoutingService {
       createdAt: now,
       updatedAt: now,
     };
-
     this.strategies.set(defaultStrategy.id, defaultStrategy);
-
-    // Assign default skills to demo agents
-    this.assignDefaultAgentSkills();
-
-    this.logger.log(`Initialized ${defaultSkills.length} skills and default routing strategy`);
+    this.logger.log('Initialized default routing strategy');
   }
 
-  private assignDefaultAgentSkills(): void {
-    // No default agent skill assignments - skills are assigned through the UI
-    // Agent skills will be configured by administrators via the Skills management interface
+  private async seedDefaultSkills(): Promise<void> {
+    const now = new Date().toISOString();
+    const defaultSkills: Omit<Skill, 'createdAt' | 'updatedAt'>[] = [
+      { id: 'orders', name: 'Order Processing', category: 'process', active: true },
+      { id: 'returns', name: 'Returns & Refunds', category: 'process', active: true },
+      { id: 'claims', name: 'Claims Handling', category: 'process', active: true },
+      { id: 'escalation', name: 'Escalation Handling', category: 'process', active: true },
+      { id: 'billing', name: 'Billing Support', category: 'process', active: true },
+      { id: 'technical', name: 'Technical Support', category: 'technical', active: true },
+      { id: 'spanish', name: 'Spanish Language', category: 'language', active: true },
+      { id: 'french', name: 'French Language', category: 'language', active: true },
+      { id: 'german', name: 'German Language', category: 'language', active: true },
+      { id: 'priority', name: 'Priority Customers', category: 'certification', active: true },
+      { id: 'vip', name: 'VIP Customers', category: 'certification', active: true },
+    ];
+
+    for (const s of defaultSkills) {
+      const skill: Skill = { ...s, createdAt: now, updatedAt: now };
+      await this.skillRepo.save(this.toSkillEntity(skill));
+      this.skills.set(skill.id, skill);
+    }
+    this.logger.log(`Seeded ${defaultSkills.length} default skills`);
   }
 
   // ==========================================================================
@@ -127,36 +156,42 @@ export class RoutingService {
     return this.getAllSkills().filter((s) => s.category === category);
   }
 
-  createSkill(data: Omit<Skill, 'id' | 'createdAt' | 'updatedAt'>): Skill {
+  async createSkill(data: Omit<Skill, 'id' | 'createdAt' | 'updatedAt'>): Promise<Skill> {
     const now = new Date().toISOString();
     const id = `skill-${Date.now()}`;
     const skill: Skill = { ...data, id, createdAt: now, updatedAt: now };
+    await this.skillRepo.save(this.toSkillEntity(skill));
     this.skills.set(id, skill);
     this.logger.log(`Created skill: ${skill.name}`);
     return skill;
   }
 
-  updateSkill(id: string, data: Partial<Skill>): Skill | null {
+  async updateSkill(id: string, data: Partial<Skill>): Promise<Skill | null> {
     const skill = this.skills.get(id);
     if (!skill) return null;
 
     const updated = { ...skill, ...data, id, updatedAt: new Date().toISOString() };
+    await this.skillRepo.save(this.toSkillEntity(updated));
     this.skills.set(id, updated);
     this.logger.log(`Updated skill: ${updated.name}`);
     return updated;
   }
 
-  deleteSkill(id: string): boolean {
+  async deleteSkill(id: string): Promise<boolean> {
     const skill = this.skills.get(id);
     if (!skill) return false;
 
-    // Soft delete: deactivate the skill and remove from agent assignments
-    this.skills.set(id, { ...skill, active: false, updatedAt: new Date().toISOString() });
+    const deactivated = { ...skill, active: false, updatedAt: new Date().toISOString() };
+    await this.skillRepo.save(this.toSkillEntity(deactivated));
+    this.skills.set(id, deactivated);
+
+    // Remove from agent skill assignments in DB and cache
+    const toDelete = await this.agentSkillRepo.findBy({ skillId: id });
+    if (toDelete.length > 0) {
+      await this.agentSkillRepo.remove(toDelete);
+    }
     this.agentSkills.forEach((skills, agentId) => {
-      this.agentSkills.set(
-        agentId,
-        skills.filter((s) => s.skillId !== id)
-      );
+      this.agentSkills.set(agentId, skills.filter((s) => s.skillId !== id));
     });
     this.logger.log(`Soft-deleted skill: ${id} (${skill.name})`);
     return true;
@@ -170,20 +205,33 @@ export class RoutingService {
     return this.agentSkills.get(agentId) || [];
   }
 
-  setAgentSkills(agentId: string, skills: AgentSkill[]): void {
+  async setAgentSkills(agentId: string, skills: AgentSkill[]): Promise<void> {
+    // Delete existing, then insert new
+    const existing = await this.agentSkillRepo.findBy({ agentId });
+    if (existing.length > 0) {
+      await this.agentSkillRepo.remove(existing);
+    }
+    if (skills.length > 0) {
+      const entities = skills.map((s) => this.toAgentSkillEntity(agentId, s));
+      await this.agentSkillRepo.save(entities);
+    }
     this.agentSkills.set(agentId, skills);
     this.logger.log(`Updated skills for agent ${agentId}: ${skills.length} skills`);
   }
 
-  addAgentSkill(agentId: string, skillId: string, proficiency: SkillProficiency): AgentSkill {
+  async addAgentSkill(agentId: string, skillId: string, proficiency: SkillProficiency): Promise<AgentSkill> {
     const now = new Date().toISOString();
     const skills = this.getAgentSkills(agentId);
 
-    // Check if already exists
     const existing = skills.find((s) => s.skillId === skillId);
     if (existing) {
       existing.proficiency = proficiency;
       existing.updatedAt = now;
+      const entity = await this.agentSkillRepo.findOneBy({ agentId, skillId });
+      if (entity) {
+        entity.proficiency = proficiency;
+        await this.agentSkillRepo.save(entity);
+      }
       this.agentSkills.set(agentId, skills);
       return existing;
     }
@@ -195,15 +243,20 @@ export class RoutingService {
       assignedAt: now,
       updatedAt: now,
     };
+    await this.agentSkillRepo.save(this.toAgentSkillEntity(agentId, newSkill));
     skills.push(newSkill);
     this.agentSkills.set(agentId, skills);
     return newSkill;
   }
 
-  removeAgentSkill(agentId: string, skillId: string): boolean {
+  async removeAgentSkill(agentId: string, skillId: string): Promise<boolean> {
     const skills = this.getAgentSkills(agentId);
     const filtered = skills.filter((s) => s.skillId !== skillId);
     if (filtered.length < skills.length) {
+      const entity = await this.agentSkillRepo.findOneBy({ agentId, skillId });
+      if (entity) {
+        await this.agentSkillRepo.remove(entity);
+      }
       this.agentSkills.set(agentId, filtered);
       return true;
     }
@@ -582,6 +635,49 @@ export class RoutingService {
       activeSkills: skills.filter((s) => s.active).length,
       defaultAlgorithm: defaultStrategy?.algorithm || 'skill-weighted',
       workloadBalancingEnabled: defaultStrategy?.workloadBalancing.enabled ?? true,
+    };
+  }
+
+  // ===== Entity mapping =====
+
+  private toSkillEntity(skill: Skill): SkillEntity {
+    const entity = new SkillEntity();
+    entity.id = skill.id;
+    entity.name = skill.name;
+    entity.category = skill.category;
+    entity.description = skill.description;
+    entity.active = skill.active;
+    return entity;
+  }
+
+  private toSkillModel(entity: SkillEntity): Skill {
+    return {
+      id: entity.id,
+      name: entity.name,
+      category: entity.category as SkillCategory,
+      description: entity.description,
+      active: entity.active,
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+    };
+  }
+
+  private toAgentSkillEntity(agentId: string, skill: AgentSkill): AgentSkillEntity {
+    const entity = new AgentSkillEntity();
+    entity.agentId = agentId;
+    entity.skillId = skill.skillId;
+    entity.proficiency = skill.proficiency;
+    entity.active = skill.active;
+    return entity;
+  }
+
+  private toAgentSkillModel(entity: AgentSkillEntity): AgentSkill {
+    return {
+      skillId: entity.skillId,
+      proficiency: entity.proficiency as SkillProficiency,
+      active: entity.active,
+      assignedAt: entity.assignedAt?.toISOString() ?? new Date().toISOString(),
+      updatedAt: entity.updatedAt?.toISOString() ?? new Date().toISOString(),
     };
   }
 }

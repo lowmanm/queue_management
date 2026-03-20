@@ -1,7 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   Disposition,
   DispositionCategory,
+  DispositionColor,
   CreateDispositionRequest,
   UpdateDispositionRequest,
   Queue,
@@ -12,28 +15,59 @@ import {
   DispositionStats,
   DISPOSITION_CATEGORIES,
 } from '@nexus-queue/shared-models';
+import { DispositionEntity } from '../entities/disposition.entity';
+import { TaskCompletionEntity } from '../entities/task-completion.entity';
 
 @Injectable()
-export class DispositionService {
+export class DispositionService implements OnModuleInit {
   private readonly logger = new Logger(DispositionService.name);
 
-  // In-memory storage (would be database in production)
+  /** In-memory caches; loaded from DB on init */
   private dispositions: Map<string, Disposition> = new Map();
-  private queues: Map<string, Queue> = new Map();
-  private workTypes: Map<string, WorkType> = new Map();
   private completions: TaskCompletion[] = [];
 
-  constructor() {
-    this.initializeDefaults();
+  // Static reference data — not persisted (no entity)
+  private queues: Map<string, Queue> = new Map();
+  private workTypes: Map<string, WorkType> = new Map();
+
+  constructor(
+    @InjectRepository(DispositionEntity)
+    private readonly dispositionRepo: Repository<DispositionEntity>,
+    @InjectRepository(TaskCompletionEntity)
+    private readonly completionRepo: Repository<TaskCompletionEntity>
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.loadDispositionsFromDb();
+    await this.loadCompletionsFromDb();
+    this.initializeStaticDefaults();
   }
 
-  /**
-   * Initialize with default dispositions, queues, and work types
-   */
-  private initializeDefaults(): void {
+  private async loadDispositionsFromDb(): Promise<void> {
+    const entities = await this.dispositionRepo.find({ order: { order: 'ASC' } });
+    if (entities.length > 0) {
+      this.dispositions.clear();
+      for (const entity of entities) {
+        this.dispositions.set(entity.id, this.toDispositionModel(entity));
+      }
+      this.logger.log(`Loaded ${entities.length} dispositions from DB`);
+    } else {
+      // Seed defaults on first run
+      await this.seedDefaultDispositions();
+    }
+  }
+
+  private async loadCompletionsFromDb(): Promise<void> {
+    const entities = await this.completionRepo.find({
+      order: { completedAt: 'DESC' },
+    });
+    this.completions = entities.map((e) => this.toCompletionModel(e));
+    this.logger.log(`Loaded ${this.completions.length} task completions from DB`);
+  }
+
+  private initializeStaticDefaults(): void {
     const now = new Date().toISOString();
 
-    // Default Work Types
     const defaultWorkTypes: WorkType[] = [
       {
         id: 'wt-orders',
@@ -73,9 +107,8 @@ export class DispositionService {
       },
     ];
 
-    defaultWorkTypes.forEach(wt => this.workTypes.set(wt.id, wt));
+    defaultWorkTypes.forEach((wt) => this.workTypes.set(wt.id, wt));
 
-    // Default Queues
     const defaultQueues: Queue[] = [
       {
         id: 'q-default',
@@ -103,10 +136,12 @@ export class DispositionService {
       },
     ];
 
-    defaultQueues.forEach(q => this.queues.set(q.id, q));
+    defaultQueues.forEach((q) => this.queues.set(q.id, q));
+  }
 
-    // Default Dispositions based on user's examples
-    const defaultDispositions: Disposition[] = [
+  private async seedDefaultDispositions(): Promise<void> {
+    const now = new Date().toISOString();
+    const defaultDispositions: Omit<Disposition, 'createdAt' | 'updatedAt'>[] = [
       {
         id: 'disp-request-release',
         code: 'REQ_RELEASE',
@@ -120,8 +155,6 @@ export class DispositionService {
         color: 'green',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-cancel',
@@ -136,8 +169,6 @@ export class DispositionService {
         color: 'red',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-delay',
@@ -152,8 +183,6 @@ export class DispositionService {
         color: 'orange',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-request-info',
@@ -168,8 +197,6 @@ export class DispositionService {
         color: 'orange',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-move-qa',
@@ -184,8 +211,6 @@ export class DispositionService {
         color: 'blue',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-change-status',
@@ -200,8 +225,6 @@ export class DispositionService {
         color: 'green',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-court-docs',
@@ -216,8 +239,6 @@ export class DispositionService {
         color: 'purple',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
       {
         id: 'disp-escalate',
@@ -232,16 +253,16 @@ export class DispositionService {
         color: 'purple',
         queueIds: [],
         workTypeIds: [],
-        createdAt: now,
-        updatedAt: now,
       },
     ];
 
-    defaultDispositions.forEach(d => this.dispositions.set(d.id, d));
+    for (const d of defaultDispositions) {
+      const full: Disposition = { ...d, createdAt: now, updatedAt: now };
+      const saved = await this.dispositionRepo.save(this.toDispositionEntity(full));
+      this.dispositions.set(saved.id, this.toDispositionModel(saved));
+    }
 
-    this.logger.log(
-      `Initialized ${defaultDispositions.length} dispositions, ${defaultQueues.length} queues, ${defaultWorkTypes.length} work types`
-    );
+    this.logger.log(`Seeded ${defaultDispositions.length} default dispositions`);
   }
 
   // ============ Disposition CRUD ============
@@ -257,17 +278,15 @@ export class DispositionService {
    * Get active dispositions only
    */
   getActiveDispositions(): Disposition[] {
-    return this.getAllDispositions().filter(d => d.active);
+    return this.getAllDispositions().filter((d) => d.active);
   }
 
   /**
    * Get dispositions for a specific queue and work type
    */
   getDispositionsForContext(queueId?: string, workTypeId?: string): Disposition[] {
-    return this.getActiveDispositions().filter(d => {
-      // If disposition has no queue restrictions, it applies to all
+    return this.getActiveDispositions().filter((d) => {
       const queueMatch = d.queueIds.length === 0 || (queueId && d.queueIds.includes(queueId));
-      // If disposition has no work type restrictions, it applies to all
       const workTypeMatch = d.workTypeIds.length === 0 || (workTypeId && d.workTypeIds.includes(workTypeId));
       return queueMatch && workTypeMatch;
     });
@@ -284,18 +303,16 @@ export class DispositionService {
    * Get a disposition by code
    */
   getDispositionByCode(code: string): Disposition | null {
-    return Array.from(this.dispositions.values()).find(d => d.code === code) || null;
+    return Array.from(this.dispositions.values()).find((d) => d.code === code) || null;
   }
 
   /**
    * Create a new disposition
    */
-  createDisposition(request: CreateDispositionRequest): Disposition {
+  async createDisposition(request: CreateDispositionRequest): Promise<Disposition> {
     const now = new Date().toISOString();
     const id = `disp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Get max order for positioning
-    const maxOrder = Math.max(...Array.from(this.dispositions.values()).map(d => d.order), 0);
+    const maxOrder = Math.max(...Array.from(this.dispositions.values()).map((d) => d.order), 0);
 
     const disposition: Disposition = {
       id,
@@ -314,15 +331,17 @@ export class DispositionService {
       updatedAt: now,
     };
 
-    this.dispositions.set(id, disposition);
-    this.logger.log(`Created disposition: ${disposition.name} (${disposition.code})`);
-    return disposition;
+    const saved = await this.dispositionRepo.save(this.toDispositionEntity(disposition));
+    const model = this.toDispositionModel(saved);
+    this.dispositions.set(model.id, model);
+    this.logger.log(`Created disposition: ${model.name} (${model.code})`);
+    return model;
   }
 
   /**
    * Update an existing disposition
    */
-  updateDisposition(id: string, request: UpdateDispositionRequest): Disposition | null {
+  async updateDisposition(id: string, request: UpdateDispositionRequest): Promise<Disposition | null> {
     const existing = this.dispositions.get(id);
     if (!existing) {
       return null;
@@ -335,23 +354,30 @@ export class DispositionService {
       updatedAt: new Date().toISOString(),
     };
 
-    this.dispositions.set(id, updated);
-    this.logger.log(`Updated disposition: ${updated.name} (${updated.code})`);
-    return updated;
+    const saved = await this.dispositionRepo.save(this.toDispositionEntity(updated));
+    const model = this.toDispositionModel(saved);
+    this.dispositions.set(id, model);
+    this.logger.log(`Updated disposition: ${model.name} (${model.code})`);
+    return model;
   }
 
   /**
    * Soft delete a disposition (set active = false)
    */
-  deleteDisposition(id: string): boolean {
+  async deleteDisposition(id: string): Promise<boolean> {
     const existing = this.dispositions.get(id);
     if (!existing) {
       return false;
     }
 
-    existing.active = false;
-    existing.updatedAt = new Date().toISOString();
-    this.dispositions.set(id, existing);
+    const updated: Disposition = {
+      ...existing,
+      active: false,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.dispositionRepo.save(this.toDispositionEntity(updated));
+    this.dispositions.set(id, updated);
     this.logger.log(`Deactivated disposition: ${existing.name}`);
     return true;
   }
@@ -359,14 +385,26 @@ export class DispositionService {
   /**
    * Reorder dispositions
    */
-  reorderDispositions(orderedIds: string[]): Disposition[] {
-    orderedIds.forEach((id, index) => {
+  async reorderDispositions(orderedIds: string[]): Promise<Disposition[]> {
+    const toSave: DispositionEntity[] = [];
+
+    for (const [index, id] of orderedIds.entries()) {
       const disposition = this.dispositions.get(id);
       if (disposition) {
-        disposition.order = index + 1;
-        disposition.updatedAt = new Date().toISOString();
+        const updated: Disposition = {
+          ...disposition,
+          order: index + 1,
+          updatedAt: new Date().toISOString(),
+        };
+        this.dispositions.set(id, updated);
+        toSave.push(this.toDispositionEntity(updated));
       }
-    });
+    }
+
+    if (toSave.length > 0) {
+      await this.dispositionRepo.save(toSave);
+    }
+
     return this.getAllDispositions();
   }
 
@@ -377,7 +415,7 @@ export class DispositionService {
   }
 
   getActiveQueues(): Queue[] {
-    return this.getAllQueues().filter(q => q.active);
+    return this.getAllQueues().filter((q) => q.active);
   }
 
   getQueue(id: string): Queue | null {
@@ -391,7 +429,7 @@ export class DispositionService {
   }
 
   getActiveWorkTypes(): WorkType[] {
-    return this.getAllWorkTypes().filter(wt => wt.active);
+    return this.getAllWorkTypes().filter((wt) => wt.active);
   }
 
   getWorkType(id: string): WorkType | null {
@@ -399,7 +437,7 @@ export class DispositionService {
   }
 
   getWorkTypeByCode(code: string): WorkType | null {
-    return Array.from(this.workTypes.values()).find(wt => wt.code === code) || null;
+    return Array.from(this.workTypes.values()).find((wt) => wt.code === code) || null;
   }
 
   // ============ Task Completion ============
@@ -407,7 +445,7 @@ export class DispositionService {
   /**
    * Record a task completion with disposition
    */
-  completeTask(
+  async completeTask(
     request: CompleteTaskRequest,
     agentId: string,
     taskMetadata: {
@@ -416,7 +454,7 @@ export class DispositionService {
       queue?: string;
       assignedAt: string;
     }
-  ): TaskCompletion | null {
+  ): Promise<TaskCompletion | null> {
     const disposition = this.getDisposition(request.dispositionId);
     if (!disposition) {
       this.logger.error(`Disposition not found: ${request.dispositionId}`);
@@ -449,7 +487,9 @@ export class DispositionService {
       completedAt: now,
     };
 
-    this.completions.push(completion);
+    await this.completionRepo.save(this.toCompletionEntity(completion));
+    this.completions.unshift(completion);
+
     this.logger.log(
       `Task ${request.taskId} completed by ${agentId} with disposition ${disposition.code} (${handleTime}s)`
     );
@@ -462,7 +502,7 @@ export class DispositionService {
    */
   getAgentCompletions(agentId: string, limit = 50): TaskCompletion[] {
     return this.completions
-      .filter(c => c.agentId === agentId)
+      .filter((c) => c.agentId === agentId)
       .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
       .slice(0, limit);
   }
@@ -483,7 +523,7 @@ export class DispositionService {
     const counts = new Map<string, number>();
     let total = 0;
 
-    this.completions.forEach(c => {
+    this.completions.forEach((c) => {
       counts.set(c.dispositionId, (counts.get(c.dispositionId) || 0) + 1);
       total++;
     });
@@ -513,6 +553,79 @@ export class DispositionService {
       queues: this.getAllQueues(),
       workTypes: this.getAllWorkTypes(),
       categories: DISPOSITION_CATEGORIES,
+    };
+  }
+
+  // ============ Entity mapping ============
+
+  private toDispositionEntity(d: Disposition): DispositionEntity {
+    const entity = new DispositionEntity();
+    entity.id = d.id;
+    entity.code = d.code;
+    entity.name = d.name;
+    entity.description = d.description;
+    entity.category = d.category;
+    entity.requiresNote = d.requiresNote;
+    entity.active = d.active;
+    entity.order = d.order;
+    entity.icon = d.icon;
+    entity.color = d.color;
+    entity.queueIds = d.queueIds;
+    entity.workTypeIds = d.workTypeIds;
+    return entity;
+  }
+
+  private toDispositionModel(entity: DispositionEntity): Disposition {
+    return {
+      id: entity.id,
+      code: entity.code,
+      name: entity.name,
+      description: entity.description,
+      category: entity.category as DispositionCategory,
+      requiresNote: entity.requiresNote,
+      active: entity.active,
+      order: entity.order,
+      icon: entity.icon,
+      color: entity.color as DispositionColor | undefined,
+      queueIds: entity.queueIds ?? [],
+      workTypeIds: entity.workTypeIds ?? [],
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+    };
+  }
+
+  private toCompletionEntity(c: TaskCompletion): TaskCompletionEntity {
+    const entity = new TaskCompletionEntity();
+    entity.id = c.id;
+    entity.taskId = c.taskId;
+    entity.externalId = c.externalId;
+    entity.agentId = c.agentId;
+    entity.dispositionId = c.dispositionId;
+    entity.dispositionCode = c.dispositionCode;
+    entity.dispositionCategory = c.dispositionCategory;
+    entity.note = c.note;
+    entity.workType = c.workType;
+    entity.queue = c.queue;
+    entity.handleTime = c.handleTime;
+    entity.assignedAt = new Date(c.assignedAt);
+    return entity;
+  }
+
+  private toCompletionModel(entity: TaskCompletionEntity): TaskCompletion {
+    return {
+      id: entity.id,
+      taskId: entity.taskId,
+      externalId: entity.externalId,
+      agentId: entity.agentId,
+      dispositionId: entity.dispositionId,
+      dispositionCode: entity.dispositionCode,
+      dispositionCategory: entity.dispositionCategory as DispositionCategory,
+      note: entity.note,
+      workType: entity.workType ?? '',
+      queue: entity.queue,
+      handleTime: entity.handleTime,
+      assignedAt: entity.assignedAt?.toISOString() ?? new Date().toISOString(),
+      completedAt: entity.completedAt?.toISOString() ?? new Date().toISOString(),
     };
   }
 }

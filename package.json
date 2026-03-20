@@ -7,7 +7,11 @@
     "start:web": "nx serve agent-workspace",
     "start:all": "nx run-many --target=serve --projects=api-server,agent-workspace --parallel",
     "build:all": "nx run-many --target=build --all",
-    "test:all": "nx run-many --target=test --all"
+    "test:all": "nx run-many --target=test --all",
+    "db:migration:generate": "npx typeorm-ts-node-commonjs migration:generate -d apps/api-server/src/app/database/data-source.ts",
+    "db:migration:run": "npx typeorm-ts-node-commonjs migration:run -d apps/api-server/src/app/database/data-source.ts",
+    "db:migrate": "npm run db:migration:run",
+    "db:seed": "npx ts-node apps/api-server/src/app/database/seed.ts"
   },
   "private": true,
   "devDependencies": {
@@ -33,7 +37,9 @@
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "20.19.9",
+    "@types/pg": "^8.18.0",
     "@typescript-eslint/utils": "^8.40.0",
     "angular-eslint": "^21.0.1",
     "eslint": "^9.8.0",
@@ -42,6 +48,7 @@
     "jsonc-eslint-parser": "^2.1.0",
     "nx": "22.4.5",
     "prettier": "~3.6.2",
+    "ts-node": "^10.9.2",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
@@ -59,10 +66,14 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/platform-socket.io": "^11.1.13",
+    "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.13",
+    "better-sqlite3": "^12.8.0",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "~7.8.0",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "typeorm": "^0.3.28"
   }
 }

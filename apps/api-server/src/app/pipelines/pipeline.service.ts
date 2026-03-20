@@ -1,4 +1,6 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { PipelineVersionService } from './pipeline-version.service';
 import {
   Pipeline,
@@ -22,28 +24,42 @@ import {
   DefaultRoutingConfig,
   TaskFromSource,
 } from '@nexus-queue/shared-models';
+import { PipelineEntity } from '../entities/pipeline.entity';
+import { PipelineQueueEntity } from '../entities/pipeline-queue.entity';
 
 @Injectable()
-export class PipelineService {
+export class PipelineService implements OnModuleInit {
   private readonly logger = new Logger(PipelineService.name);
 
-  // In-memory storage
+  /** In-memory caches; loaded from DB on init */
   private pipelines = new Map<string, Pipeline>();
   private queues = new Map<string, PipelineQueue>();
-  private agentAccess = new Map<string, AgentPipelineAccess[]>(); // pipelineId -> access[]
+
+  /** Not persisted — runtime access control state */
+  private agentAccess = new Map<string, AgentPipelineAccess[]>();
 
   constructor(
+    @InjectRepository(PipelineEntity)
+    private readonly pipelineRepo: Repository<PipelineEntity>,
+    @InjectRepository(PipelineQueueEntity)
+    private readonly queueRepo: Repository<PipelineQueueEntity>,
     @Optional() private readonly versionService?: PipelineVersionService,
-  ) {
-    this.initializeDefaultData();
-  }
+  ) {}
 
-  /**
-   * Initialize service - starts with empty state
-   */
-  private initializeDefaultData(): void {
-    // No default pipelines - users create pipelines through the UI
-    this.logger.log('Pipeline service initialized (no default pipelines)');
+  async onModuleInit(): Promise<void> {
+    const pipelineEntities = await this.pipelineRepo.find();
+    for (const entity of pipelineEntities) {
+      this.pipelines.set(entity.id, this.toPipelineModel(entity));
+    }
+
+    const queueEntities = await this.queueRepo.find();
+    for (const entity of queueEntities) {
+      this.queues.set(entity.id, this.toQueueModel(entity));
+    }
+
+    this.logger.log(
+      `Loaded ${pipelineEntities.length} pipelines and ${queueEntities.length} queues from DB`
+    );
   }
 
   // ===========================================================================
@@ -93,11 +109,11 @@ export class PipelineService {
     };
   }
 
-  createPipeline(request: CreatePipelineRequest): {
+  async createPipeline(request: CreatePipelineRequest): Promise<{
     success: boolean;
     pipeline?: Pipeline;
     error?: string;
-  } {
+  }> {
     // Validate name uniqueness
     const existing = this.getAllPipelines().find(
       (p) => p.name.toLowerCase() === request.name.toLowerCase()
@@ -129,16 +145,17 @@ export class PipelineService {
       updatedAt: now,
     };
 
+    await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
     this.pipelines.set(pipeline.id, pipeline);
     this.logger.log(`Created pipeline: ${pipeline.name} (${pipeline.id})`);
 
     return { success: true, pipeline };
   }
 
-  updatePipeline(
+  async updatePipeline(
     id: string,
     request: UpdatePipelineRequest
-  ): { success: boolean; pipeline?: Pipeline; error?: string } {
+  ): Promise<{ success: boolean; pipeline?: Pipeline; error?: string }> {
     const pipeline = this.pipelines.get(id);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
@@ -171,6 +188,7 @@ export class PipelineService {
       updatedAt: new Date().toISOString(),
     };
 
+    await this.pipelineRepo.save(this.toPipelineEntity(updated));
     this.pipelines.set(id, updated);
     this.logger.log(`Updated pipeline: ${updated.name} (${id})`);
 
@@ -180,7 +198,7 @@ export class PipelineService {
   /**
    * Restore a pipeline to a previous version snapshot.
    */
-  rollbackPipeline(pipelineId: string, versionId: string): { success: boolean; pipeline?: Pipeline; error?: string } {
+  async rollbackPipeline(pipelineId: string, versionId: string): Promise<{ success: boolean; pipeline?: Pipeline; error?: string }> {
     if (!this.versionService) {
       return { success: false, error: 'Versioning service not available' };
     }
@@ -198,13 +216,14 @@ export class PipelineService {
 
     // Restore the snapshot
     const restored: Pipeline = { ...snapshot, updatedAt: new Date().toISOString() };
+    await this.pipelineRepo.save(this.toPipelineEntity(restored));
     this.pipelines.set(pipelineId, restored);
 
     this.logger.log(`Pipeline ${pipelineId} rolled back to version ${versionId}`);
     return { success: true, pipeline: restored };
   }
 
-  deletePipeline(id: string, cascade = false): { success: boolean; error?: string } {
+  async deletePipeline(id: string, cascade = false): Promise<{ success: boolean; error?: string }> {
     const pipeline = this.pipelines.get(id);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
@@ -220,16 +239,16 @@ export class PipelineService {
     }
 
     if (cascade) {
-      // Remove all queues belonging to this pipeline
       for (const queue of queues) {
+        await this.queueRepo.delete(queue.id);
         this.queues.delete(queue.id);
       }
-      // Routing rules are stored on the pipeline object — they go away with it
       this.logger.log(
         `Cascade deleted ${queues.length} queue(s) and ${pipeline.routingRules.length} routing rule(s) for pipeline ${pipeline.name}`
       );
     }
 
+    await this.pipelineRepo.delete(id);
     this.pipelines.delete(id);
     this.agentAccess.delete(id);
     this.logger.log(`Deleted pipeline: ${pipeline.name} (${id})`);
@@ -292,18 +311,16 @@ export class PipelineService {
       .sort((a, b) => a.priority - b.priority);
   }
 
-  createQueue(request: CreateQueueRequest): {
+  async createQueue(request: CreateQueueRequest): Promise<{
     success: boolean;
     queue?: PipelineQueue;
     error?: string;
-  } {
-    // Validate pipeline exists
+  }> {
     const pipeline = this.pipelines.get(request.pipelineId);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
     }
 
-    // Validate name uniqueness within pipeline
     const existingQueues = this.getQueuesByPipeline(request.pipelineId);
     const existing = existingQueues.find(
       (q) => q.name.toLowerCase() === request.name.toLowerCase()
@@ -332,6 +349,7 @@ export class PipelineService {
       updatedAt: now,
     };
 
+    await this.queueRepo.save(this.toQueueEntity(queue));
     this.queues.set(queue.id, queue);
     this.logger.log(`Created queue: ${queue.name} (${queue.id}) in pipeline ${pipeline.name}`);
 
@@ -341,6 +359,7 @@ export class PipelineService {
       !pipeline.defaultRouting.defaultQueueId
     ) {
       pipeline.defaultRouting.defaultQueueId = queue.id;
+      await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
       this.pipelines.set(pipeline.id, pipeline);
       this.logger.log(`Auto-set default queue for pipeline ${pipeline.name}: ${queue.name}`);
     }
@@ -348,16 +367,15 @@ export class PipelineService {
     return { success: true, queue };
   }
 
-  updateQueue(
+  async updateQueue(
     id: string,
     request: UpdateQueueRequest
-  ): { success: boolean; queue?: PipelineQueue; error?: string } {
+  ): Promise<{ success: boolean; queue?: PipelineQueue; error?: string }> {
     const queue = this.queues.get(id);
     if (!queue) {
       return { success: false, error: 'Queue not found' };
     }
 
-    // Validate name uniqueness if changing name
     if (request.name && request.name !== queue.name) {
       const existingQueues = this.getQueuesByPipeline(queue.pipelineId);
       const existing = existingQueues.find(
@@ -384,13 +402,14 @@ export class PipelineService {
       updatedAt: new Date().toISOString(),
     };
 
+    await this.queueRepo.save(this.toQueueEntity(updated));
     this.queues.set(id, updated);
     this.logger.log(`Updated queue: ${updated.name} (${id})`);
 
     return { success: true, queue: updated };
   }
 
-  deleteQueue(id: string, cascade = false): { success: boolean; error?: string } {
+  async deleteQueue(id: string, cascade = false): Promise<{ success: boolean; error?: string }> {
     const queue = this.queues.get(id);
     if (!queue) {
       return { success: false, error: 'Queue not found' };
@@ -416,7 +435,6 @@ export class PipelineService {
           };
         }
       } else {
-        // Cascade: remove routing rules targeting this queue
         if (usedInRules.length > 0) {
           pipeline.routingRules = pipeline.routingRules.filter(
             (r) => r.targetQueueId !== id
@@ -425,16 +443,17 @@ export class PipelineService {
             `Cascade removed ${usedInRules.length} routing rule(s) targeting queue ${queue.name}`
           );
         }
-        // Clear default queue reference if it points here
         if (pipeline.defaultRouting?.defaultQueueId === id) {
           pipeline.defaultRouting.defaultQueueId = undefined;
           this.logger.log(`Cleared default queue reference for pipeline ${pipeline.name}`);
         }
         pipeline.updatedAt = new Date().toISOString();
+        await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
         this.pipelines.set(pipeline.id, pipeline);
       }
     }
 
+    await this.queueRepo.delete(id);
     this.queues.delete(id);
     this.logger.log(`Deleted queue: ${queue.name} (${id})`);
 
@@ -451,11 +470,11 @@ export class PipelineService {
     return [...pipeline.routingRules].sort((a, b) => a.priority - b.priority);
   }
 
-  createRoutingRule(request: CreateRoutingRuleRequest): {
+  async createRoutingRule(request: CreateRoutingRuleRequest): Promise<{
     success: boolean;
     rule?: RoutingRule;
     error?: string;
-  } {
+  }> {
     const pipeline = this.pipelines.get(request.pipelineId);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
@@ -486,6 +505,7 @@ export class PipelineService {
 
     pipeline.routingRules.push(rule);
     pipeline.updatedAt = new Date().toISOString();
+    await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
     this.pipelines.set(pipeline.id, pipeline);
 
     this.logger.log(`Created routing rule: ${rule.name} (${rule.id}) in pipeline ${pipeline.name}`);
@@ -493,11 +513,11 @@ export class PipelineService {
     return { success: true, rule };
   }
 
-  updateRoutingRule(
+  async updateRoutingRule(
     pipelineId: string,
     ruleId: string,
     request: UpdateRoutingRuleRequest
-  ): { success: boolean; rule?: RoutingRule; error?: string } {
+  ): Promise<{ success: boolean; rule?: RoutingRule; error?: string }> {
     const pipeline = this.pipelines.get(pipelineId);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
@@ -535,6 +555,7 @@ export class PipelineService {
 
     pipeline.routingRules[ruleIndex] = updated;
     pipeline.updatedAt = new Date().toISOString();
+    await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
     this.pipelines.set(pipelineId, pipeline);
 
     this.logger.log(`Updated routing rule: ${updated.name} (${ruleId})`);
@@ -542,7 +563,7 @@ export class PipelineService {
     return { success: true, rule: updated };
   }
 
-  deleteRoutingRule(pipelineId: string, ruleId: string): { success: boolean; error?: string } {
+  async deleteRoutingRule(pipelineId: string, ruleId: string): Promise<{ success: boolean; error?: string }> {
     const pipeline = this.pipelines.get(pipelineId);
     if (!pipeline) {
       return { success: false, error: 'Pipeline not found' };
@@ -556,6 +577,7 @@ export class PipelineService {
     const rule = pipeline.routingRules[ruleIndex];
     pipeline.routingRules.splice(ruleIndex, 1);
     pipeline.updatedAt = new Date().toISOString();
+    await this.pipelineRepo.save(this.toPipelineEntity(pipeline));
     this.pipelines.set(pipelineId, pipeline);
 
     this.logger.log(`Deleted routing rule: ${rule.name} (${ruleId})`);
@@ -1090,5 +1112,75 @@ export class PipelineService {
 
   private generateId(prefix: string): string {
     return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+  }
+
+  // ===========================================================================
+  // ENTITY MAPPING
+  // ===========================================================================
+
+  private toPipelineEntity(pipeline: Pipeline): PipelineEntity {
+    const entity = new PipelineEntity();
+    entity.id = pipeline.id;
+    entity.name = pipeline.name;
+    entity.description = pipeline.description;
+    entity.enabled = pipeline.enabled;
+    entity.allowedWorkTypes = pipeline.allowedWorkTypes;
+    entity.defaults = pipeline.defaults as unknown as Record<string, unknown> | undefined;
+    entity.sla = pipeline.sla as unknown as Record<string, unknown> | undefined;
+    entity.routingRules = pipeline.routingRules as unknown as Record<string, unknown>[];
+    entity.defaultRouting = pipeline.defaultRouting as unknown as Record<string, unknown>;
+    entity.stats = pipeline.stats as unknown as Record<string, unknown>;
+    return entity;
+  }
+
+  private toPipelineModel(entity: PipelineEntity): Pipeline {
+    return {
+      id: entity.id,
+      name: entity.name,
+      description: entity.description,
+      enabled: entity.enabled,
+      allowedWorkTypes: entity.allowedWorkTypes ?? [],
+      defaults: entity.defaults as unknown as Pipeline['defaults'],
+      sla: entity.sla as unknown as Pipeline['sla'],
+      routingRules: (entity.routingRules ?? []) as unknown as RoutingRule[],
+      defaultRouting: (entity.defaultRouting ?? { behavior: 'hold', holdTimeoutSeconds: 300, holdTimeoutAction: 'reject' }) as unknown as Pipeline['defaultRouting'],
+      stats: (entity.stats ?? { ...DEFAULT_PIPELINE_STATS }) as unknown as Pipeline['stats'],
+      createdAt: entity.createdAt instanceof Date ? entity.createdAt.toISOString() : entity.createdAt,
+      updatedAt: entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : entity.updatedAt,
+    };
+  }
+
+  private toQueueEntity(queue: PipelineQueue): PipelineQueueEntity {
+    const entity = new PipelineQueueEntity();
+    entity.id = queue.id;
+    entity.pipelineId = queue.pipelineId;
+    entity.name = queue.name;
+    entity.description = queue.description;
+    entity.enabled = queue.enabled;
+    entity.priority = queue.priority;
+    entity.requiredSkills = queue.requiredSkills;
+    entity.preferredSkills = queue.preferredSkills;
+    entity.maxCapacity = queue.maxCapacity ?? 0;
+    entity.slaOverrides = queue.slaOverrides as unknown as Record<string, unknown> | undefined;
+    entity.stats = queue.stats as unknown as Record<string, unknown>;
+    return entity;
+  }
+
+  private toQueueModel(entity: PipelineQueueEntity): PipelineQueue {
+    return {
+      id: entity.id,
+      pipelineId: entity.pipelineId,
+      name: entity.name,
+      description: entity.description,
+      enabled: entity.enabled,
+      priority: entity.priority,
+      requiredSkills: entity.requiredSkills,
+      preferredSkills: entity.preferredSkills,
+      maxCapacity: entity.maxCapacity,
+      slaOverrides: entity.slaOverrides as unknown as PipelineQueue['slaOverrides'],
+      stats: (entity.stats ?? { ...DEFAULT_PIPELINE_QUEUE_STATS }) as unknown as PipelineQueue['stats'],
+      createdAt: entity.createdAt instanceof Date ? entity.createdAt.toISOString() : entity.createdAt,
+      updatedAt: entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : entity.updatedAt,
+    };
   }
 }

@@ -35,7 +35,7 @@ export interface OrchestrationResult {
   ruleName?: string;
   status: 'QUEUED' | 'DLQ' | 'REJECTED' | 'HELD' | 'DUPLICATE';
   error?: string;
-  diagnostics?: any;
+  diagnostics?: unknown;
 }
 
 /**
@@ -93,7 +93,7 @@ export class PipelineOrchestratorService {
    * Ingest a single task through the pipeline.
    * This is the ONLY way tasks should enter the system.
    */
-  ingestTask(input: TaskIngestionInput): OrchestrationResult {
+  async ingestTask(input: TaskIngestionInput): Promise<OrchestrationResult> {
     const { pipelineId, taskData, source, sourceId } = input;
 
     // === Step 0: Pipeline lookup ===
@@ -131,7 +131,7 @@ export class PipelineOrchestratorService {
     // Deduplicate by external ID
     if (
       taskData.externalId &&
-      this.taskStore.hasExternalId(taskData.externalId)
+      (await this.taskStore.hasExternalId(taskData.externalId))
     ) {
       return {
         success: false,
@@ -179,11 +179,11 @@ export class PipelineOrchestratorService {
       actions: this.getDefaultActions(taskData.workType),
     };
 
-    this.taskStore.create(task);
+    const createdTask = await this.taskStore.create(task);
 
     // === Step 3: TRANSFORM via Rule Engine ===
     const { task: transformedTask, results } =
-      this.ruleEngine.evaluateTask(task);
+      this.ruleEngine.evaluateTask(createdTask);
 
     const matchedRules = results.reduce(
       (sum, r) => sum + r.matchedCount,
@@ -191,10 +191,10 @@ export class PipelineOrchestratorService {
     );
     if (matchedRules > 0) {
       // Persist rule engine modifications
-      this.taskStore.update(transformedTask.id, transformedTask);
+      await this.taskStore.update(transformedTask.id, transformedTask);
       this.logger.debug(
-        `Rules applied to ${taskId}: ${matchedRules} rule(s) matched, ` +
-          `priority: ${task.priority} → ${transformedTask.priority}`
+        `Rules applied to ${createdTask.id}: ${matchedRules} rule(s) matched, ` +
+          `priority: ${createdTask.priority} → ${transformedTask.priority}`
       );
     }
 
@@ -212,15 +212,15 @@ export class PipelineOrchestratorService {
         'dlq',
         pipeline.sla?.maxQueueWaitTime
       );
-      this.queueManager.moveToDLQ(
+      await this.queueManager.moveToDLQ(
         queuedTask,
         `routing_failed: ${routingResult.error}`
       );
-      this.taskStore.updateStatus(taskId, 'PENDING' as TaskStatus);
+      await this.taskStore.updateStatus(createdTask.id, 'PENDING' as TaskStatus);
 
       return {
         success: false,
-        taskId,
+        taskId: createdTask.id,
         status: 'DLQ',
         error: routingResult.error,
         diagnostics: routingResult.diagnostics,
@@ -231,7 +231,7 @@ export class PipelineOrchestratorService {
       // Hold behavior — task created but not queued
       return {
         success: true,
-        taskId,
+        taskId: createdTask.id,
         status: 'HELD',
         diagnostics: routingResult.diagnostics,
       };
@@ -240,11 +240,6 @@ export class PipelineOrchestratorService {
     // === Step 5: ENQUEUE in the target priority queue ===
     const targetQueueId = routingResult.queueId;
 
-    // Apply any priority override from routing rule
-    const pipelineQueue = this.pipelineService
-      .getQueuesByPipeline?.(pipelineId)
-      ?.find((q: { id: string }) => q.id === targetQueueId);
-
     const queuedTask = this.createQueuedTask(
       transformedTask,
       pipelineId,
@@ -252,8 +247,8 @@ export class PipelineOrchestratorService {
       pipeline.sla?.maxQueueWaitTime
     );
 
-    this.queueManager.enqueue(targetQueueId, queuedTask);
-    this.taskStore.updateStatus(taskId, 'PENDING' as TaskStatus, {
+    await this.queueManager.enqueue(targetQueueId, queuedTask);
+    await this.taskStore.updateStatus(createdTask.id, 'PENDING' as TaskStatus, {
       queueId: targetQueueId,
       metadata: {
         ...transformedTask.metadata,
@@ -262,7 +257,7 @@ export class PipelineOrchestratorService {
     });
 
     this.logger.log(
-      `Task ${taskId} ingested → pipeline "${pipeline.name}" → queue "${targetQueueId}" ` +
+      `Task ${createdTask.id} ingested → pipeline "${pipeline.name}" → queue "${targetQueueId}" ` +
         `(priority: ${transformedTask.priority}, source: ${source})`
     );
 
@@ -279,7 +274,7 @@ export class PipelineOrchestratorService {
 
     return {
       success: true,
-      taskId,
+      taskId: createdTask.id,
       queueId: targetQueueId,
       ruleId: routingResult.ruleId,
       ruleName: routingResult.ruleName,
@@ -291,15 +286,15 @@ export class PipelineOrchestratorService {
   /**
    * Ingest a batch of tasks. Returns per-task results.
    */
-  ingestBatch(
+  async ingestBatch(
     inputs: TaskIngestionInput[]
-  ): { results: OrchestrationResult[]; successCount: number; failCount: number } {
+  ): Promise<{ results: OrchestrationResult[]; successCount: number; failCount: number }> {
     const results: OrchestrationResult[] = [];
     let successCount = 0;
     let failCount = 0;
 
     for (const input of inputs) {
-      const result = this.ingestTask(input);
+      const result = await this.ingestTask(input);
       results.push(result);
       if (result.success) {
         successCount++;
@@ -318,8 +313,8 @@ export class PipelineOrchestratorService {
   /**
    * Retry a task from the DLQ by re-ingesting it through the full pipeline.
    */
-  retryFromDLQ(taskId: string): OrchestrationResult {
-    const dlqEntry = this.queueManager.removeFromDLQ(taskId);
+  async retryFromDLQ(taskId: string): Promise<OrchestrationResult> {
+    const dlqEntry = await this.queueManager.removeFromDLQ(taskId);
     if (!dlqEntry) {
       return {
         success: false,

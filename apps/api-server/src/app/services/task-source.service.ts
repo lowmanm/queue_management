@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   TaskSource,
   TaskSourceType,
@@ -10,26 +12,35 @@ import {
   TaskQueueStats,
   TaskDefaults,
 } from '@nexus-queue/shared-models';
+import { TaskSourceEntity } from '../entities/task-source.entity';
 
 @Injectable()
-export class TaskSourceService {
+export class TaskSourceService implements OnModuleInit {
   private readonly logger = new Logger(TaskSourceService.name);
 
-  // In-memory storage (would be database in production)
+  /** In-memory cache; loaded from DB on init */
   private sources: Map<string, TaskSource> = new Map();
+
+  /** Keep in-memory — short-lived staging data */
   private pendingOrders: PendingOrder[] = [];
   private activeSourceId: string | null = null;
 
-  constructor() {
-    this.initializeDefaultSource();
-  }
+  constructor(
+    @InjectRepository(TaskSourceEntity)
+    private readonly sourceRepo: Repository<TaskSourceEntity>
+  ) {}
 
-  /**
-   * Initialize service - starts with empty state
-   */
-  private initializeDefaultSource(): void {
-    // No default sources - data sources are configured through the Volume Loader wizard
-    this.logger.log('Task source service initialized (no default sources)');
+  async onModuleInit(): Promise<void> {
+    const entities = await this.sourceRepo.find();
+    if (entities.length > 0) {
+      this.sources.clear();
+      for (const entity of entities) {
+        this.sources.set(entity.id, this.toModel(entity));
+      }
+      this.logger.log(`Loaded ${entities.length} task sources from DB`);
+    } else {
+      this.logger.log('Task source service initialized (no sources in DB)');
+    }
   }
 
   /**
@@ -56,11 +67,11 @@ export class TaskSourceService {
   /**
    * Create or update a task source configuration
    */
-  saveSource(source: Partial<TaskSource>): TaskSource {
+  async saveSource(source: Partial<TaskSource>): Promise<TaskSource> {
     const now = new Date().toISOString();
     const existing = source.id ? this.sources.get(source.id) : null;
 
-    const savedSource: TaskSource = {
+    const model: TaskSource = {
       id: source.id || this.generateId(),
       name: source.name || 'Unnamed Source',
       type: source.type || 'CSV',
@@ -72,9 +83,10 @@ export class TaskSourceService {
       updatedAt: now,
     };
 
-    this.sources.set(savedSource.id, savedSource);
-    this.logger.log(`Saved task source: ${savedSource.name} (${savedSource.id})`);
-    return savedSource;
+    await this.sourceRepo.save(this.toEntity(model));
+    this.sources.set(model.id, model);
+    this.logger.log(`Saved task source: ${model.name} (${model.id})`);
+    return model;
   }
 
   /**
@@ -471,5 +483,34 @@ export class TaskSourceService {
 
   private generateId(): string {
     return `src-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private toEntity(source: TaskSource): TaskSourceEntity {
+    const entity = new TaskSourceEntity();
+    entity.id = source.id;
+    entity.name = source.name;
+    entity.type = source.type;
+    entity.active = source.enabled;
+    entity.config = {
+      urlTemplate: source.urlTemplate,
+      fieldMappings: source.fieldMappings as unknown as Record<string, unknown>[],
+      defaults: source.defaults as unknown as Record<string, unknown>,
+    };
+    return entity;
+  }
+
+  private toModel(entity: TaskSourceEntity): TaskSource {
+    const config = entity.config as Record<string, unknown> | null;
+    return {
+      id: entity.id,
+      name: entity.name,
+      type: entity.type as TaskSourceType,
+      enabled: entity.active,
+      urlTemplate: (config?.['urlTemplate'] as string) || '',
+      fieldMappings: (config?.['fieldMappings'] as FieldMapping[]) || [],
+      defaults: config?.['defaults'] as TaskDefaults | undefined,
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+    };
   }
 }

@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   Task,
   Rule,
@@ -12,29 +14,35 @@ import {
   RuleSetTestResponse,
   ConditionOperator,
 } from '@nexus-queue/shared-models';
+import { RuleSetEntity } from '../entities';
 
 /**
  * Service for evaluating rules against tasks.
  * Implements the core logic for the Logic Builder feature.
  */
 @Injectable()
-export class RuleEngineService {
+export class RuleEngineService implements OnModuleInit {
   private readonly logger = new Logger(RuleEngineService.name);
 
-  // In-memory storage for rule sets (would be database in production)
+  /** In-memory cache; loaded from DB on init */
   private ruleSets: Map<string, RuleSet> = new Map();
 
-  constructor() {
-    // Initialize with default rule set
-    this.initializeDefaultRules();
-  }
+  constructor(
+    @InjectRepository(RuleSetEntity)
+    private readonly ruleSetRepo: Repository<RuleSetEntity>
+  ) {}
 
-  /**
-   * Initialize service - starts with empty state
-   */
-  private initializeDefaultRules(): void {
-    // No default rules - rules are created through the Pipeline routing configuration
-    this.logger.log('Rule engine service initialized (no default rules)');
+  async onModuleInit(): Promise<void> {
+    const entities = await this.ruleSetRepo.find();
+    if (entities.length > 0) {
+      this.ruleSets.clear();
+      for (const entity of entities) {
+        this.ruleSets.set(entity.id, this.toModel(entity));
+      }
+      this.logger.log(`Loaded ${entities.length} rule sets from DB`);
+    } else {
+      this.logger.log('Rule engine service initialized (no rule sets in DB)');
+    }
   }
 
   // ==========================================================================
@@ -58,7 +66,7 @@ export class RuleEngineService {
   /**
    * Create or update a rule set
    */
-  saveRuleSet(ruleSet: RuleSet): RuleSet {
+  async saveRuleSet(ruleSet: RuleSet): Promise<RuleSet> {
     const now = new Date().toISOString();
     const existing = this.ruleSets.get(ruleSet.id);
 
@@ -68,20 +76,51 @@ export class RuleEngineService {
       updatedAt: now,
     };
 
-    this.ruleSets.set(ruleSet.id, updated);
+    const saved = await this.ruleSetRepo.save(this.toEntity(updated));
+    const model = this.toModel(saved);
+    this.ruleSets.set(model.id, model);
     this.logger.log(`Rule set saved: ${ruleSet.id} (${ruleSet.name})`);
-    return updated;
+    return model;
   }
 
   /**
    * Delete a rule set
    */
-  deleteRuleSet(id: string): boolean {
-    const deleted = this.ruleSets.delete(id);
-    if (deleted) {
+  async deleteRuleSet(id: string): Promise<boolean> {
+    const exists = this.ruleSets.has(id);
+    if (exists) {
+      await this.ruleSetRepo.delete(id);
+      this.ruleSets.delete(id);
       this.logger.log(`Rule set deleted: ${id}`);
     }
-    return deleted;
+    return exists;
+  }
+
+  // === Private entity mapping ===
+
+  private toEntity(ruleSet: RuleSet): RuleSetEntity {
+    const entity = new RuleSetEntity();
+    entity.id = ruleSet.id;
+    entity.name = ruleSet.name;
+    entity.description = ruleSet.description;
+    entity.enabled = ruleSet.enabled ?? true;
+    entity.pipelineId = ruleSet.appliesTo?.pipelineIds?.[0];
+    entity.appliesTo = ruleSet.appliesTo as unknown as Record<string, unknown>;
+    entity.rules = ruleSet.rules as unknown as Record<string, unknown>[];
+    return entity;
+  }
+
+  private toModel(entity: RuleSetEntity): RuleSet {
+    return {
+      id: entity.id,
+      name: entity.name,
+      description: entity.description,
+      enabled: entity.enabled,
+      appliesTo: entity.appliesTo as unknown as RuleSet['appliesTo'],
+      rules: (entity.rules as unknown as Rule[]) || [],
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+    };
   }
 
   // ==========================================================================

@@ -60,7 +60,7 @@ export class TaskSourcesController {
    * Create a new task source configuration
    */
   @Post()
-  createSource(@Body() source: Partial<TaskSource>): TaskSource {
+  async createSource(@Body() source: Partial<TaskSource>): Promise<TaskSource> {
     return this.taskSourceService.saveSource(source);
   }
 
@@ -68,10 +68,10 @@ export class TaskSourcesController {
    * Update an existing source configuration
    */
   @Put(':id')
-  updateSource(
+  async updateSource(
     @Param('id') id: string,
     @Body() source: Partial<TaskSource>
-  ): TaskSource {
+  ): Promise<TaskSource> {
     const existing = this.taskSourceService.getSource(id);
     if (!existing) {
       throw new HttpException('Source not found', HttpStatus.NOT_FOUND);
