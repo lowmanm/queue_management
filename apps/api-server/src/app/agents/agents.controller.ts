@@ -155,16 +155,16 @@ export class AgentsController {
    * Update agent state (for break/lunch requests)
    */
   @Post(':agentId/state')
-  updateAgentState(
+  async updateAgentState(
     @Param('agentId') agentId: string,
     @Body() body: { state: AgentState; reason?: string }
-  ): { success: boolean; agent?: AgentWithMetrics } {
+  ): Promise<{ success: boolean; agent?: AgentWithMetrics }> {
     const agent = this.agentManager.getAgent(agentId);
     if (!agent) {
       return { success: false };
     }
 
-    this.agentManager.updateAgentState(agentId, body.state);
+    await this.agentManager.updateAgentState(agentId, body.state);
     this.logger.log(`Agent ${agentId} state changed to ${body.state}${body.reason ? ` (${body.reason})` : ''}`);
 
     return {
@@ -180,9 +180,9 @@ export class AgentsController {
    */
   @Post('disconnect')
   @HttpCode(200)
-  handleBeaconDisconnect(
+  async handleBeaconDisconnect(
     @Body() body: { agentId: string }
-  ): { success: boolean } {
+  ): Promise<{ success: boolean }> {
     if (!body?.agentId) {
       return { success: false };
     }
@@ -190,7 +190,7 @@ export class AgentsController {
     this.logger.log(`Beacon disconnect received for agent: ${body.agentId}`);
     const agent = this.agentManager.getAgent(body.agentId);
     if (agent) {
-      this.agentManager.removeAgent(body.agentId);
+      await this.agentManager.removeAgent(body.agentId);
     }
 
     return { success: true };
