@@ -598,6 +598,8 @@ export class PipelineService implements OnModuleInit {
     taskData: TaskFromSource
   ): {
     queueId: string | null;
+    /** Set when the matched rule targets another pipeline instead of a queue */
+    targetPipelineId?: string;
     ruleId?: string;
     ruleName?: string;
     error?: string;
@@ -671,12 +673,30 @@ export class PipelineService implements OnModuleInit {
         rule.lastMatchedAt = new Date().toISOString();
         this.pipelines.set(pipelineId, pipeline);
 
+        if (rule.targetPipelineId) {
+          // Cross-pipeline transfer rule
+          this.logger.debug(
+            `Task routed by rule "${rule.name}" to pipeline ${rule.targetPipelineId}`
+          );
+          return {
+            queueId: null,
+            targetPipelineId: rule.targetPipelineId,
+            ruleId: rule.id,
+            ruleName: rule.name,
+            diagnostics: {
+              rulesEvaluated: sortedRules.length,
+              ruleResults,
+              availableFields,
+            },
+          };
+        }
+
         this.logger.debug(
           `Task routed by rule "${rule.name}" to queue ${rule.targetQueueId}`
         );
 
         return {
-          queueId: rule.targetQueueId,
+          queueId: rule.targetQueueId ?? null,
           ruleId: rule.id,
           ruleName: rule.name,
           diagnostics: {

@@ -23,7 +23,15 @@ export interface TaskIngestionInput {
   source: 'volume_loader' | 'csv_upload' | 'api' | 'manual';
   /** Optional: loader or upload ID for traceability */
   sourceId?: string;
+  /**
+   * Internal use only: pass an already-constructed Task object when re-ingesting
+   * across pipelines. When set, skips dedup check and task creation.
+   */
+  _crossPipelineTask?: Task;
 }
+
+/** Maximum number of cross-pipeline hops allowed before sending task to DLQ */
+const MAX_PIPELINE_HOPS = 3;
 
 /**
  * Result of the orchestration process.
@@ -96,7 +104,7 @@ export class PipelineOrchestratorService {
    * This is the ONLY way tasks should enter the system.
    */
   async ingestTask(input: TaskIngestionInput): Promise<OrchestrationResult> {
-    const { pipelineId, taskData, source, sourceId } = input;
+    const { pipelineId, taskData, source, sourceId, _crossPipelineTask } = input;
 
     // === Step 0: Pipeline lookup ===
     const pipeline = this.pipelineService.getPipelineById(pipelineId);
@@ -130,8 +138,9 @@ export class PipelineOrchestratorService {
       };
     }
 
-    // Deduplicate by external ID
+    // Deduplicate by external ID — skipped for cross-pipeline transfers
     if (
+      !_crossPipelineTask &&
       taskData.externalId &&
       (await this.taskStore.hasExternalId(taskData.externalId))
     ) {
@@ -151,46 +160,61 @@ export class PipelineOrchestratorService {
       };
     }
 
-    // === Step 2: CREATE task record ===
-    const now = new Date().toISOString();
-    const taskId = this.taskStore.generateTaskId();
+    // === Step 2: CREATE task record (or reuse cross-pipeline task) ===
+    let createdTask: Task;
 
-    const task: Task = {
-      id: taskId,
-      externalId: taskData.externalId,
-      workType: taskData.workType || pipeline.defaults?.workType || 'GENERAL',
-      title: taskData.title,
-      description: taskData.description,
-      payloadUrl: taskData.payloadUrl || '',
-      displayMode: (taskData.metadata?.['_displayMode'] as Task['displayMode']) || undefined,
-      metadata: {
-        ...taskData.metadata,
-        _source: source,
-        _sourceId: sourceId || '',
-        _pipelineId: pipelineId,
-      },
-      priority: taskData.priority ?? pipeline.defaults?.priority ?? 5,
-      skills: taskData.skills || [],
-      queueId: undefined,
-      queue: taskData.queue,
-      status: 'PENDING' as TaskStatus,
-      createdAt: now,
-      availableAt: now,
-      reservationTimeout:
-        pipeline.defaults?.reservationTimeoutSeconds ?? 60,
-      actions: this.getDefaultActions(taskData.workType),
-    };
+    if (_crossPipelineTask) {
+      // Reuse the already-constructed task, updating pipelineId in metadata
+      const updatedTask: Task = {
+        ..._crossPipelineTask,
+        metadata: {
+          ..._crossPipelineTask.metadata,
+          _pipelineId: pipelineId,
+        },
+      };
+      await this.taskStore.update(updatedTask.id, updatedTask);
+      createdTask = updatedTask;
+    } else {
+      const now = new Date().toISOString();
+      const taskId = this.taskStore.generateTaskId();
 
-    const createdTask = await this.taskStore.create(task);
+      const task: Task = {
+        id: taskId,
+        externalId: taskData.externalId,
+        workType: taskData.workType || pipeline.defaults?.workType || 'GENERAL',
+        title: taskData.title,
+        description: taskData.description,
+        payloadUrl: taskData.payloadUrl || '',
+        displayMode: (taskData.metadata?.['_displayMode'] as Task['displayMode']) || undefined,
+        metadata: {
+          ...taskData.metadata,
+          _source: source,
+          _sourceId: sourceId || '',
+          _pipelineId: pipelineId,
+        },
+        priority: taskData.priority ?? pipeline.defaults?.priority ?? 5,
+        skills: taskData.skills || [],
+        queueId: undefined,
+        queue: taskData.queue,
+        status: 'PENDING' as TaskStatus,
+        createdAt: now,
+        availableAt: now,
+        reservationTimeout:
+          pipeline.defaults?.reservationTimeoutSeconds ?? 60,
+        actions: this.getDefaultActions(taskData.workType),
+      };
 
-    // Emit task.ingested event (fire-and-forget)
-    void this.eventStore.emit({
-      eventType: 'task.ingested',
-      aggregateId: createdTask.id,
-      aggregateType: 'task',
-      payload: { source, sourceId, pipelineId, workType: createdTask.workType, priority: createdTask.priority },
-      pipelineId,
-    });
+      createdTask = await this.taskStore.create(task);
+
+      // Emit task.ingested event (fire-and-forget)
+      void this.eventStore.emit({
+        eventType: 'task.ingested',
+        aggregateId: createdTask.id,
+        aggregateType: 'task',
+        payload: { source, sourceId, pipelineId, workType: createdTask.workType, priority: createdTask.priority },
+        pipelineId,
+      });
+    }
 
     // === Step 3: TRANSFORM via Rule Engine ===
     const { task: transformedTask, results } =
@@ -214,6 +238,59 @@ export class PipelineOrchestratorService {
       pipelineId,
       taskData
     );
+
+    // === Step 4a: Handle cross-pipeline routing ===
+    if (routingResult.targetPipelineId) {
+      const hops = (transformedTask.pipelineHops ?? 0) + 1;
+
+      if (hops >= MAX_PIPELINE_HOPS) {
+        // Hop limit exceeded — send to DLQ
+        const queuedTask = this.createQueuedTask(
+          transformedTask,
+          pipelineId,
+          'dlq',
+          pipeline.sla?.maxQueueWaitTime
+        );
+        await this.queueManager.moveToDLQ(queuedTask, 'hop_limit_exceeded');
+        void this.eventStore.emit({
+          eventType: 'task.dlq',
+          aggregateId: transformedTask.id,
+          aggregateType: 'task',
+          payload: { reason: 'hop_limit_exceeded', hops },
+          pipelineId,
+        });
+        return { success: false, status: 'DLQ', taskId: transformedTask.id };
+      }
+
+      // Update hop counter on the task
+      const taskWithHops: Task = { ...transformedTask, pipelineHops: hops };
+      await this.taskStore.update(taskWithHops.id, taskWithHops);
+
+      void this.eventStore.emit({
+        eventType: 'task.pipeline_transferred',
+        aggregateId: taskWithHops.id,
+        aggregateType: 'task',
+        payload: {
+          sourcePipelineId: pipelineId,
+          targetPipelineId: routingResult.targetPipelineId,
+          hop: hops,
+        },
+        pipelineId,
+      });
+
+      this.logger.log(
+        `Task ${taskWithHops.id} transferring → pipeline "${routingResult.targetPipelineId}" (hop ${hops})`
+      );
+
+      // Re-ingest into target pipeline, skipping dedup and task creation
+      return this.ingestTask({
+        pipelineId: routingResult.targetPipelineId,
+        taskData,
+        source,
+        sourceId,
+        _crossPipelineTask: taskWithHops,
+      });
+    }
 
     if (routingResult.error) {
       // No route found — send to DLQ
