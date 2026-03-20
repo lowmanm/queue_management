@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database';
+import { RedisModule } from './redis';
 import { TasksModule } from './tasks';
 import { GatewayModule } from './gateway';
 import { ServicesModule } from './services';
@@ -21,6 +22,7 @@ import { ProxyModule } from './proxy/proxy.module';
 @Module({
   imports: [
     DatabaseModule,
+    RedisModule,
     ServicesModule,
     TasksModule,
     GatewayModule,
