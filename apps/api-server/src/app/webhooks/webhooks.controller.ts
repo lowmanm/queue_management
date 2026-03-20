@@ -14,12 +14,35 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  UseGuards,
+  Injectable,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { ThrottlerGuard, ThrottlerModuleOptions, ThrottlerStorage, Throttle } from '@nestjs/throttler';
 import { WebhooksService } from './webhooks.service';
 import { PipelineOrchestratorService } from '../services/pipeline-orchestrator.service';
 import { Public } from '../auth/public.decorator';
 import { WebhookStatus } from '@nexus-queue/shared-models';
+
+/**
+ * Per-token throttler guard.
+ * Uses the webhook URL token as the throttle key so each endpoint has its own
+ * independent rate-limit bucket (regardless of source IP).
+ */
+@Injectable()
+export class WebhookThrottlerGuard extends ThrottlerGuard {
+  constructor(
+    options: ThrottlerModuleOptions,
+    storageService: ThrottlerStorage,
+  ) {
+    super(options, storageService, null as never);
+  }
+
+  protected override async getTracker(req: Request): Promise<string> {
+    const token = (req.params as Record<string, string>)['token'] ?? '';
+    return `webhook:${token}`;
+  }
+}
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -37,8 +60,13 @@ export class WebhooksController {
    *
    * Ingest a task from an external system. No JWT required — the URL token
    * acts as the credential, with optional HMAC signing for extra security.
+   *
+   * Rate-limited per token bucket: default 100 requests / 60 seconds.
+   * Returns 429 with Retry-After header when the limit is exceeded.
    */
   @Public()
+  @UseGuards(WebhookThrottlerGuard)
+  @Throttle({ default: { ttl: 60000, limit: 100 } })
   @Post(':token')
   @HttpCode(HttpStatus.ACCEPTED)
   async receive(
@@ -138,8 +166,8 @@ export class WebhooksController {
 
   /** POST /api/webhooks — create a new endpoint */
   @Post()
-  create(@Body() body: { pipelineId: string; name: string }) {
-    return this.webhooks.createEndpoint(body.pipelineId, body.name);
+  create(@Body() body: { pipelineId: string; name: string; rateLimit?: { limit: number; ttl: number } }) {
+    return this.webhooks.createEndpoint(body.pipelineId, body.name, body.rateLimit);
   }
 
   /** DELETE /api/webhooks/:id — delete an endpoint */
