@@ -482,13 +482,19 @@ export class PipelineService implements OnModuleInit {
       return { success: false, error: 'Pipeline not found' };
     }
 
-    // Validate target queue exists and belongs to pipeline
-    const targetQueue = this.queues.get(request.targetQueueId);
-    if (!targetQueue) {
-      return { success: false, error: 'Target queue not found' };
+    if (!request.targetQueueId && !request.targetPipelineId) {
+      return { success: false, error: 'Either targetQueueId or targetPipelineId must be provided' };
     }
-    if (targetQueue.pipelineId !== request.pipelineId) {
-      return { success: false, error: 'Target queue must belong to the same pipeline' };
+
+    // Validate target queue only for in-pipeline routing
+    if (request.targetQueueId) {
+      const targetQueue = this.queues.get(request.targetQueueId);
+      if (!targetQueue) {
+        return { success: false, error: 'Target queue not found' };
+      }
+      if (targetQueue.pipelineId !== request.pipelineId) {
+        return { success: false, error: 'Target queue must belong to the same pipeline' };
+      }
     }
 
     const rule: RoutingRule = {
@@ -500,6 +506,7 @@ export class PipelineService implements OnModuleInit {
       conditions: request.conditions,
       conditionLogic: request.conditionLogic ?? 'AND',
       targetQueueId: request.targetQueueId,
+      targetPipelineId: request.targetPipelineId,
       priorityOverride: request.priorityOverride,
       addSkills: request.addSkills,
       matchCount: 0,

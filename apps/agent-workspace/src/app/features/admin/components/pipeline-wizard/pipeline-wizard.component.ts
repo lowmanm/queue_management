@@ -19,6 +19,7 @@ import {
 import { Router } from '@angular/router';
 import { Subject, takeUntil, forkJoin, of, switchMap } from 'rxjs';
 import {
+  Pipeline,
   PipelineValidationRequest,
   PipelineValidationResult,
   PipelineFieldType,
@@ -100,6 +101,12 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   availableSkills = signal<{ id: string; name: string }[]>([]);
 
   // ============================================================
+  // ALL PIPELINES (for cross-pipeline routing dropdown)
+  // ============================================================
+
+  allPipelines = signal<Pick<Pipeline, 'id' | 'name'>[]>([]);
+
+  // ============================================================
   // COMPUTED HELPERS
   // ============================================================
 
@@ -131,6 +138,7 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initForms();
     this.loadSkills();
+    this.loadAllPipelines();
   }
 
   ngOnDestroy(): void {
@@ -180,6 +188,14 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       });
   }
 
+  private loadAllPipelines(): void {
+    this.pipelineApi.getAllPipelines()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((pipelines) => {
+        this.allPipelines.set(pipelines.map((p) => ({ id: p.id, name: p.name })));
+      });
+  }
+
   // ============================================================
   // STEP 2 — SCHEMA FIELDS
   // ============================================================
@@ -214,8 +230,14 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
       conditionField: [''],
       conditionOperator: ['equals'],
       conditionValue: [''],
+      routingActionType: ['queue'],
       targetQueueLabel: [''],
+      targetPipelineId: [null as string | null],
     }));
+  }
+
+  getRoutingActionType(index: number): string {
+    return this.getRuleForm(index).get('routingActionType')?.value as string ?? 'queue';
   }
 
   removeRoutingRule(index: number): void {
@@ -313,11 +335,21 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
         // Schema is optional; no validation required
         break;
       case 3:
-        // Rules are optional; validate each rule name if any exist
+        // Rules are optional; validate each rule that exists
         this.routingRules.controls.forEach((ctrl, i) => {
-          const name = (ctrl as FormGroup).get('name')?.value;
+          const g = ctrl as FormGroup;
+          const name = g.get('name')?.value;
           if (!name?.trim()) {
             errors.push(`Rule ${i + 1}: name is required`);
+          }
+          const actionType: string = g.get('routingActionType')?.value ?? 'queue';
+          const targetQueueLabel: string = g.get('targetQueueLabel')?.value ?? '';
+          const targetPipelineId: string | null = g.get('targetPipelineId')?.value ?? null;
+          if (actionType === 'queue' && !targetQueueLabel) {
+            errors.push(`Rule ${i + 1}: select a target queue (or switch to "Transfer to Pipeline")`);
+          }
+          if (actionType === 'pipeline' && !targetPipelineId) {
+            errors.push(`Rule ${i + 1}: select a target pipeline`);
           }
         });
         break;
@@ -459,9 +491,14 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
 
               const ruleCreates = this.routingRules.controls.map((ctrl, i) => {
                 const g = ctrl as FormGroup;
-                const targetLabel: string = g.get('targetQueueLabel')?.value;
-                const targetQueueId = labelToId.get(targetLabel) ?? '';
-                if (!targetQueueId) return of(null);
+                const actionType: string = g.get('routingActionType')?.value ?? 'queue';
+                const targetLabel: string = g.get('targetQueueLabel')?.value ?? '';
+                const targetPipelineId: string | null = g.get('targetPipelineId')?.value ?? null;
+
+                const targetQueueId = actionType === 'queue' ? (labelToId.get(targetLabel) ?? '') : '';
+                const hasCrossPipeline = actionType === 'pipeline' && !!targetPipelineId;
+
+                if (!targetQueueId && !hasCrossPipeline) return of(null);
 
                 const conditionField: string = g.get('conditionField')?.value;
                 const conditions = conditionField
@@ -478,7 +515,9 @@ export class PipelineWizardComponent implements OnInit, OnDestroy {
                   priority: i + 1,
                   conditions,
                   conditionLogic: 'AND',
-                  targetQueueId,
+                  ...(hasCrossPipeline
+                    ? { targetPipelineId: targetPipelineId! }
+                    : { targetQueueId }),
                 });
               });
 

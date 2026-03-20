@@ -166,14 +166,34 @@
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" [attr.for]="'rule-target-' + $index">Route to Queue</label>
-                  <select [id]="'rule-target-' + $index" class="form-input" formControlName="targetQueueLabel">
-                    <option value="">— select queue (set in step 4) —</option>
-                    @for (label of queueLabels(); track label) {
-                      <option [value]="label">{{ label }}</option>
-                    }
+                  <label class="form-label" [attr.for]="'rule-action-type-' + $index">Routing Action</label>
+                  <select [id]="'rule-action-type-' + $index" class="form-input" formControlName="routingActionType">
+                    <option value="queue">Enqueue in Queue</option>
+                    <option value="pipeline">Transfer to Pipeline</option>
                   </select>
                 </div>
+                @if (getRoutingActionType($index) === 'queue') {
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-target-' + $index">Target Queue</label>
+                    <select [id]="'rule-target-' + $index" class="form-input" formControlName="targetQueueLabel">
+                      <option value="">— select queue (set in step 4) —</option>
+                      @for (label of queueLabels(); track label) {
+                        <option [value]="label">{{ label }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+                @if (getRoutingActionType($index) === 'pipeline') {
+                  <div class="form-group">
+                    <label class="form-label" [attr.for]="'rule-pipeline-' + $index">Target Pipeline</label>
+                    <select [id]="'rule-pipeline-' + $index" class="form-input" formControlName="targetPipelineId">
+                      <option [value]="null">— select pipeline —</option>
+                      @for (p of allPipelines(); track p.id) {
+                        <option [value]="p.id">{{ p.name }}</option>
+                      }
+                    </select>
+                  </div>
+                }
               </div>
             </div>
           }

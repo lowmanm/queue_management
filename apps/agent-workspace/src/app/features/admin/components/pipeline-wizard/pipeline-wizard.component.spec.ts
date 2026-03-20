@@ -13,6 +13,7 @@ const mockPipelineApi = {
   createRoutingRule: () => of({ id: 'r1', name: 'Rule 1', pipelineId: 'p1' }),
   enablePipeline: () => of({ id: 'p1', name: 'Test', enabled: true }),
   validatePipeline: () => of({ valid: true, errors: [], warnings: [] }),
+  getAllPipelines: () => of([{ id: 'p-other', name: 'Other Pipeline' }]),
 };
 
 const mockSkillApi = {
@@ -139,5 +140,25 @@ describe('PipelineWizardComponent', () => {
     component.step6Form.get('callbackUrl')?.setValue('https://example.com/hook');
     component.toggleCallbackEvent('task.completed');
     expect(component.callbacksStepValid()).toBe(true);
+  });
+
+  it('Routing step: routingActionType defaults to "queue" on new rule', () => {
+    component.addRoutingRule();
+    expect(component.getRuleForm(0).get('routingActionType')?.value).toBe('queue');
+    expect(component.getRoutingActionType(0)).toBe('queue');
+  });
+
+  it('Routing step: switching to "pipeline" action type exposes targetPipelineId field', () => {
+    component.addRoutingRule();
+    component.getRuleForm(0).patchValue({ routingActionType: 'pipeline', targetPipelineId: 'p-other' });
+    expect(component.getRoutingActionType(0)).toBe('pipeline');
+    expect(component.getRuleForm(0).get('targetPipelineId')?.value).toBe('p-other');
+  });
+
+  it('Routing step: validation fails when action is "pipeline" but targetPipelineId not set', () => {
+    component.addRoutingRule();
+    component.getRuleForm(0).patchValue({ name: 'My Rule', routingActionType: 'pipeline', targetPipelineId: null });
+    const errors = component.validateStep(3);
+    expect(errors.some((e) => e.includes('target pipeline'))).toBe(true);
   });
 });

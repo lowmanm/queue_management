@@ -537,7 +537,10 @@ export interface CreateRoutingRuleRequest {
   priority?: number;
   conditions: RoutingCondition[];
   conditionLogic?: 'AND' | 'OR';
-  targetQueueId: string;
+  /** Target queue for in-pipeline routing. Optional when targetPipelineId is set. */
+  targetQueueId?: string;
+  /** Target pipeline for cross-pipeline transfer. Takes precedence over targetQueueId. */
+  targetPipelineId?: string;
   priorityOverride?: number;
   addSkills?: string[];
 }

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PageLayoutComponent } from '../../../../shared/components/layout/page-layout.component';
 import { QueueConfigPanelComponent } from '../queue-config-panel/queue-config-panel.component';
+import { PipelinePortabilityComponent } from './pipeline-portability.component';
 import { PipelineApiService } from '../../services/pipeline.service';
 import {
   Pipeline,
@@ -29,7 +30,7 @@ type EditorMode = 'pipeline' | 'rule' | null;
 @Component({
   selector: 'app-pipelines',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageLayoutComponent, QueueConfigPanelComponent],
+  imports: [CommonModule, FormsModule, PageLayoutComponent, QueueConfigPanelComponent, PipelinePortabilityComponent],
   templateUrl: './pipelines.component.html',
   styleUrls: ['./pipelines.component.scss'],
 })
@@ -70,6 +71,11 @@ export class PipelinesComponent implements OnInit {
   pipelineVersions = signal<PipelineVersion[]>([]);
   isLoadingVersions = signal(false);
   rollingBackVersionId = signal<string | null>(null);
+
+  // Portability Panel (export/import/clone)
+  showPortabilityPanel = signal(false);
+  portabilityPipelineId = signal<string | null>(null);
+  portabilityPipelineName = signal('');
 
   // Routing Test Panel
   showTestPanel = signal(false);
@@ -582,6 +588,58 @@ export class PipelinesComponent implements OnInit {
 
   updateRuleField(field: string, value: unknown): void {
     this.ruleForm.update((f) => ({ ...f, [field]: value }));
+  }
+
+  // ===========================================================================
+  // PORTABILITY ACTIONS
+  // ===========================================================================
+
+  openPortabilityPanel(pipeline?: Pipeline): void {
+    this.portabilityPipelineId.set(pipeline?.id ?? null);
+    this.portabilityPipelineName.set(pipeline?.name ?? '');
+    this.showPortabilityPanel.set(true);
+  }
+
+  closePortabilityPanel(): void {
+    this.showPortabilityPanel.set(false);
+    this.portabilityPipelineId.set(null);
+    this.portabilityPipelineName.set('');
+  }
+
+  onPortabilityCloned(cloned: Pipeline): void {
+    this.successMessage.set(`Pipeline cloned as "${cloned.name}".`);
+    this.loadPipelines();
+    this.closePortabilityPanel();
+  }
+
+  onPortabilityImported(imported: Pipeline): void {
+    this.successMessage.set(`Pipeline "${imported.name}" imported.`);
+    this.loadPipelines();
+    this.closePortabilityPanel();
+  }
+
+  exportPipeline(pipeline: Pipeline): void {
+    this.pipelineApi.exportPipeline(pipeline.id).subscribe({
+      next: (bundle) => {
+        this.pipelineApi.downloadBundle(bundle, pipeline.name);
+        this.successMessage.set(`Pipeline "${pipeline.name}" exported.`);
+      },
+      error: () => {
+        this.errorMessage.set('Export failed. Please try again.');
+      },
+    });
+  }
+
+  clonePipeline(pipeline: Pipeline): void {
+    this.pipelineApi.clonePipeline(pipeline.id).subscribe({
+      next: (cloned) => {
+        this.successMessage.set(`Pipeline cloned as "${cloned.name}".`);
+        this.loadPipelines();
+      },
+      error: () => {
+        this.errorMessage.set('Clone failed. Please try again.');
+      },
+    });
   }
 
   // ===========================================================================
