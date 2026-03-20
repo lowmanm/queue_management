@@ -9,17 +9,20 @@
  * All domain event types emitted across the task and agent lifecycle.
  */
 export type AuditEventType =
-  | 'task.ingested'       // Task received by PipelineOrchestrator and validated
-  | 'task.queued'         // Task placed into a priority queue
-  | 'task.assigned'       // Task matched to an agent by TaskDistributor
-  | 'task.accepted'       // Agent accepted the task via WebSocket
-  | 'task.rejected'       // Agent rejected or timed out on the task
-  | 'task.completed'      // Agent submitted disposition, task marked COMPLETED
-  | 'task.dlq'            // Task moved to dead-letter queue (max retries exceeded)
-  | 'task.retried'        // Manager/Admin retried a DLQ task
-  | 'agent.state_changed' // Agent transitioned between states (IDLE, ACTIVE, etc.)
-  | 'sla.warning'         // Task SLA warning threshold crossed
-  | 'sla.breach';         // Task SLA breach threshold exceeded
+  | 'task.ingested'             // Task received by PipelineOrchestrator and validated
+  | 'task.queued'               // Task placed into a priority queue
+  | 'task.assigned'             // Task matched to an agent by TaskDistributor
+  | 'task.accepted'             // Agent accepted the task via WebSocket
+  | 'task.rejected'             // Agent rejected or timed out on the task
+  | 'task.completed'            // Agent submitted disposition, task marked COMPLETED
+  | 'task.dlq'                  // Task moved to dead-letter queue (max retries exceeded)
+  | 'task.retried'              // Manager/Admin retried a DLQ task
+  | 'task.pipeline_transferred' // Task transferred to a different pipeline (cross-pipeline routing)
+  | 'agent.state_changed'       // Agent transitioned between states (IDLE, ACTIVE, etc.)
+  | 'sla.warning'               // Task SLA warning threshold crossed
+  | 'sla.breach'                // Task SLA breach threshold exceeded
+  | 'outbound.webhook.sent'     // Outbound callback successfully delivered to external system
+  | 'outbound.webhook.failed';  // Outbound callback failed after all retries
 
 /**
  * The entity type that the event belongs to.
