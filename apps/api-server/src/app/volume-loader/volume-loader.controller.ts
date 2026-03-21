@@ -236,13 +236,29 @@ export class VolumeLoaderController {
   // ==========================================================================
 
   /**
-   * Test connection for a loader
+   * Test connection for a loader (simulated / legacy)
    */
   @Post(':id/test')
   testConnection(@Param('id') id: string) {
     const result = this.volumeLoaderService.testConnection(id);
     if (!result.success) {
       throw new HttpException(result.error || 'Failed to test connection', HttpStatus.BAD_REQUEST);
+    }
+    return result.result;
+  }
+
+  /**
+   * Test the real storage connection for a loader using the IStorageConnector.
+   * Returns connection status and a sample file listing (up to 5 files).
+   */
+  @Post(':id/test-connection')
+  async testStorageConnection(@Param('id') id: string) {
+    const result = await this.volumeLoaderService.testConnectionWithConnector(id);
+    if (!result.success) {
+      throw new HttpException(
+        result.error || 'Connection test failed',
+        result.error?.includes('not found') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST
+      );
     }
     return result.result;
   }

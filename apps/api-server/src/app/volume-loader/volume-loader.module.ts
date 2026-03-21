@@ -6,6 +6,13 @@ import { ServicesModule } from '../services/services.module';
 import { PipelineModule } from '../pipelines/pipeline.module';
 import { VolumeLoaderEntity } from '../entities/volume-loader.entity';
 import { VolumeLoaderRunEntity } from '../entities/volume-loader-run.entity';
+import {
+  LocalConnectorService,
+  HttpConnectorService,
+  S3ConnectorService,
+  GcsConnectorService,
+  SftpConnectorService,
+} from './connectors';
 
 @Module({
   imports: [
@@ -14,7 +21,14 @@ import { VolumeLoaderRunEntity } from '../entities/volume-loader-run.entity';
     forwardRef(() => PipelineModule),
   ],
   controllers: [VolumeLoaderController],
-  providers: [VolumeLoaderService],
+  providers: [
+    VolumeLoaderService,
+    LocalConnectorService,
+    HttpConnectorService,
+    S3ConnectorService,
+    GcsConnectorService,
+    SftpConnectorService,
+  ],
   exports: [VolumeLoaderService],
 })
 export class VolumeLoaderModule {}

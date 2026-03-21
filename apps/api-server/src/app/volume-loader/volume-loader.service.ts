@@ -4,6 +4,15 @@ import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
+  IStorageConnector,
+  LocalConnectorService,
+  HttpConnectorService,
+  S3ConnectorService,
+  GcsConnectorService,
+  SftpConnectorService,
+  ConnectionTestResult,
+} from './connectors';
+import {
   VolumeLoader,
   VolumeLoaderType,
   VolumeLoaderConfig,
@@ -86,9 +95,52 @@ export class VolumeLoaderService implements OnModuleInit {
     private readonly pipelineService?: PipelineService,
     @Optional()
     @Inject(forwardRef(() => PipelineOrchestratorService))
-    private readonly orchestrator?: PipelineOrchestratorService
+    private readonly orchestrator?: PipelineOrchestratorService,
+    private readonly localConnector?: LocalConnectorService,
+    private readonly httpConnector?: HttpConnectorService,
+    private readonly s3Connector?: S3ConnectorService,
+    private readonly gcsConnector?: GcsConnectorService,
+    private readonly sftpConnector?: SftpConnectorService
   ) {
     this.logDependencyStatus();
+  }
+
+  /**
+   * Returns the IStorageConnector implementation for the given loader type.
+   */
+  getConnector(loaderType: VolumeLoaderType): IStorageConnector | null {
+    switch (loaderType) {
+      case 'LOCAL': return this.localConnector ?? null;
+      case 'HTTP':  return this.httpConnector ?? null;
+      case 'S3':    return this.s3Connector ?? null;
+      case 'GCS':   return this.gcsConnector ?? null;
+      case 'SFTP':  return this.sftpConnector ?? null;
+      default:      return null;
+    }
+  }
+
+  /**
+   * Test the real connection for a loader using the appropriate IStorageConnector.
+   */
+  async testConnectionWithConnector(id: string): Promise<{
+    success: boolean;
+    result?: ConnectionTestResult;
+    error?: string;
+  }> {
+    const loader = this.loaders.get(id);
+    if (!loader) {
+      return { success: false, error: 'Loader not found' };
+    }
+    const connector = this.getConnector(loader.type);
+    if (!connector) {
+      return { success: false, error: `No connector available for loader type: ${loader.type}` };
+    }
+    try {
+      const result = await connector.testConnection(loader.config);
+      return { success: true, result };
+    } catch (err) {
+      return { success: false, error: String(err) };
+    }
   }
 
   async onModuleInit(): Promise<void> {
@@ -523,16 +575,20 @@ export class VolumeLoaderService implements OnModuleInit {
           case 'GCS':
           case 'S3':
           case 'SFTP':
-          case 'HTTP':
-            // No staged data and no real connector — nothing to process
-            run.status = 'COMPLETED';
-            run.recordsFound = 0;
-            run.recordsProcessed = 0;
-            (run as any).noStagedData = true;
-            this.logger.warn(
-              `No staged records for loader ${loader.name}. Upload a CSV file first, then click Run Now.`
-            );
+          case 'HTTP': {
+            const connector = this.getConnector(loader.type);
+            if (connector) {
+              await this.processWithConnector(loader, run, isDryRun, connector);
+            } else {
+              run.status = 'COMPLETED';
+              run.recordsFound = 0;
+              run.recordsProcessed = 0;
+              this.logger.warn(
+                `No connector available for loader type ${loader.type}. Upload a CSV file first.`
+              );
+            }
             break;
+          }
           default:
             throw new Error(`Unsupported loader type: ${loader.type}`);
         }
@@ -1016,6 +1072,98 @@ export class VolumeLoaderService implements OnModuleInit {
       `${recordsRouted} routed, ${recordsUnrouted} unrouted, ${run.recordsFailed} failed. ` +
       `Queue breakdown: ${Object.values(queueVolume).map(q => `${q.queueName}:${q.count}`).join(', ') || 'none'}`
     );
+  }
+
+  /**
+   * Process a remote loader using an IStorageConnector.
+   * Lists files via the connector, downloads each one, and parses the content.
+   */
+  private async processWithConnector(
+    loader: VolumeLoader,
+    run: VolumeLoaderRun,
+    isDryRun: boolean,
+    connector: IStorageConnector
+  ): Promise<void> {
+    this.logger.log(
+      `Processing ${loader.type} loader "${loader.name}" via connector`
+    );
+
+    const remoteFiles = await connector.listFiles(loader.config);
+    if (remoteFiles.length === 0) {
+      run.status = 'COMPLETED';
+      this.logger.log(`No files found for loader "${loader.name}"`);
+      return;
+    }
+
+    this.logger.log(`Found ${remoteFiles.length} file(s) for loader "${loader.name}"`);
+
+    for (const remoteFile of remoteFiles) {
+      try {
+        const buffer = await connector.downloadFile(loader.config, remoteFile.path);
+        const encoding = (loader.dataFormat.encoding as BufferEncoding | undefined) ?? 'utf-8';
+        const content = buffer.toString(encoding);
+        let records: ParsedRecord[];
+
+        if (loader.dataFormat.format === 'CSV') {
+          records = this.parseCsvContent(content, loader);
+        } else if (loader.dataFormat.format === 'JSON') {
+          records = this.parseJsonContent(content, loader);
+        } else {
+          throw new Error(`Unsupported data format: ${loader.dataFormat.format}`);
+        }
+
+        run.filesProcessed.push(remoteFile.name);
+        run.recordsFound += records.length;
+
+        for (const record of records) {
+          if (record.error) {
+            run.recordsFailed++;
+            run.errorLog.push({
+              recordId: record.rawData['externalId'] || `row-${record.rowIndex}`,
+              rowNumber: record.rowIndex,
+              message: record.error,
+              field: 'mapping',
+              value: '',
+              timestamp: new Date().toISOString(),
+            });
+            continue;
+          }
+
+          if (!record.mappedData) {
+            run.recordsFailed++;
+            continue;
+          }
+
+          if (loader.processingOptions?.skipDuplicates && record.mappedData.externalId) {
+            if (this.processedExternalIds.has(record.mappedData.externalId)) {
+              run.recordsSkipped++;
+              continue;
+            }
+          }
+
+          if (!isDryRun) {
+            await this.createTaskFromRecord(loader, record.mappedData, record.rowIndex);
+            if (record.mappedData.externalId) {
+              this.processedExternalIds.add(record.mappedData.externalId);
+            }
+          }
+
+          run.recordsProcessed++;
+        }
+      } catch (err) {
+        run.errorLog.push({
+          recordId: remoteFile.name,
+          rowNumber: 0,
+          message: err instanceof Error ? err.message : 'Failed to process file',
+          field: 'file',
+          value: remoteFile.path,
+          timestamp: new Date().toISOString(),
+        });
+        this.logger.error(`Failed to process remote file ${remoteFile.path}: ${err}`);
+      }
+    }
+
+    run.status = run.recordsFailed > 0 && run.recordsProcessed === 0 ? 'FAILED' : 'COMPLETED';
   }
 
   /**
