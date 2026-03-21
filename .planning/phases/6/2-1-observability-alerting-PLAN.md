@@ -12,8 +12,7 @@
     docker-compose.yml
 
     <!-- Backend -->
-    apps/api-server/src/app/monitoring/metrics.controller.ts
-    apps/api-server/src/app/monitoring/metrics.service.ts
+    apps/api-server/src/app/metrics/metrics.controller.ts
 
     <!-- Frontend -->
     apps/agent-workspace/src/app/features/admin/components/observability/observability.component.ts  [NEW]
@@ -197,8 +196,17 @@
             collectedAt: string;                    // ISO timestamp
           }
           ```
-        - Add `getSnapshot(): MetricsSnapshot` method to `MetricsService` that reads current
-          prom-client metric values synchronously (use `.get()` on each metric instance)
+        - Add `getSnapshot(): MetricsSnapshot` method directly in `MetricsController`
+          (no separate MetricsService exists — controller already injects `AgentManagerService`,
+          `QueuesService`, `DispositionService`, `TaskSourceService`)
+        - Aggregate data from existing injected services:
+          - `queueDepth`: from `QueuesService.getAllQueueStats()` — map queue name → depth
+          - `tasksTotal`: from `TaskSourceService.getQueueStats()` — map status → count
+          - `agentsActive`: from `AgentManagerService.getAllAgents()` — group by agent state
+          - `slaBreachesTotal`: read prom-client `nexus_sla_breaches_total` counter if available, else 0
+          - `dlqDepth`: read prom-client `nexus_dlq_depth` gauge if available, else 0
+          - `taskHandleTimeP50` / `taskHandleTimeP95`: compute from `DispositionService.getAllCompletions()`
+          - `collectedAt`: `new Date().toISOString()`
         - Endpoint is public (`@Public()` decorator) so Angular can poll it without JWT
         - Add `MetricsSnapshot` interface to `libs/shared-models/src/lib/` as a new file
           `metrics.interface.ts` and export from `index.ts`
@@ -206,8 +214,7 @@
         Commit: `feat(monitoring): add GET /api/metrics/json endpoint for frontend metric tiles (P6-043)`
       </action>
       <files>
-        apps/api-server/src/app/monitoring/metrics.controller.ts
-        apps/api-server/src/app/monitoring/metrics.service.ts
+        apps/api-server/src/app/metrics/metrics.controller.ts
         libs/shared-models/src/lib/metrics.interface.ts  [NEW]
         libs/shared-models/src/lib/index.ts
       </files>
@@ -220,7 +227,7 @@
       <done>
         - `GET /api/metrics/json` returns `MetricsSnapshot` JSON (HTTP 200)
         - Endpoint is public (no JWT required)
-        - `MetricsService.getSnapshot()` reads live prom-client metric values
+        - `MetricsController.getSnapshot()` aggregates from existing injected services
         - `MetricsSnapshot` interface in shared-models, exported from index.ts
         - 0 lint errors in both projects
         - All tests pass
