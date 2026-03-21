@@ -42,6 +42,7 @@
     "@types/node": "20.19.9",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.18.0",
+    "@types/ssh2-sftp-client": "^9.0.6",
     "@typescript-eslint/utils": "^8.40.0",
     "angular-eslint": "^21.0.1",
     "eslint": "^9.8.0",
@@ -66,6 +67,7 @@
     "@angular/platform-browser": "~21.1.0",
     "@angular/router": "~21.1.0",
     "@aws-sdk/client-s3": "^3.1014.0",
+    "@google-cloud/storage": "^7.19.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/jwt": "^11.0.2",
@@ -88,6 +90,7 @@
     "rxjs": "~7.8.0",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
+    "ssh2-sftp-client": "^12.1.0",
     "typeorm": "^0.3.28"
   }
 }
