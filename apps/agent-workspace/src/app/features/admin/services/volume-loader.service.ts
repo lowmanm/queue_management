@@ -174,6 +174,22 @@ export class VolumeLoaderApiService {
   }
 
   /**
+   * Test real storage connectivity for a loader using the IStorageConnector.
+   * Returns connection status and a sample file listing (up to 5 files).
+   */
+  testStorageConnection(id: string): Observable<{
+    ok: boolean;
+    files?: { name: string; path: string; sizeBytes: number; lastModified: string }[];
+    error?: string;
+  }> {
+    return this.http.post<{
+      ok: boolean;
+      files?: { name: string; path: string; sizeBytes: number; lastModified: string }[];
+      error?: string;
+    }>(`${API_BASE}/${id}/test-connection`, {});
+  }
+
+  /**
    * Validate field mappings for a loader
    */
   validateMappings(

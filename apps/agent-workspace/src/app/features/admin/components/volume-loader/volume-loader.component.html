@@ -633,6 +633,44 @@
                   }
                 </div>
               }
+              @if (editingLoader()) {
+                <button
+                  class="btn-secondary"
+                  (click)="testStorageConnection(editingLoader()!.id)"
+                  [disabled]="isTestingConnection()"
+                >
+                  @if (isTestingConnection()) {
+                    <span>Testing...</span>
+                  } @else {
+                    <span>Test Storage Connection</span>
+                  }
+                </button>
+                @if (connectionTestResult()) {
+                  <div
+                    class="connection-test-result"
+                    [class.connection-test-success]="connectionTestResult()?.ok"
+                    [class.connection-test-error]="!connectionTestResult()?.ok"
+                  >
+                    <button class="dismiss-btn" (click)="dismissConnectionTestResult()">&#x2715;</button>
+                    @if (connectionTestResult()?.ok) {
+                      <div>
+                        <strong>Connection successful</strong> — {{ connectionTestResult()?.files?.length || 0 }} file(s) found
+                      </div>
+                      @if (connectionTestResult()?.files?.length) {
+                        <ul class="file-list">
+                          @for (f of connectionTestResult()!.files!; track f.path) {
+                            <li>{{ f.path }}</li>
+                          }
+                        </ul>
+                      }
+                    } @else {
+                      <div>
+                        <strong>Connection failed:</strong> {{ connectionTestResult()?.error }}
+                      </div>
+                    }
+                  </div>
+                }
+              }
             }
           </div>
         }

@@ -164,6 +164,14 @@ export class VolumeLoaderComponent implements OnInit {
     routingErrors: Array<{ row: number; error: string }>;
   } | null>(null);
 
+  // Storage connection test state
+  connectionTestResult = signal<{
+    ok: boolean;
+    files?: { name: string; path: string; sizeBytes: number; lastModified: string }[];
+    error?: string;
+  } | null>(null);
+  isTestingConnection = signal(false);
+
   // Cascade delete state
   showDeleteConfirmation = signal(false);
   deleteTarget = signal<VolumeLoader | null>(null);
@@ -822,6 +830,25 @@ export class VolumeLoaderComponent implements OnInit {
         this.isLoading.set(false);
       },
     });
+  }
+
+  testStorageConnection(loaderId: string): void {
+    this.isTestingConnection.set(true);
+    this.connectionTestResult.set(null);
+    this.loaderService.testStorageConnection(loaderId).subscribe({
+      next: (result) => {
+        this.connectionTestResult.set(result);
+        this.isTestingConnection.set(false);
+      },
+      error: () => {
+        this.connectionTestResult.set({ ok: false, error: 'Network error' });
+        this.isTestingConnection.set(false);
+      },
+    });
+  }
+
+  dismissConnectionTestResult(): void {
+    this.connectionTestResult.set(null);
   }
 
   // ============ Form Helpers ============
