@@ -1,0 +1,34 @@
+groups:
+  - name: nexus_queue_alerts
+    rules:
+      - alert: NexusQueueHigh
+        expr: nexus_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue {{ $labels.queue }} depth is high ({{ $value }} tasks)"
+
+      - alert: NexusSLABreachRateHigh
+        expr: rate(nexus_sla_breaches_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLA breach rate exceeds 5% on queue {{ $labels.queue }}"
+
+      - alert: NexusDLQDepth
+        expr: nexus_dlq_depth > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DLQ depth is {{ $value }} — dead-lettered tasks need attention"
+
+      - alert: NexusAPIDown
+        expr: up{job="nexus-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nexus API server is unreachable"
