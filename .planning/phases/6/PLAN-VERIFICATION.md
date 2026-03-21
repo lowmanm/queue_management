@@ -1,6 +1,6 @@
 # Phase 6 Plan Verification
 
-> Verified: 2026-03-20
+> Updated: 2026-03-21 (re-plan; Wave 1 complete, Waves 2–3 verified for remaining work)
 
 ---
 
@@ -8,18 +8,18 @@
 
 | P6 Requirement ID | Description | Plan |
 |---|---|---|
-| P6-001 | @nestjs/throttler; webhook rate limiting (100 req/60s, configurable) | 1-1 Task 1 |
-| P6-002 | Per-endpoint rateLimit field in WebhookEndpoint model | 1-1 Task 1 |
-| P6-003 | 429 with Retry-After; RATE_LIMITED delivery log entry | 1-1 Task 1 |
-| P6-010 | dlqAutoRetry field in PipelineQueue model | 1-1 Task 2 |
-| P6-011 | DlqAutoRetryService with @Cron(EVERY_MINUTE); re-ingests via PipelineOrchestratorService | 1-1 Task 2 |
-| P6-012 | task.dlq.auto_retried event emitted per auto-retry | 1-1 Task 2 |
-| P6-013 | Queue Config Panel — DLQ Auto-Retry section with enable/interval/maxRetries/backoffMultiplier | 1-1 Task 4 |
-| P6-020 | GET /api/audit-log/replay/:aggregateId returns events + reconstructedState | 1-1 Task 3 |
-| P6-021 | Audit Log frontend — Replay Task action with step-by-step timeline modal | 1-1 Task 5 |
-| P6-022 | EventStoreService.replayAggregate(); read-only, no live state modification | 1-1 Task 3 |
-| P6-030 | POST /api/queues/bulk with activate/deactivate/pause actions | 1-1 Task 3 |
-| P6-031 | Queue Monitor — checkbox selection + bulk action toolbar | 1-1 Task 4 |
+| P6-001 | @nestjs/throttler; webhook rate limiting (100 req/60s, configurable) | 1-1 Task 1 ✅ DONE |
+| P6-002 | Per-endpoint rateLimit field in WebhookEndpoint model | 1-1 Task 1 ✅ DONE |
+| P6-003 | 429 with Retry-After; RATE_LIMITED delivery log entry | 1-1 Task 1 ✅ DONE |
+| P6-010 | dlqAutoRetry field in PipelineQueue model | 1-1 Task 2 ✅ DONE |
+| P6-011 | DlqAutoRetryService with @Cron(EVERY_MINUTE); re-ingests via PipelineOrchestratorService | 1-1 Task 2 ✅ DONE |
+| P6-012 | task.dlq.auto_retried event emitted per auto-retry | 1-1 Task 2 ✅ DONE |
+| P6-013 | Queue Config Panel — DLQ Auto-Retry section with enable/interval/maxRetries/backoffMultiplier | 1-1 Task 4 ✅ DONE |
+| P6-020 | GET /api/audit-log/replay/:aggregateId returns events + reconstructedState | 1-1 Task 3 ✅ DONE |
+| P6-021 | Audit Log frontend — Replay Task action with step-by-step timeline modal | 1-1 Task 5 ✅ DONE |
+| P6-022 | EventStoreService.replayAggregate(); read-only, no live state modification | 1-1 Task 3 ✅ DONE |
+| P6-030 | POST /api/queues/bulk with activate/deactivate/pause actions | 1-1 Task 3 ✅ DONE |
+| P6-031 | Queue Monitor — checkbox selection + bulk action toolbar | 1-1 Task 4 ✅ DONE |
 | P6-040 | grafana/nexus-queue-dashboard.json — 6-panel importable dashboard | 2-1 Task 1 |
 | P6-041 | prometheus/alerts.yml — 4 alerting rules | 2-1 Task 1 |
 | P6-042 | docker-compose.yml monitoring profile (prometheus + grafana) | 2-1 Task 2 |
@@ -104,6 +104,15 @@ No unresolvable file conflicts between plans.
 
 ---
 
+## Path Corrections Applied
+
+The 2-1-observability-alerting-PLAN.md previously referenced an incorrect path
+`apps/api-server/src/app/monitoring/` — corrected to `apps/api-server/src/app/metrics/`.
+Also: no separate `MetricsService` exists; `MetricsController` directly injects services.
+Task 3 updated to reflect this (aggregate from injected services, not prom-client getter).
+
+---
+
 ## Tech Debt Non-Regression
 
 Both projects at 0 errors entering Phase 6.
@@ -111,7 +120,7 @@ Both projects at 0 errors entering Phase 6.
 - `agent-workspace`: 0 → must remain ≤ 0 after each plan
 - `api-server`: 0 → must remain ≤ 0 after each plan
 
-No debt reduction task needed (both at zero). Noted in RESEARCH.md §4 and Wave 1 plan task 1.
+No debt reduction task needed (both at zero). Documented in RESEARCH.md §Tech Debt.
 
 ---
 

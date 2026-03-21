@@ -1,179 +1,227 @@
 # Phase 6 Research — Observability, Hardening & Storage Connectors
 
-> Research conducted: 2026-03-20
+> Updated 2026-03-21 (re-plan after Wave 1 completion)
 
 ---
 
-## 1. Current State (post-Phase 5)
+## Executive Summary
 
-### Project Health
-
-| Metric | Status |
-|---|---|
-| Build | ✅ Passing (both projects) |
-| Lint | ✅ 0 errors (agent-workspace + api-server) |
-| Tests | ✅ 126 passing (95 agent-workspace + 31 api-server) |
-| Tech Debt | 0 errors both projects (fully cleared Phase 4) |
-
-### Completed Phases
-
-- **Phase 1–2**: Core platform (auth, state machine, WebSocket, real-time push)
-- **Phase 2.5a/b**: SPA shell + orchestration core
-- **Phase 3**: Logic Builder (pipeline wizard, rule builder, DLQ monitor)
-- **Phase 4**: Persistence + Production (PostgreSQL/TypeORM, Redis, JWT, Prometheus, Docker)
-- **Phase 5**: External Integrations (webhook ingestion, outbound callbacks, cross-pipeline routing, pipeline portability)
+Wave 1 (Platform Hardening) is **100% complete** — 12 requirements across webhooks,
+DLQ, queues, and event sourcing replay are all implemented. Waves 2 and 3 (Observability,
+Storage Connectors, Portability) have not been started. Three plan files (2-1, 2-2, 3-1)
+cover the remaining 15 requirements.
 
 ---
 
-## 2. Existing Infrastructure Relevant to Phase 6
+## Wave 1 — Already Implemented ✅
 
-### Monitoring (`apps/api-server/src/app/monitoring/`)
+The following Phase 6 requirements were implemented in the previous session:
 
-| File | What it does |
-|---|---|
-| `metrics.service.ts` | prom-client registry; 6 custom `nexus_*` metrics (queue depth gauge, tasks counter, handle time histogram, agents gauge, SLA breaches counter, DLQ depth gauge) |
-| `metrics.controller.ts` | `GET /api/metrics` — Prometheus text format scrape endpoint (public) |
-| `health.controller.ts` | `GET /api/health` — @nestjs/terminus checks DB + Redis |
+| Req ID | Feature | Status |
+|--------|---------|--------|
+| P6-001 | `@nestjs/throttler` webhook rate limiting (100 req/60s default) | ✅ |
+| P6-002 | Per-endpoint `rateLimit` override on `WebhookEndpoint` model | ✅ |
+| P6-003 | HTTP 429 with `Retry-After` header; `RATE_LIMITED` delivery log status | ✅ |
+| P6-010 | `dlqAutoRetry` field on `PipelineQueue` model | ✅ |
+| P6-011 | `DlqAutoRetryService` — `@Cron(EVERY_MINUTE)` scheduler with backoff | ✅ |
+| P6-012 | `task.dlq.auto_retried` domain event emitted on each attempt | ✅ |
+| P6-013 | Queue Config Panel — DLQ Auto-Retry section with conditional fields | ✅ |
+| P6-020 | `GET /api/audit-log/replay/:aggregateId` endpoint | ✅ |
+| P6-021 | Audit Log frontend replay UI with inline timeline | ✅ |
+| P6-022 | `EventStoreService.replayAggregate()` state reducer | ✅ |
+| P6-030 | `POST /api/queues/bulk` — activate/deactivate/pause with partial success | ✅ |
+| P6-031 | Queue Monitor — checkbox selection + bulk action toolbar | ✅ |
 
-**Gap:** No Grafana dashboard JSON, no Prometheus alert rules, no JSON metrics endpoint for frontend consumption, no docker-compose monitoring profile.
-
-### Webhooks (`apps/api-server/src/app/webhooks/`)
-
-- `WebhooksService` — in-memory endpoint store, HMAC verification, delivery logging
-- `WebhooksController` — `POST /api/webhooks/:token` (public), admin CRUD
-- **Gap:** No rate limiting on the public ingestion endpoint (P5-103 deferred).
-- `WebhookEndpoint` model in `webhook.interface.ts` has no `rateLimit` field.
-
-### Queues (`apps/api-server/src/app/queues/`)
-
-- `QueuesService` — queue CRUD, stats, bulk-by-filter not implemented
-- `QueuesController` — standard CRUD + stats endpoints
-- `DlqController` (`dlq.controller.ts`) — retry, reroute, discard for individual tasks
-- **Gap:** No `POST /api/queues/bulk` endpoint. No DLQ auto-retry scheduler. `QueueConfig` has no `dlqAutoRetry` field.
-
-### Event Store (`apps/api-server/src/app/services/event-store.service.ts`)
-
-- Append-only `task_events` table; `emit()` persists domain events
-- `GET /api/audit-log` returns paginated events
-- **Gap:** No replay endpoint. No `replayAggregate()` method to reconstruct task state from event sequence.
-
-### Volume Loader (`apps/api-server/src/app/volume-loader/`)
-
-- `VolumeLoaderService` — ~2000 lines; handles CRUD, execution, CSV/JSON parsing
-- Supports `VolumeLoaderType`: `GCS`, `S3`, `SFTP`, `HTTP`, `LOCAL`
-- **Gap:** GCS, S3, SFTP connectors are stubs. No `IStorageConnector` abstraction. No `test-connection` endpoint.
-- `volume-loader.interface.ts` has `s3Config`, `gcsConfig`, `sftpConfig` fully typed — ready for real implementations.
-
-### Rules (`apps/api-server/src/app/rules/`)
-
-- `RulesController` — rule set CRUD + test endpoint
-- Business logic delegates to `RuleEngineService` (in `services/`)
-- **Gap:** No export/import endpoints. `RuleEngineService` has no `exportRuleSet()` / `importRuleSet()` methods.
-- `rule.interface.ts` — has `RuleSet`, `Rule`, `RuleCondition`, `RuleAction` — no bundle type.
-
-### Pipelines (`apps/api-server/src/app/pipelines/`)
-
-- `PipelineController` — full CRUD, metrics, versions (`GET /:id/versions`, rollback), portability (export/import/clone)
-- `PipelineVersionService` — in-memory version store (max 20 versions)
-- **Gap:** No diff endpoint comparing two version snapshots. `PipelineVersion` has a `config` field with the full pipeline snapshot — diff logic is straightforward.
-
-### Frontend Admin Routes
-
-Current routes in `admin.routes.ts`:
-- `/admin/volume-loaders` → VolumeLoaderComponent
-- `/admin/pipelines` → PipelinesComponent
-- `/admin/skills` → SkillsComponent
-- `/admin/dispositions` → DispositionsComponent
-- `/admin/work-states` → WorkStatesComponent
-- `/admin/users` → UsersComponent
-- `/admin/audit-log` → AuditLogComponent
-- `/admin/webhooks` → WebhooksComponent
-- `/admin/rule-builder` → RuleBuilderComponent
-- **Gap:** No `/admin/observability` route.
+**Files implementing Wave 1:**
+- `apps/api-server/src/app/webhooks/webhooks.controller.ts` — throttler guard applied
+- `apps/api-server/src/app/webhooks/webhooks.service.ts` — per-endpoint rate limit
+- `apps/api-server/src/app/queues/dlq-auto-retry.service.ts` — scheduler service
+- `apps/api-server/src/app/queues/queues.controller.ts` — bulk endpoint
+- `apps/api-server/src/app/queues/queues.service.ts` — bulk logic
+- `apps/api-server/src/app/services/event-store.service.ts` — replayAggregate()
+- `apps/api-server/src/app/audit-log/audit-log.controller.ts` — replay endpoint
+- `apps/agent-workspace/src/app/features/admin/components/audit-log/audit-log.component.ts` — replay UI
+- `apps/agent-workspace/src/app/features/manager/components/queue-monitor/queue-monitor.component.ts` — bulk UI
 
 ---
 
-## 3. Deferred Items from Previous Phases
+## Wave 2 — Not Yet Implemented ❌
 
-| ID | From | Item |
-|---|---|---|
-| P4-102 | Phase 4 v2 | Grafana dashboard JSON committed to repo |
-| P4-103 | Phase 4 v2 | PagerDuty SLA breach integration |
-| P3-101 | Phase 3 v2 | Rule set import/export as JSON |
-| P3-102 | Phase 3 v2 | Pipeline config diff view |
-| P3-103 | Phase 3 v2 | Bulk queue operations |
-| P3-104 | Phase 3 v2 | DLQ auto-retry policies |
-| P5-102 | Phase 5 v2 | Rule set import/export as standalone JSON |
-| P5-103 | Phase 5 v2 | Webhook endpoint rate limiting |
-| P5-104 | Phase 5 v2 | Event sourcing replay |
-| Phase 5 OOS | Phase 5 | GCS/S3/SFTP connectors for VolumeLoader |
+### Observability (P6-040 to P6-044)
 
-> Note: P4-103 (PagerDuty) requires a PagerDuty account and alerting policy design — descoped from Phase 6 to "Out of Scope." Grafana dashboard (P4-102) and Prometheus alert rules are feasible without external accounts.
+**Missing files:**
+- `grafana/nexus-queue-dashboard.json` — Grafana dashboard with 6 panels
+- `prometheus/alerts.yml` — 4 Prometheus alerting rules
+- `prometheus/prometheus.yml` — Prometheus scrape config
+- `docker-compose.yml` monitoring profile — prometheus + grafana services (opt-in)
+
+**Existing metrics infrastructure:**
+- `apps/api-server/src/app/metrics/metrics.controller.ts` — existing metrics controller
+  - `GET /api/metrics/overview` — agents + queues + tasks overview
+  - `GET /api/metrics/agents` — per-agent performance
+  - `GET /api/metrics/queues` — per-queue stats
+  - `GET /api/metrics/dispositions` — disposition usage
+  - `GET /api/metrics/health` — health check
+  - **MISSING:** `GET /api/metrics/json` (MetricsSnapshot endpoint for frontend)
+- `apps/api-server/src/app/metrics/metrics.module.ts` — imports `ServicesModule`
+- No separate `MetricsService` — controller directly injects `AgentManagerService`,
+  `QueuesService`, `DispositionService`, `TaskSourceService`
+- **KEY PATH CORRECTION:** The old plan draft incorrectly references
+  `apps/api-server/src/app/monitoring/metrics.controller.ts` —
+  the actual path is `apps/api-server/src/app/metrics/metrics.controller.ts`
+
+**Missing frontend:**
+- `ObservabilityComponent` at `/admin/observability` — not yet created
+- Admin sidebar link to Observability — not yet added
+- Admin routes file: `apps/agent-workspace/src/app/features/admin/admin.routes.ts`
+
+### Storage Connectors (P6-050 to P6-054)
+
+**Current Volume Loader state:**
+- `apps/api-server/src/app/volume-loader/volume-loader.service.ts` — existing service
+- `apps/api-server/src/app/volume-loader/volume-loader.controller.ts` — existing controller
+  - Has `POST :id/test` endpoint (basic health check, not connector-backed)
+  - Does NOT have the `POST :id/test-connection` connector-backed endpoint (P6-054)
+- Volume Loader supports types: LOCAL, HTTP, GCS, S3, SFTP (declared but stubs only)
+- `apps/api-server/src/app/volume-loader/connectors/` — **DOES NOT EXIST**
+- npm packages `@aws-sdk/client-s3`, `@google-cloud/storage`, `ssh2-sftp-client` — **NOT INSTALLED**
+
+**Missing files:**
+- `connectors/connector.interface.ts` — IStorageConnector + RemoteFile interfaces
+- `connectors/local.connector.ts` — LocalConnectorService
+- `connectors/http.connector.ts` — HttpConnectorService
+- `connectors/s3.connector.ts` — S3ConnectorService
+- `connectors/gcs.connector.ts` — GcsConnectorService
+- `connectors/sftp.connector.ts` — SftpConnectorService
+- `connectors/index.ts` — barrel export
+
+**Frontend:**
+- Volume Loader component exists; "Test Connection" button needs to be wired
+  to the connector-backed `POST :id/test-connection` endpoint
 
 ---
 
-## 4. Tech Debt Audit
+## Wave 3 — Not Yet Implemented ❌
+
+### Rule Set Portability (P6-060 to P6-062)
+
+**Current rules infrastructure:**
+- `apps/api-server/src/app/rules/rules.controller.ts` — has CRUD + test endpoints
+  - `GET /api/rules/sets` — list all rule sets ✅
+  - `POST /api/rules/sets/:id/test` — dry-run test ✅
+  - **MISSING:** `GET /api/rules/sets/:id/export` ❌
+  - **MISSING:** `POST /api/rules/sets/import` ❌
+- `apps/api-server/src/app/services/rule-engine.service.ts` — rule engine
+  - **MISSING:** `exportRuleSet()`, `importRuleSet()`, `validateRuleSetBundle()` ❌
+
+**Shared models missing:**
+- `RuleSetBundle`, `RuleSetImportResult`, `RuleSetImportError` not in `rule.interface.ts`
+
+**Frontend:**
+- `rule-builder.component.ts` — exists, no export/import UI
+- `apps/agent-workspace/src/app/features/admin/services/rules.service.ts` —
+  no `exportRuleSet()` / `importRuleSet()` methods
+
+### Pipeline Version Diff (P6-063 to P6-064)
+
+**Current pipeline versioning:**
+- `apps/api-server/src/app/pipelines/pipeline-version.service.ts` — version history
+  - Has: `saveVersion()`, `getVersions()`, `rollback()` ✅
+  - **MISSING:** `getDiff()`, `diffObjects()` ❌
+- `apps/api-server/src/app/pipelines/pipeline.controller.ts`
+  - Has: `GET /:id/versions`, `POST /:id/versions/:versionId/rollback` ✅
+  - **MISSING:** `GET /:id/versions/diff` ❌
+
+**Shared models missing:**
+- `VersionDiffEntry`, `VersionDiffResult` not in `pipeline.interface.ts`
+
+**Frontend:**
+- `pipelines.component.ts` — exists, no diff trigger
+- `PipelineDiffModalComponent` — **DOES NOT EXIST**
+- `apps/agent-workspace/src/app/features/admin/services/pipeline.service.ts` —
+  no `getVersionDiff()` method
+
+---
+
+## Implementation Status Table
+
+| Req | Description | Status |
+|-----|-------------|--------|
+| P6-001 | Webhook throttler | ✅ Wave 1 Done |
+| P6-002 | Per-endpoint rate limit | ✅ Wave 1 Done |
+| P6-003 | 429 + Retry-After + RATE_LIMITED log | ✅ Wave 1 Done |
+| P6-010 | dlqAutoRetry model field | ✅ Wave 1 Done |
+| P6-011 | DlqAutoRetryService scheduler | ✅ Wave 1 Done |
+| P6-012 | task.dlq.auto_retried event | ✅ Wave 1 Done |
+| P6-013 | Queue Config DLQ Auto-Retry UI | ✅ Wave 1 Done |
+| P6-020 | Replay endpoint | ✅ Wave 1 Done |
+| P6-021 | Replay UI | ✅ Wave 1 Done |
+| P6-022 | replayAggregate() reducer | ✅ Wave 1 Done |
+| P6-030 | POST /api/queues/bulk | ✅ Wave 1 Done |
+| P6-031 | Queue Monitor bulk selection | ✅ Wave 1 Done |
+| P6-040 | Grafana dashboard JSON | ❌ Wave 2 (2-1) |
+| P6-041 | Prometheus alert rules | ❌ Wave 2 (2-1) |
+| P6-042 | Monitoring Docker profile | ❌ Wave 2 (2-1) |
+| P6-043 | GET /api/metrics/json | ❌ Wave 2 (2-1) |
+| P6-044 | Admin Observability page | ❌ Wave 2 (2-1) |
+| P6-050 | S3ConnectorService | ❌ Wave 2 (2-2) |
+| P6-051 | GcsConnectorService | ❌ Wave 2 (2-2) |
+| P6-052 | SftpConnectorService | ❌ Wave 2 (2-2) |
+| P6-053 | IStorageConnector abstraction | ❌ Wave 2 (2-2) |
+| P6-054 | Test Connection endpoint + UI | ❌ Wave 2 (2-2) |
+| P6-060 | Rule set export endpoint | ❌ Wave 3 (3-1) |
+| P6-061 | Rule set import endpoint | ❌ Wave 3 (3-1) |
+| P6-062 | Rule Builder export/import UI | ❌ Wave 3 (3-1) |
+| P6-063 | Pipeline version diff endpoint | ❌ Wave 3 (3-1) |
+| P6-064 | PipelineDiffModalComponent | ❌ Wave 3 (3-1) |
+
+**Total:** 12/27 complete, 15 remaining across Wave 2 (10) and Wave 3 (5).
+
+---
+
+## Existing Patterns to Follow
+
+### Angular Patterns (from Phase 5 components)
+- Standalone components with `ChangeDetectionStrategy.OnPush`
+- Signals (`signal<T>()`) for local component state
+- `takeUntil(this.destroy$)` for subscription cleanup
+- `inject()` for dependency injection (not constructor)
+- `PageLayoutComponent` wrapper for admin pages
+
+### NestJS Patterns
+- `@Public()` decorator for unauthenticated endpoints
+- Feature module organization (connector services registered in `VolumeLoaderModule`)
+- `@Header()` decorator for file download responses
+- Route ordering: specific routes before parameterised routes
+  (e.g., `sets/import` before `sets/:id`, `versions/diff` before `versions/:versionId/rollback`)
+
+### Test Patterns (Vitest)
+- Co-located `.spec.ts` files
+- `TestBed.configureTestingModule()` with `provideHttpClientTesting()`
+
+---
+
+## Tech Debt
 
 ### Current Baseline
 
-| Project | Errors | Status |
-|---|---|---|
-| `agent-workspace` | **0** | ✅ Fully cleared Phase 4 Wave 3 |
-| `api-server` | **0** | ✅ Fully cleared Phase 4 Wave 1 |
+| Project | Error Count | Status |
+|---------|-------------|--------|
+| `agent-workspace` | **0** | ✅ Fully cleared (Phase 4 Wave 3) |
+| `api-server` | **0** | ✅ Fully cleared (Phase 4 Wave 1) |
 
-### Categories to Target
+### Tech Debt Audit Result
 
-None — both projects are at zero errors.
+Both projects have **zero pre-existing lint errors**. Per policy, the Wave 1 debt
+reduction task is **skipped** for Phase 6 — there is no debt to reduce.
 
-### Files Touched by Phase 6 in TECH_DEBT.md
+> Policy: "If both projects have zero errors, skip the debt task."
 
-None — TECH_DEBT.md has no remaining affected files.
+### Non-Regression Requirement
 
-### Debt Task Scope
-
-**No debt task required.** Both projects have zero pre-existing lint errors. TECH_DEBT.md policy requires a debt task when errors exist; since both are at 0, this Phase is explicitly exempt. This exemption will be noted in the Wave 1 plan.
-
----
-
-## 5. Phase 6 Scope Decision
-
-**Theme: Observability, Hardening & Storage Connectors**
-
-**Goal:** Deliver production-grade observability (Grafana dashboard, Prometheus alert rules), harden the platform (webhook rate limiting, DLQ auto-retry policies, event sourcing replay), implement real cloud storage connectors (S3, GCS, SFTP) for the Volume Loader, and complete deferred portability features (rule set export/import, pipeline version diff).
-
-### Excluded from Phase 6
-
-| Item | Reason |
-|---|---|
-| PagerDuty SLA breach integration (P4-103) | Requires external account + alerting policy design; deferred to Phase 7+ |
-| OAuth2/OIDC external provider (P5-100) | Large auth infrastructure change; internal JWT sufficient |
-| Visual drag-and-drop flow builder (P5-101) | Form-based UI is functional; evaluate after user feedback |
+New code introduced in Phase 6 must not increase either project's error count above 0.
+Each plan's verify steps include lint commands to enforce this.
 
 ---
 
-## 6. Plan Decomposition Strategy
-
-Four plans across three waves:
-
-| Wave | Plan | Focus |
-|---|---|---|
-| 1 | 1-1-platform-hardening | Webhook rate limiting, DLQ auto-retry, event replay, bulk queue ops |
-| 2 | 2-1-observability-alerting | Grafana, Prometheus alerts, docker-compose profile, admin metrics page |
-| 2 | 2-2-storage-connectors | IStorageConnector abstraction, S3/GCS/SFTP implementations, test UI |
-| 3 | 3-1-portability-completions | Rule set export/import, pipeline version diff view |
-
-Wave 2 plans are independent of each other and can execute in parallel. Wave 3 has no hard dependency on either Wave 2 plan but logically follows them.
-
----
-
-## 7. Key Technical Decisions
-
-| Decision | Rationale |
-|---|---|
-| `@nestjs/throttler` for webhook rate limiting | Native NestJS solution; supports per-route and per-decorator configuration |
-| `DlqAutoRetryService` as a scheduled NestJS service | `@Cron` from `@nestjs/schedule`; separate service keeps queue module thin |
-| `IStorageConnector` interface abstraction | Enables polymorphic connector dispatch; makes adding future connectors trivial |
-| Grafana dashboard as static JSON | Importable into any Grafana instance; no Grafana API credentials required |
-| `GET /api/metrics/json` for frontend metrics | Avoids parsing Prometheus text format in Angular; clean JSON contract |
-| Rule set bundle version field | Enables future format migrations if rule model evolves |
-| Pipeline diff via version snapshot comparison | `PipelineVersionService` already stores full config snapshots — diff is a field-walk |
+*Last Updated: 2026-03-21*
