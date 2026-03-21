@@ -3,6 +3,9 @@ import { AgentManagerService } from '../services/agent-manager.service';
 import { QueuesService } from '../queues/queues.service';
 import { DispositionService } from '../services/disposition.service';
 import { TaskSourceService } from '../services/task-source.service';
+import { MetricsService } from '../monitoring/metrics.service';
+import { Public } from '../auth/public.decorator';
+import { MetricsSnapshot } from '@nexus-queue/shared-models';
 
 interface SystemOverview {
   agents: {
@@ -38,7 +41,8 @@ export class MetricsController {
     private readonly agentManager: AgentManagerService,
     private readonly queuesService: QueuesService,
     private readonly dispositionService: DispositionService,
-    private readonly taskSourceService: TaskSourceService
+    private readonly taskSourceService: TaskSourceService,
+    private readonly metricsService: MetricsService
   ) {}
 
   /**
@@ -177,6 +181,85 @@ export class MetricsController {
       uptime: process.uptime(),
       connectedAgents: agents.length,
       activeQueues: queueSummary.totalQueues - queueSummary.criticalQueues,
+    };
+  }
+
+  /**
+   * Get current metric values as JSON for Angular frontend consumption.
+   * Public endpoint — no JWT required.
+   */
+  @Public()
+  @Get('json')
+  getSnapshot(): MetricsSnapshot {
+    // Queue depth per queue
+    const queueStats = this.queuesService.getAllQueueStats();
+    const queueDepth: Record<string, number> = {};
+    for (const qs of queueStats) {
+      queueDepth[qs.name] = qs.tasksWaiting;
+    }
+
+    // Task counts per status
+    const taskStats = this.taskSourceService.getQueueStats();
+    const tasksTotal: Record<string, number> = {
+      pending: taskStats.totalPending,
+      assigned: taskStats.totalAssigned,
+      completed: taskStats.totalCompleted,
+    };
+
+    // Agent counts per state
+    const agents = this.agentManager.getAllAgents();
+    const agentsActive: Record<string, number> = {};
+    for (const agent of agents) {
+      agentsActive[agent.state] = (agentsActive[agent.state] ?? 0) + 1;
+    }
+
+    // SLA breaches from prometheus counter (via MetricsService gauge internals)
+    // Gauge/Counter .get() is async — use direct registry query or default to 0
+    let slaBreachesTotal = 0;
+    let dlqDepth = 0;
+    try {
+      // Access current value synchronously via internal hashmap (prom-client stores values in memory)
+      const slaMetric = this.metricsService.slaBreachesTotal as unknown as {
+        hashMap: Record<string, { value: number }>;
+      };
+      if (slaMetric.hashMap) {
+        slaBreachesTotal = Object.values(slaMetric.hashMap).reduce(
+          (sum, entry) => sum + (entry.value ?? 0),
+          0
+        );
+      }
+      const dlqMetric = this.metricsService.dlqDepth as unknown as {
+        hashMap: Record<string, { value: number }>;
+      };
+      if (dlqMetric.hashMap) {
+        dlqDepth = Object.values(dlqMetric.hashMap).reduce(
+          (sum, entry) => sum + (entry.value ?? 0),
+          0
+        );
+      }
+    } catch {
+      this.logger.warn('Could not read prom-client metric values — defaulting to 0');
+    }
+
+    // Percentile handle times from disposition completions
+    const completions = this.dispositionService.getAllCompletions();
+    let taskHandleTimeP50 = 0;
+    let taskHandleTimeP95 = 0;
+    if (completions.length > 0) {
+      const sorted = completions.map((c) => c.handleTime).sort((a, b) => a - b);
+      taskHandleTimeP50 = sorted[Math.floor(sorted.length * 0.5)] ?? 0;
+      taskHandleTimeP95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
+    }
+
+    return {
+      queueDepth,
+      tasksTotal,
+      agentsActive,
+      slaBreachesTotal,
+      dlqDepth,
+      taskHandleTimeP50,
+      taskHandleTimeP95,
+      collectedAt: new Date().toISOString(),
     };
   }
 }

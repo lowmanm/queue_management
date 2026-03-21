@@ -12,3 +12,4 @@ export * from './lib/pipeline.interface';
 export * from './lib/audit-event.interface';
 export * from './lib/auth.interface';
 export * from './lib/webhook.interface';
+export * from './lib/metrics.interface';
