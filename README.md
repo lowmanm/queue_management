@@ -104,6 +104,15 @@ docker-compose up --build
 # First run: docker-compose exec api npm run db:migrate && npm run db:seed
 ```
 
+**Full stack with monitoring (Prometheus + Grafana):**
+
+```bash
+docker-compose --profile monitoring up
+# Prometheus: http://localhost:9090
+# Grafana:    http://localhost:3001 (anonymous viewer, no login required)
+# Import dashboard: Grafana → Dashboards → Import → upload grafana/nexus-queue-dashboard.json
+```
+
 Environment variables (override in docker-compose.yml or via `.env`):
 
 | Variable | Default | Description |
