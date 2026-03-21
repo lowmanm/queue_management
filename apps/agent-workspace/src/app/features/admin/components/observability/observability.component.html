@@ -1,0 +1,76 @@
+<app-page-layout title="Observability" subtitle="Live metrics — updates every 10 seconds">
+  @if (isLoading()) {
+    <div class="loading-spinner">
+      <span>Loading metrics...</span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-banner">
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  @if (metrics()) {
+    <!-- Metric Tiles -->
+    <div class="metrics-grid">
+      <!-- Total Queue Depth -->
+      <div class="metric-tile">
+        <div class="metric-value">{{ totalQueueDepth() }}</div>
+        <div class="metric-label">Total Queue Depth</div>
+      </div>
+
+      <!-- Agents Online -->
+      <div class="metric-tile">
+        <div class="metric-value">{{ totalAgentsOnline() }}</div>
+        <div class="metric-label">Agents Online</div>
+      </div>
+
+      <!-- DLQ Depth -->
+      <div class="metric-tile" [class.tile-danger]="(metrics()?.dlqDepth ?? 0) > 0">
+        <div class="metric-value">{{ metrics()?.dlqDepth ?? 0 }}</div>
+        <div class="metric-label">DLQ Depth</div>
+      </div>
+
+      <!-- Tasks Today -->
+      <div class="metric-tile">
+        <div class="metric-value">{{ totalTasksToday() }}</div>
+        <div class="metric-label">Tasks Today</div>
+      </div>
+
+      <!-- SLA Breaches -->
+      <div class="metric-tile" [class.tile-warning]="(metrics()?.slaBreachesTotal ?? 0) > 0">
+        <div class="metric-value">{{ metrics()?.slaBreachesTotal ?? 0 }}</div>
+        <div class="metric-label">SLA Breaches</div>
+      </div>
+    </div>
+
+    <!-- Per-Queue Depth Table -->
+    @if (queueDepthEntries().length > 0) {
+      <div class="queue-table-section">
+        <h2 class="section-title">Queue Depths</h2>
+        <table class="queue-table">
+          <thead>
+            <tr>
+              <th>Queue</th>
+              <th>Depth</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of queueDepthEntries(); track entry.name) {
+              <tr>
+                <td>{{ entry.name }}</td>
+                <td>{{ entry.depth }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Last Updated -->
+    <div class="last-updated">
+      Last updated: {{ metrics()?.collectedAt | date: 'medium' }}
+    </div>
+  }
+</app-page-layout>

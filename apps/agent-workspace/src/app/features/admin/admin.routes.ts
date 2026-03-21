@@ -98,4 +98,13 @@ export const ADMIN_ROUTES: Routes = [
     canActivate: [designerGuard],
     data: { breadcrumb: 'Webhook Endpoints', title: 'Webhook Endpoints', permissions: ['design:pipelines'] },
   },
+  {
+    path: 'observability',
+    loadComponent: () =>
+      import('./components/observability/observability.component').then(
+        (m) => m.ObservabilityComponent
+      ),
+    canActivate: [designerGuard],
+    data: { breadcrumb: 'Observability', title: 'Observability' },
+  },
 ];

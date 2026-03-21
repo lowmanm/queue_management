@@ -102,6 +102,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
           { label: 'Dispositions', path: '/admin/dispositions', icon: 'disposition' },
           { label: 'Work States', path: '/admin/work-states', icon: 'states' },
           { label: 'Webhooks', path: '/admin/webhooks', icon: 'webhook' },
+          { label: 'Observability', path: '/admin/observability', icon: 'chart-bar' },
         ],
       });
     }
@@ -183,6 +184,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
         dlq: 'DLQ Monitor',
         'pipeline-status': 'Pipeline Status',
         webhooks: 'Webhook Endpoints',
+        observability: 'Observability',
       };
 
       let currentPath = '';
